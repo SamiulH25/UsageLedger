@@ -11,18 +11,22 @@ Updated: 2026-08-20
 - [2026-08-20] **PIVOT Expo → Flutter** (user: "expo makes no sense, I can't test it myself"). Flutter 3.32.4 installed to /opt (official tarball), Linux desktop target enabled — app runs as a window on this machine. `mobile/` (Expo) deleted; `flutter/` replaces it. Reason: Linux desktop target lets the user test locally with no phone/emulator.
 - [2026-08-20] Flutter app complete: providers (commandcode REST + cursor Connect-JSON), SQLite snapshots (usage_snapshot + account, migration v2 adds models_json), token files chmod 600, Home/Accounts/History/Add screens. Seeded with real accounts via `flutter test tool/seed_test.dart` (FFI sqlite + data-dir override); UI verified by screenshots (dark theme, live numbers, charts, limit bars).
 - [2026-08-20] **Cursor token + split accuracy** (user request): added `GetAggregatedUsageEvents` → per-model token breakdowns (input/output/cache) shown in "Top models"; included-usage split via plan's own percentages — `autoPercentUsed` (Auto models bar), `apiPercentUsed` (API models bar), `totalPercentUsed` (Included total bar), cap = includedSpend. Verified: auto $68.79/$70 (98%), api $44.73/$70 (64%), included $65.88/$70 (94%) — matches Cursor's UI numbers. Fixed protobuf int64-as-string casts (`_num` helper).
+- [2026-08-20] **Android packaging**: installed Android SDK (platform 36, build-tools, cmdline-tools) at /opt/android-sdk + JDK 17 (/usr/lib/jvm/java-17-openjdk). DB layer now uses native `sqflite` on Android (FFI only on Linux); added INTERNET permission; generated `upload-keystore.jks` + `key.properties` (both gitignored) wired into build.gradle.kts release signing. Built signed `app-release.apk` (21.9MB), copied to repo root as `ai-usage-monitor.apk`.
+- [2026-08-20] **GitHub publish**: repo **SamiulH25/UsageLedger** (public). Landing page in `docs/` → GitHub Pages at https://samiulh25.github.io/UsageLedger/. Release **v0.1.0** with `ai-usage-monitor.apk` attached. Name: **UsageLedger**.
 
 ## Next
 
-- Make the Linux window default taller (1822x508 tiling is awkward) — set a phone-ish default size, consider fixed window size.
+- Verify Pages site goes live (was 404 during first deploy — check in a few minutes).
+- Android: bump versionCode/versionName for future releases; app icon polish; Play Store not targeted (sideload only).
 - History tab: model/token detail per snapshot; pull-to-refresh wiring on desktop.
 - Background/auto refresh; limit-exceeded notifications.
-- Android build (`flutter build apk`) when the user wants to move to the phone.
 
 ## Notes
 
 - Running as root here; all real data under `/home/bob2142`. Always run the app as bob (`sudo -u bob2142`), DISPLAY=:0 (Hyprland + Xwayland). Screenshots: `sudo -u bob2142 DISPLAY=:0 import -window <id> /tmp/x.png`.
-- `cc` = gcc; Command Code CLI is `command-code` (v1.29.0). Cursor CLI: `~/.local/bin/cursor-agent`.
+- gh auth is under **bob's keyring** (SamiulH25) — run all `gh`/git push as bob, not root.
+- Android build env: `JAVA_HOME=/usr/lib/jvm/java-17-openjdk ANDROID_HOME=/opt/android-sdk ANDROID_SDK_ROOT=/opt/android-sdk` (system java is 1.8). `android/local.properties` points at /opt/android-sdk.
 - Cursor API: tokens in JSON come as **strings** for int64 fields (inputTokens, billingCycleEnd) — must coerce. Plan percentages are authoritative for limit bars. aggregation `totalCents` includes bonus spend, so don't derive splits from it.
-- Flutter: `databaseFactory = databaseFactoryFfi` is required on Linux desktop (not auto-registered). `path_provider` needs platform channels — tests override the data dir via `setOverrideDir`.
+- Flutter: `databaseFactory = databaseFactoryFfi` only on Linux desktop (Android uses native sqflite). `path_provider` needs platform channels — tests override the data dir via `setOverrideDir`.
 - Seed/refresh headless: `flutter test test/seed_test.dart --dart-define=CC_TOKEN=... --dart-define=CUR_TOKEN=...` (writes to the real app data dir).
+- Release APK: `flutter build apk --release` → `build/app/outputs/flutter-apk/app-release.apk`; copies to repo root. Signing keystore `android/upload-keystore.jks` (passwords in `android/key.properties`) — both gitignored, don't lose them.
