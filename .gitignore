@@ -1,0 +1,13 @@
+node_modules/
+.expo/
+dist/
+*.log
+.DS_Store
+mobile/dist/
+
+# Flutter
+flutter/build/
+flutter/.dart_tool/
+flutter/android/key.properties
+flutter/android/upload-keystore.jks
+flutter/android/local.properties

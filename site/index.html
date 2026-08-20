@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>UsageLedger — Track your AI spend across every account</title>
+  <style>
+    :root {
+      --bg: #0b0e14;
+      --bg-card: #171c27;
+      --border: #232a38;
+      --text: #e8ecf4;
+      --dim: #8b93a7;
+      --green: #22c55e;
+      --purple: #7c3aed;
+      --blue: #3b82f6;
+      --red: #ef4444;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+    .container { max-width: 860px; margin: 0 auto; padding: 0 24px; }
+    header {
+      padding: 72px 0 40px;
+      text-align: center;
+    }
+    .logo {
+      display: inline-block;
+      font-size: 44px;
+      font-weight: 800;
+      letter-spacing: -1px;
+      background: linear-gradient(90deg, var(--green), var(--purple));
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      margin-bottom: 8px;
+    }
+    .tagline { color: var(--dim); font-size: 18px; max-width: 520px; margin: 12px auto 0; }
+    .badges { margin-top: 24px; display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+    .badge {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 8px 18px;
+      font-size: 14px;
+      color: var(--text);
+      text-decoration: none;
+      transition: border-color .15s, transform .15s;
+    }
+    .badge:hover { border-color: var(--green); transform: translateY(-1px); }
+    .badge.download { background: var(--green); color: #0b0e14; font-weight: 700; }
+    .badge.download:hover { background: #27d969; }
+
+    .hero {
+      background: linear-gradient(180deg, rgba(124,58,237,.08), transparent);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 48px 32px;
+      text-align: center;
+      margin: 24px 0;
+    }
+    .hero h2 { font-size: 26px; font-weight: 700; }
+    .hero p { color: var(--dim); margin-top: 12px; font-size: 16px; }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 16px;
+      margin: 40px 0;
+    }
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 24px;
+    }
+    .card h3 { font-size: 16px; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+    .card p { color: var(--dim); font-size: 14px; }
+
+    .demo {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 28px;
+      margin: 40px 0;
+    }
+    .demo h3 { margin-bottom: 16px; font-size: 18px; }
+    .limit-row { margin-bottom: 14px; }
+    .limit-label { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 6px; color: var(--dim); }
+    .bar { height: 10px; border-radius: 6px; background: var(--border); overflow: hidden; }
+    .bar > div { height: 100%; border-radius: 6px; }
+    .bar-98 { width: 98%; background: var(--red); }
+    .bar-64 { width: 64%; background: var(--green); }
+    .bar-94 { width: 94%; background: var(--red); }
+    .bar-69 { width: 69%; background: var(--green); }
+
+    .platform-row { display: flex; gap: 12px; align-items: center; margin-bottom: 10px; font-size: 14px; }
+    .dot { width: 10px; height: 10px; border-radius: 50%; }
+    .dot-green { background: var(--green); }
+    .dot-purple { background: var(--purple); }
+    .spacer { flex: 1; }
+    .muted { color: var(--dim); }
+
+    footer { text-align: center; padding: 48px 0 64px; color: var(--dim); font-size: 13px; }
+    footer a { color: var(--dim); }
+    footer a:hover { color: var(--text); }
+    .stat-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 24px; }
+    .stat { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; text-align: center; }
+    .stat .val { font-size: 22px; font-weight: 700; }
+    .stat .lbl { font-size: 12px; color: var(--dim); margin-top: 2px; }
+    @media (max-width: 600px) { .stat-cards { grid-template-columns: 1fr 1fr 1fr; } }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="logo">UsageLedger</div>
+      <div class="tagline">Your AI spend, across every account and platform — tracked from your phone.</div>
+      <div class="badges">
+        <a class="badge download" href="https://github.com/SamiulH25/UsageLedger/releases/latest">⬇ Download APK</a>
+        <a class="badge" href="https://github.com/SamiulH25/UsageLedger">GitHub</a>
+        <a class="badge" href="https://github.com/SamiulH25/UsageLedger/releases">Releases</a>
+      </div>
+    </header>
+
+    <div class="hero">
+      <h2>One app. Every platform. All your accounts.</h2>
+      <p>Add your Command Code and Cursor accounts, and UsageLedger pulls live usage straight from each platform's API — plan limits, per-model tokens, and cost — updated on every refresh.</p>
+    </div>
+
+    <div class="stat-cards">
+      <div class="stat"><div class="val" style="color:var(--green)">$889</div><div class="lbl">Total cost tracked</div></div>
+      <div class="stat"><div class="val">3.15B</div><div class="lbl">Tokens</div></div>
+      <div class="stat"><div class="val">16,230</div><div class="lbl">Requests</div></div>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <h3>⬛ Cursor</h3>
+        <p>Plan spend, included-usage splits (Auto vs API vs total), per-model token &amp; cache breakdowns, billing cycle reset times.</p>
+      </div>
+      <div class="card">
+        <h3>▦ Command Code</h3>
+        <p>Requests, tokens in/out, cost, credits — plus 5-hour, weekly, and monthly limit windows with exact reset times.</p>
+      </div>
+      <div class="card">
+        <h3>🔒 Private by design</h3>
+        <p>Credentials in the OS secure store, data in on-device SQLite. No servers, no cloud, nothing leaves your phone.</p>
+      </div>
+    </div>
+
+    <div class="demo">
+      <h3>Plan limits, exactly as your account shows them</h3>
+      <div class="limit-row">
+        <div class="limit-label"><span>Cursor · Auto models (included)</span><span>$68.79 / $70.00</span></div>
+        <div class="bar"><div class="bar-98"></div></div>
+      </div>
+      <div class="limit-row">
+        <div class="limit-label"><span>Cursor · API models (named)</span><span>$44.73 / $70.00</span></div>
+        <div class="bar"><div class="bar-64"></div></div>
+      </div>
+      <div class="limit-row">
+        <div class="limit-label"><span>Cursor · Included total usage</span><span>$65.88 / $70.00</span></div>
+        <div class="bar"><div class="bar-94"></div></div>
+      </div>
+      <div class="limit-row">
+        <div class="limit-label"><span>Command Code · Weekly</span><span>$24.08 / $35.00</span></div>
+        <div class="bar"><div class="bar-69"></div></div>
+      </div>
+      <div class="platform-row" style="margin-top:20px">
+        <span class="dot dot-green"></span> Command Code · $32.85
+        <span class="spacer"></span>
+        <span class="dot dot-purple"></span> Cursor · $852
+        <span class="spacer"></span>
+        <span class="muted">as of one refresh</span>
+      </div>
+    </div>
+
+    <footer>
+      <a href="https://github.com/SamiulH25/UsageLedger">SamiulH25/UsageLedger</a> · MIT License · Built with Flutter
+    </footer>
+  </div>
+</body>
+</html>
