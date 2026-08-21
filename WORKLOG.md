@@ -35,12 +35,24 @@ Updated: 2026-08-21
   → unsigned ipa; both attach to the release draft next to the APK.
   Distribution docs in `INSTALL-APPLE.md` (macOS Gatekeeper bypass, AltStore/
   Sideloadly re-signing). Analyze + 69 hermetic tests green locally; Apple
-  builds verified by CI (no Mac on this box).
+  builds verified by CI (no Mac on this box). Two CI roundtrips to get the
+  macOS pod resolution right: flutter_tools generates its macOS Podfile with
+  `platform :osx, '10.14'` and resolves pods against that, while
+  workmanager_apple needs 10.15 — fixed by checking in `macos/Podfile` at
+  10.15 (note: macOS Podfile lives at `macos/`, NOT `macos/Runner/`).
+- [2026-08-21] **v1.1.0 published**: Release v1.1.0 with `usageledger-v1.1.0.apk`
+  (upload-keystore signed, replaces CI's debug asset), `UsageLedger-v1.1.0-macos.zip`
+  and unsigned `UsageLedger-v1.1.0-ios-unsigned.ipa`. Artifacts inspected
+  locally: correct bundle id `dev.bob2142.usageledger`, version 1.1.0,
+  MinimumOSVersion 15.6 / LSMinimumSystemVersion 10.15.
 
 ## Next
 
 - Sideload v1.0.0 APK and verify alerts + widget on the S23.
 - Apply the landing refresh after taking ownership of `docs/index.html`.
+- Fold `INSTALL-APPLE.md` into README once `README.md` is chowned back to bob
+  (both it and `docs/index.html` are root-owned from an earlier session; fix:
+  `sudo chown bob2142:bob2142 README.md docs/index.html`).
 
 ## Notes
 
