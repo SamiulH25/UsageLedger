@@ -10,14 +10,28 @@ void main() {
   runApp(const AiUsageMonitorApp());
 }
 
-class AiUsageMonitorApp extends StatefulWidget {
+class AiUsageMonitorApp extends StatelessWidget {
   const AiUsageMonitorApp({super.key});
 
   @override
-  State<AiUsageMonitorApp> createState() => _AiUsageMonitorAppState();
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'AI Usage Monitor',
+      debugShowCheckedModeBanner: false,
+      theme: buildTheme(),
+      home: const MainShell(),
+    );
+  }
 }
 
-class _AiUsageMonitorAppState extends State<AiUsageMonitorApp> {
+class MainShell extends StatefulWidget {
+  const MainShell({super.key});
+
+  @override
+  State<MainShell> createState() => _MainShellState();
+}
+
+class _MainShellState extends State<MainShell> {
   int _tab = 0;
 
   Future<void> _openAdd() async {
@@ -32,36 +46,31 @@ class _AiUsageMonitorAppState extends State<AiUsageMonitorApp> {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'AI Usage Monitor',
-      debugShowCheckedModeBanner: false,
-      theme: buildTheme(),
-      home: Scaffold(
-        body: IndexedStack(
-          index: _tab,
-          children: [
-            HomeScreen(onOpenAdd: _openAdd),
-            AccountsScreen(onOpenAdd: _openAdd),
-            const HistoryScreen(),
-          ],
-        ),
-        bottomNavigationBar: NavigationBar(
-          selectedIndex: _tab,
-          onDestinationSelected: (i) => setState(() => _tab = i),
-          destinations: const [
-            NavigationDestination(
-              icon: Icon(Icons.dashboard_outlined),
-              selectedIcon: Icon(Icons.dashboard),
-              label: 'Overview',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.people_outline),
-              selectedIcon: Icon(Icons.people),
-              label: 'Accounts',
-            ),
-            NavigationDestination(icon: Icon(Icons.history), label: 'History'),
-          ],
-        ),
+    return Scaffold(
+      body: IndexedStack(
+        index: _tab,
+        children: [
+          HomeScreen(onOpenAdd: _openAdd),
+          AccountsScreen(onOpenAdd: _openAdd),
+          const HistoryScreen(),
+        ],
+      ),
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: _tab,
+        onDestinationSelected: (i) => setState(() => _tab = i),
+        destinations: const [
+          NavigationDestination(
+            icon: Icon(Icons.dashboard_outlined),
+            selectedIcon: Icon(Icons.dashboard),
+            label: 'Overview',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.people_outline),
+            selectedIcon: Icon(Icons.people),
+            label: 'Accounts',
+          ),
+          NavigationDestination(icon: Icon(Icons.history), label: 'History'),
+        ],
       ),
     );
   }
