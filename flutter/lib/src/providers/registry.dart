@@ -1,8 +1,15 @@
 import 'commandcode.dart';
 import 'cursor.dart';
+import 'openai.dart';
+import 'openrouter.dart';
 import 'types.dart';
 
-final List<AiProvider> providers = [CommandCodeProvider(), CursorProvider()];
+final List<AiProvider> providers = [
+  CommandCodeProvider(),
+  CursorProvider(),
+  OpenRouterProvider(),
+  OpenAiProvider(),
+];
 
 AiProvider? providerById(String id) {
   for (final p in providers) {
@@ -19,6 +26,10 @@ String? providerIconAsset(String id) {
       return 'assets/providers/commandcode.png';
     case 'cursor':
       return 'assets/providers/cursor.png';
+    case 'openrouter':
+      return 'assets/providers/openrouter.png';
+    case 'openai':
+      return 'assets/providers/openai.png';
     default:
       return null;
   }

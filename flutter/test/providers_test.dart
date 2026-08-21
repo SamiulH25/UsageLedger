@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:ai_usage_monitor/src/providers/commandcode.dart';
 import 'package:ai_usage_monitor/src/providers/types.dart';
 import 'package:ai_usage_monitor/src/providers/cursor.dart';
+import 'package:ai_usage_monitor/src/providers/openai.dart';
+import 'package:ai_usage_monitor/src/providers/openrouter.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
@@ -228,6 +230,236 @@ void main() {
         throwsA(
           predicate((e) => e.toString().contains('Invalid Cursor API key')),
         ),
+      );
+    });
+  });
+  group('OpenRouterProvider', () {
+    late OpenRouterProvider provider;
+    setUp(() {
+      final client = MockClient((req) async {
+        switch (req.url.path) {
+          case '/api/v1/key':
+            return _json({
+              'data': {
+                'label': 'my-key',
+                'limit': 20,
+                'usage': 4.5,
+                'limit_remaining': 15.5,
+              },
+            });
+          case '/api/v1/credits':
+            return _json({
+              'data': {'total_credits': 100.5, 'total_usage': 25.75},
+            });
+          case '/api/v1/activity':
+            return _json({
+              'data': [
+                {
+                  'date': '2026-08-20',
+                  'model': 'openai/gpt-5.2',
+                  'usage': 1.25,
+                  'requests': 12,
+                  'prompt_tokens': 900,
+                  'completion_tokens': 300,
+                  'reasoning_tokens': 100,
+                },
+                {
+                  'date': '2026-08-21',
+                  'model': 'openai/gpt-5.2',
+                  'usage': 0.75,
+                  'requests': 8,
+                  'prompt_tokens': 400,
+                  'completion_tokens': 200,
+                  'reasoning_tokens': 0,
+                },
+                {
+                  'date': '2026-08-21',
+                  'model': 'anthropic/claude-opus-4.6',
+                  'usage': 3.0,
+                  'requests': 2,
+                  'prompt_tokens': 500,
+                  'completion_tokens': 150,
+                  'reasoning_tokens': 50,
+                },
+              ],
+            });
+          default:
+            return http.Response('not found', 404);
+        }
+      });
+      provider = OpenRouterProvider(client: client);
+    });
+
+    test('verify derives a stable account key from the token', () async {
+      final id = await provider.verify('sk-or-v1-abc');
+      expect(id.accountKey, startsWith('openrouter:'));
+      expect(id.label, 'my-key');
+    });
+
+    test('credits and key quota become budget windows', () async {
+      final usage = await provider.fetchUsage('sk-or-v1-abc');
+      final credits = usage.windows.firstWhere((w) => w.id == 'openrouter:credits');
+      expect(credits.used, 25.75);
+      expect(credits.cap, 100.5);
+      final quota = usage.windows.firstWhere((w) => w.id == 'openrouter:key');
+      expect(quota.used, 4.5);
+      expect(quota.cap, 20);
+    });
+
+    test('activity rows aggregate per model with reasoning tokens', () async {
+      final usage = await provider.fetchUsage('sk-or-v1-abc');
+      expect(usage.models, hasLength(2));
+      final gpt = usage.models.firstWhere((m) => m.model.contains('gpt'));
+      expect(gpt.costUsd, closeTo(2.0, 0.001));
+      expect(gpt.inputTokens, 1300);
+      // completion + reasoning collapse into output.
+      expect(gpt.outputTokens, 600);
+      expect(usage.totals.requests, 22);
+      expect(usage.totals.costUsd, 25.75);
+    });
+
+    test('regular keys degrade to key-quota only on 403 credits', () async {
+      final limited = OpenRouterProvider(
+        client: MockClient((req) async {
+          if (req.url.path == '/api/v1/credits') {
+            return _json({
+              'error': {'code': 403, 'message': 'Only management keys'},
+            }, status: 403);
+          }
+          if (req.url.path == '/api/v1/key') {
+            return _json({'data': {'label': 'k', 'limit': null, 'usage': 2.0}});
+          }
+          if (req.url.path == '/api/v1/activity') {
+            return _json({'data': []});
+          }
+          return http.Response('not found', 404);
+        }),
+      );
+      final usage = await limited.fetchUsage('sk-or-v1-abc');
+      expect(usage.windows.where((w) => w.id == 'openrouter:credits'), isEmpty);
+      expect(usage.totals.costUsd, 2.0);
+    });
+  });
+
+  group('OpenAiProvider', () {
+    late OpenAiProvider provider;
+    setUp(() {
+      final client = MockClient((req) async {
+        final path = req.url.path;
+        if (path == '/v1/organization/costs') {
+          if (req.url.queryParameters['page'] == null) {
+            return _json({
+              'object': 'page',
+              'data': [
+                {
+                  'object': 'bucket',
+                  'start_time': 1755561600,
+                  'results': [
+                    {
+                      'object': 'organization.costs.result',
+                      'amount': {'value': 1.5, 'currency': 'usd'},
+                      'line_item': 'GPT-5.2',
+                    },
+                    {
+                      'object': 'organization.costs.result',
+                      'amount': {'value': 0.25, 'currency': 'usd'},
+                      'line_item': 'Embeddings',
+                    },
+                  ],
+                },
+              ],
+              'has_more': true,
+              'next_page': 'p2',
+            });
+          }
+          return _json({
+            'object': 'page',
+            'data': [
+              {
+                'object': 'bucket',
+                'start_time': 1755648000,
+                'results': [
+                  {
+                    'object': 'organization.costs.result',
+                    'amount': {'value': 0.5, 'currency': 'usd'},
+                    'line_item': 'GPT-5.2',
+                  },
+                ],
+              },
+            ],
+            'has_more': false,
+            'next_page': null,
+          });
+        }
+        if (path == '/v1/organization/usage/completions') {
+          return _json({
+            'object': 'page',
+            'data': [
+              {
+                'object': 'bucket',
+                'start_time': 1755561600,
+                'results': [
+                  {
+                    'object': 'organization.usage.completions.result',
+                    'input_tokens': 1200,
+                    'output_tokens': 340,
+                    'num_model_requests': 9,
+                    'model': 'gpt-5.2',
+                  },
+                  {
+                    'object': 'organization.usage.completions.result',
+                    'input_tokens': 200,
+                    'output_tokens': 60,
+                    'num_model_requests': 3,
+                    'model': 'text-embedding-4',
+                  },
+                ],
+              },
+            ],
+            'has_more': false,
+            'next_page': null,
+          });
+        }
+        return http.Response('not found', 404);
+      });
+      provider = OpenAiProvider(client: client);
+    });
+
+    test('verify probes the costs endpoint', () async {
+      final id = await provider.verify('sk-admin-x');
+      expect(id.accountKey, 'openai:org');
+    });
+
+    test('month cost paginates and becomes an uncapped window', () async {
+      final usage = await provider.fetchUsage('sk-admin-x');
+      final month = usage.windows.firstWhere((w) => w.id == 'openai:month');
+      expect(month.used, closeTo(2.25, 0.001));
+      expect(month.cap, 0);
+      expect(month.kind, LimitKind.extra);
+      expect(usage.totals.costUsd, closeTo(2.25, 0.001));
+    });
+
+    test('per-model tokens aggregate across buckets', () async {
+      final usage = await provider.fetchUsage('sk-admin-x');
+      final gpt = usage.models.firstWhere((m) => m.model == 'gpt-5.2');
+      expect(gpt.inputTokens, 1200);
+      expect(gpt.outputTokens, 340);
+      expect(usage.totals.requests, 12);
+    });
+
+    test('project keys get an admin-key error', () async {
+      final rejecting = OpenAiProvider(
+        client: MockClient(
+          (req) async => _json({
+            'error': {
+              'message': 'Missing scopes: api.usage.read.',
+            },
+          }, status: 403),
+        ),
+      );
+      await expectLater(
+        rejecting.verify('sk-proj-x'),
+        throwsA(predicate((e) => e.toString().contains('Admin key'))),
       );
     });
   });

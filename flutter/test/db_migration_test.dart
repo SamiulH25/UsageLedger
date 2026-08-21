@@ -3,7 +3,6 @@ import 'dart:io';
 import 'package:ai_usage_monitor/src/db/db.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
-import 'package:sqflite/sqflite.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 /// Opens a v3-schema database (pre sync_error) so the app's onUpgrade path

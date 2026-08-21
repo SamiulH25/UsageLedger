@@ -12,13 +12,18 @@ class CommandCodeProvider implements AiProvider {
   final http.Client _client;
 
   @override
-  String get id => 'commandcode';
-  @override
-  String get name => 'Command Code';
-  @override
   String get howToGetToken =>
       'Paste your Command Code API key (starts with "user_"). '
       'Find it in ~/.commandcode/auth.json (field "apiKey") or run /login in Command Code.';
+  @override
+  String get keyHint => 'user_…';
+  @override
+  String get keyPattern => r'^user_';
+
+  @override
+  String get id => 'commandcode';
+  @override
+  String get name => 'Command Code';
 
   Future<Map<String, dynamic>> _api(String path, String token) async {
     final res = await _client.get(

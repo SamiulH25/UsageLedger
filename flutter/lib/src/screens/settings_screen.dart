@@ -6,7 +6,7 @@ import '../ui/theme.dart';
 import '../ui/widgets.dart';
 
 /// Shown in Settings; bump per release.
-const appVersion = '0.4.0';
+const appVersion = '0.5.0';
 
 /// Sync interval, notification, and about settings.
 class SettingsScreen extends StatefulWidget {

@@ -25,6 +25,12 @@ class _AddAccountScreenState extends State<AddAccountScreen> {
     super.dispose();
   }
 
+  @override
+  void initState() {
+    super.initState();
+    _tokenController.addListener(() => setState(() {}));
+  }
+
   Future<void> _add() async {
     final token = _tokenController.text.trim();
     if (token.isEmpty) {
@@ -123,9 +129,7 @@ class _AddAccountScreenState extends State<AddAccountScreen> {
                       size: 13,
                       color: AppColors.textDim,
                     ),
-                    hintText: _providerId == 'commandcode'
-                        ? 'user_…'
-                        : 'crsr_…',
+                    hintText: provider?.keyHint ?? '…',
                     helperText: provider?.howToGetToken ?? '',
                     helperMaxLines: 4,
                   ),
@@ -133,6 +137,14 @@ class _AddAccountScreenState extends State<AddAccountScreen> {
                 if (_error != null) ...[
                   const SizedBox(height: 14),
                   InlineMessage.error(_error!),
+                ] else if (provider != null &&
+                    _tokenController.text.trim().isNotEmpty &&
+                    !provider.keyLooksValid(_tokenController.text)) ...[
+                  const SizedBox(height: 14),
+                  InlineMessage.info(
+                    "That doesn't look like a typical ${provider.name} key "
+                    '(expected ${provider.keyHint}) — it may still work.',
+                  ),
                 ],
                 const SizedBox(height: 20),
                 FilledButton(

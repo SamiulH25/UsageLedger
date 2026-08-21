@@ -27,11 +27,16 @@ class CursorProvider implements AiProvider {
   String get id => 'cursor';
   @override
   String get name => 'Cursor';
+
   @override
   String get howToGetToken =>
       'Create a User API key at cursor.com/dashboard → Integrations → User API Keys '
       '(starts with "crsr_"). UsageLedger stores the key on-device and exchanges it for '
       'short-lived access tokens when syncing.';
+  @override
+  String get keyHint => 'crsr_…';
+  @override
+  String get keyPattern => r'^crsr_';
 
   static bool isApiKey(String token) => token.trim().startsWith('crsr_');
 

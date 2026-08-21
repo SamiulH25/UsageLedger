@@ -152,6 +152,20 @@ abstract class AiProvider {
   String get id;
   String get name;
   String get howToGetToken;
+
+  /// Placeholder shown in the add-account key field, e.g. "user_…".
+  String get keyHint => '…';
+
+  /// Advisory regex for the typical key shape; empty disables the check.
+  /// Never a hard gate — some providers issue keys with undocumented prefixes.
+  String get keyPattern => '';
+
   Future<ProviderIdentity> verify(String token);
   Future<ProviderUsage> fetchUsage(String token);
+}
+
+extension AiProviderKeyCheck on AiProvider {
+  /// Advisory-only shape check; never blocks submission.
+  bool keyLooksValid(String token) =>
+      keyPattern.isEmpty || RegExp(keyPattern).hasMatch(token.trim());
 }
