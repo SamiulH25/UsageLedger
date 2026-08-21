@@ -23,7 +23,7 @@ jobs:
       - run: flutter analyze
       # seed_test.dart drives live provider APIs with local tokens — CI runs
       # the hermetic suites only.
-      - run: flutter test test/burn_rate_test.dart test/providers_test.dart test/db_migration_test.dart
+      - run: flutter test test/burn_rate_test.dart test/providers_test.dart test/db_migration_test.dart test/key_backup_test.dart test/limit_notifier_test.dart test/new_providers_test.dart test/onboarding_test.dart test/runway_test.dart test/sync_ui_test.dart test/update_checker_test.dart test/add_account_test.dart
 
   build:
     # Signed with the debug keystore when key.properties is absent (CI);
