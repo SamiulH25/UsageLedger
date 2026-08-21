@@ -1,5 +1,5 @@
 // Seed the app database with real accounts by driving the app's own services.
-// Usage: dart run tool/seed.dart <commandcode-token> <cursor-token>
+// Usage: dart run tool/seed.dart <commandcode-token> <cursor-api-key-or-token>
 import 'dart:io';
 
 import 'package:ai_usage_monitor/src/services/usage_service.dart';

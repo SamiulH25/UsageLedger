@@ -11,7 +11,47 @@ class AppColors {
   static const accentSoft = Color(0xFFE1EDF3);
   static const accentBlue = Color(0xFF3A5F7D);
   static const danger = Color(0xFFBD654C);
+  static const dangerSoft = Color(0xFFF6E6DF);
   static const warning = Color(0xFFC47A4D);
+}
+
+class AppSpacing {
+  static const pageHorizontal = 16.0;
+  static const pageBottom = 32.0;
+  static const sectionGap = 20.0;
+}
+
+class AppText {
+  static const brand = TextStyle(
+    fontSize: 18,
+    fontWeight: FontWeight.w800,
+    letterSpacing: -0.8,
+    color: AppColors.text,
+  );
+  static const pageTitle = TextStyle(
+    fontSize: 28,
+    height: 1.02,
+    letterSpacing: -1.2,
+    fontWeight: FontWeight.w600,
+    color: AppColors.text,
+  );
+  static const pageSubtitle = TextStyle(
+    fontSize: 13,
+    height: 1.45,
+    color: AppColors.textDim,
+  );
+  static const sectionLabel = TextStyle(
+    color: AppColors.textDim,
+    fontSize: 11,
+    fontWeight: FontWeight.w700,
+    letterSpacing: 0.8,
+  );
+  static const eyebrow = TextStyle(
+    color: AppColors.accent,
+    fontSize: 11,
+    fontWeight: FontWeight.w700,
+    letterSpacing: 0.6,
+  );
 }
 
 /// Parse a `#RRGGBB` hex string into a [Color].
@@ -72,18 +112,48 @@ ThemeData buildTheme() {
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
       fillColor: AppColors.bgCard,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(8),
         borderSide: const BorderSide(color: AppColors.border),
       ),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(8),
         borderSide: const BorderSide(color: AppColors.border),
       ),
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(6),
-        borderSide: const BorderSide(color: AppColors.accent),
+        borderRadius: BorderRadius.circular(8),
+        borderSide: const BorderSide(color: AppColors.accent, width: 1.5),
       ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: const BorderSide(color: AppColors.danger),
+      ),
+      labelStyle: const TextStyle(color: AppColors.textDim, fontSize: 13),
+      hintStyle: const TextStyle(color: AppColors.textDim, fontSize: 13),
+    ),
+    filledButtonTheme: FilledButtonThemeData(
+      style: FilledButton.styleFrom(
+        backgroundColor: AppColors.accent,
+        foregroundColor: Colors.white,
+        minimumSize: const Size(64, 48),
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+      ),
+    ),
+    outlinedButtonTheme: OutlinedButtonThemeData(
+      style: OutlinedButton.styleFrom(
+        minimumSize: const Size(64, 48),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+    ),
+    snackBarTheme: SnackBarThemeData(
+      behavior: SnackBarBehavior.floating,
+      backgroundColor: AppColors.text,
+      contentTextStyle: const TextStyle(color: Colors.white, fontSize: 13),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
     ),
   );
 }

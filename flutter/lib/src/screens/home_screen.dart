@@ -34,6 +34,7 @@ class _HomeScreenState extends State<HomeScreen> {
     outputTokens: 0,
   );
   String? _error;
+  bool _refreshing = false;
 
   String _todayLabel() {
     final now = DateTime.now();
@@ -89,11 +90,13 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _refresh() async {
+    setState(() => _refreshing = true);
     final result = await refreshAll();
     if (result.failed.isNotEmpty && mounted) {
       setState(() => _error = 'Sync issue: ${result.failed.first.error}');
     }
     await _load();
+    if (mounted) setState(() => _refreshing = false);
   }
 
   @override
@@ -118,61 +121,44 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _empty() {
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(20, 26, 20, 40),
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.pageHorizontal + 4,
+        20,
+        AppSpacing.pageHorizontal + 4,
+        AppSpacing.pageBottom,
+      ),
       children: [
-        _topBar(),
-        const SizedBox(height: 34),
-        const Text(
-          'Keep every account\nin view.',
-          style: TextStyle(
-            fontSize: 34,
-            height: .98,
-            letterSpacing: -1.7,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-        const SizedBox(height: 10),
-        const Text(
-          'Connect a provider once, then see spend, limits, and resets in one calm place.',
-          style: TextStyle(
-            color: AppColors.textDim,
-            fontSize: 13,
-            height: 1.45,
-          ),
-        ),
-        const SizedBox(height: 28),
-        Card(
-          color: AppColors.accent,
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Start with your first account',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 17,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 7),
-                const Text(
-                  'Command Code and Cursor are supported.',
-                  style: TextStyle(color: Colors.white70, fontSize: 12),
-                ),
-                const SizedBox(height: 18),
-                FilledButton.icon(
-                  onPressed: widget.onOpenAdd,
-                  icon: const Icon(Icons.add, size: 18),
-                  label: const Text('Add an account'),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    foregroundColor: AppColors.accent,
-                  ),
-                ),
-              ],
+        AppBrandBar(
+          actions: [
+            IconButton(
+              onPressed: _refreshing ? null : _refresh,
+              tooltip: 'Refresh',
+              icon: _refreshing
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.sync),
             ),
+          ],
+        ),
+        const SizedBox(height: 24),
+        const PageHeading(
+          title: 'Keep every account\nin view.',
+          subtitle:
+              'Connect a provider once, then see spend, limits, and resets in one calm place.',
+        ),
+        const SizedBox(height: 24),
+        EmptyState(
+          icon: Icons.link_outlined,
+          title: 'No accounts yet',
+          hint:
+              'Add Command Code or Cursor to start tracking usage on this device.',
+          action: FilledButton.icon(
+            onPressed: widget.onOpenAdd,
+            icon: const Icon(Icons.add, size: 18),
+            label: const Text('Add an account'),
           ),
         ),
       ],
@@ -192,35 +178,36 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(16, 18, 16, 34),
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.pageHorizontal,
+        16,
+        AppSpacing.pageHorizontal,
+        AppSpacing.pageBottom,
+      ),
       children: [
-        _topBar(),
-        const SizedBox(height: 23),
-        Text(
-          _todayLabel(),
-          style: TextStyle(
-            color: AppColors.accent,
-            fontSize: 10,
-            fontWeight: FontWeight.w800,
-            letterSpacing: 1,
-          ),
+        AppBrandBar(
+          actions: [
+            IconButton(
+              onPressed: _refreshing ? null : _refresh,
+              tooltip: 'Refresh all accounts',
+              icon: _refreshing
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.sync),
+            ),
+          ],
         ),
-        const SizedBox(height: 7),
-        const Text(
-          'Keep every account\nin view.',
-          style: TextStyle(
-            fontSize: 31,
-            height: .98,
-            letterSpacing: -1.5,
-            fontWeight: FontWeight.w500,
-          ),
+        const SizedBox(height: 18),
+        Text(_todayLabel(), style: AppText.eyebrow),
+        const SizedBox(height: 6),
+        const PageHeading(
+          title: 'Overview',
+          subtitle: 'Pull down anywhere to refresh usage from your accounts.',
         ),
-        const SizedBox(height: 7),
-        const Text(
-          'A simple place to see spend, limits, and resets.',
-          style: TextStyle(color: AppColors.textDim, fontSize: 12),
-        ),
-        const SizedBox(height: 22),
+        const SizedBox(height: 18),
         AttentionBanner(items: hot),
         _summaryCard(tokenCount),
         SectionHeader(
@@ -230,14 +217,10 @@ class _HomeScreenState extends State<HomeScreen> {
         for (final account in _accounts) _accountCard(account),
         const SizedBox(height: 4),
         AddAccountCard(onPressed: widget.onOpenAdd),
-        if (_error != null)
-          Padding(
-            padding: const EdgeInsets.only(top: 12),
-            child: Text(
-              _error!,
-              style: const TextStyle(color: AppColors.danger, fontSize: 11),
-            ),
-          ),
+        if (_error != null) ...[
+          const SizedBox(height: 14),
+          InlineMessage.error(_error!),
+        ],
         if (_series.length >= 2) ...[
           const SectionHeader(title: 'Spend over time'),
           Card(
@@ -251,44 +234,12 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _topBar() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        const Text(
-          'UsageLedger',
-          style: TextStyle(
-            fontSize: 19,
-            fontWeight: FontWeight.w800,
-            letterSpacing: -1,
-          ),
-        ),
-        Container(
-          width: 31,
-          height: 31,
-          decoration: const BoxDecoration(
-            color: AppColors.text,
-            shape: BoxShape.circle,
-          ),
-          alignment: Alignment.center,
-          child: const Text(
-            'SM',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 10,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
   Widget _summaryCard(int tokenCount) {
     return Card(
       color: AppColors.accent,
+      margin: const EdgeInsets.only(bottom: 6),
       child: Padding(
-        padding: const EdgeInsets.all(17),
+        padding: const EdgeInsets.all(18),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -299,36 +250,37 @@ class _HomeScreenState extends State<HomeScreen> {
                   'ALL ACCOUNTS',
                   style: TextStyle(
                     color: Colors.white70,
-                    fontSize: 10,
+                    fontSize: 11,
                     fontWeight: FontWeight.w700,
-                    letterSpacing: 1,
+                    letterSpacing: 0.8,
                   ),
                 ),
                 Text(
                   'Latest snapshot',
                   style: TextStyle(
                     color: Colors.white.withValues(alpha: .75),
-                    fontSize: 10,
+                    fontSize: 11,
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 13),
+            const SizedBox(height: 12),
             Text(
               fmtCost(_agg.costUsd),
               style: const TextStyle(
                 color: Colors.white,
-                fontSize: 40,
-                fontWeight: FontWeight.w500,
-                letterSpacing: -2,
+                fontSize: 38,
+                fontWeight: FontWeight.w600,
+                letterSpacing: -1.5,
+                fontFeatures: [FontFeature.tabularFigures()],
               ),
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 6),
             Text(
               '${fmtTokens(tokenCount)} tokens · ${_agg.requests} requests',
               style: TextStyle(
-                color: Colors.white.withValues(alpha: .8),
-                fontSize: 11,
+                color: Colors.white.withValues(alpha: .82),
+                fontSize: 12,
               ),
             ),
           ],

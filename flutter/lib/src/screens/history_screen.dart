@@ -104,52 +104,38 @@ class _HistoryScreenState extends State<HistoryScreen> {
           onRefresh: _load,
           child: ListView(
             physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.fromLTRB(16, 22, 16, 34),
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.pageHorizontal,
+              16,
+              AppSpacing.pageHorizontal,
+              AppSpacing.pageBottom,
+            ),
             children: [
-              const Text(
-                'UsageLedger',
-                style: TextStyle(
-                  fontSize: 19,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -1,
+              const AppBrandBar(),
+              const SizedBox(height: 20),
+              PageHeading(
+                title: 'History',
+                subtitle: 'Snapshots captured when your accounts refresh.',
+                trailing: FilterChip(
+                  selected: _showLimits,
+                  label: Text(_showLimits ? 'Limits on' : 'Show limits'),
+                  onSelected: (value) => setState(() => _showLimits = value),
+                  selectedColor: AppColors.accentSoft,
+                  checkmarkColor: AppColors.accent,
+                  labelStyle: const TextStyle(
+                    fontSize: 12,
+                    color: AppColors.accent,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  side: const BorderSide(color: AppColors.border),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  visualDensity: VisualDensity.compact,
                 ),
               ),
-              const SizedBox(height: 28),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  const Text(
-                    'History',
-                    style: TextStyle(
-                      fontSize: 31,
-                      fontWeight: FontWeight.w500,
-                      letterSpacing: -1.5,
-                    ),
-                  ),
-                  FilterChip(
-                    selected: _showLimits,
-                    label: Text(_showLimits ? 'Limits on' : 'Show limits'),
-                    onSelected: (value) => setState(() => _showLimits = value),
-                    selectedColor: AppColors.accentSoft,
-                    checkmarkColor: AppColors.accent,
-                    labelStyle: const TextStyle(
-                      fontSize: 10,
-                      color: AppColors.accent,
-                    ),
-                    side: const BorderSide(color: AppColors.border),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 6),
-              const Text(
-                'Snapshots captured when your accounts refresh.',
-                style: TextStyle(color: AppColors.textDim, fontSize: 12),
-              ),
-              const SizedBox(height: 15),
+              const SizedBox(height: 12),
               if (_entries.isEmpty)
                 const EmptyState(
-                  icon: '◷',
+                  icon: Icons.history,
                   title: 'No snapshots yet',
                   hint:
                       'Refresh an account to start building your usage history.',
@@ -180,7 +166,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
           children: [
             Row(
               children: [
-                ProviderAvatar(platform: entry.platform, size: 28),
+                ProviderAvatar(platform: entry.platform, size: 30),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
@@ -188,7 +174,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
-                      fontSize: 12,
+                      fontSize: 13,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
@@ -196,24 +182,25 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 Text(
                   fmtCost(entry.cost),
                   style: const TextStyle(
-                    fontSize: 12,
+                    fontSize: 13,
                     fontWeight: FontWeight.w700,
+                    fontFeatures: [FontFeature.tabularFigures()],
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 9),
+            const SizedBox(height: 8),
             Text(
               '${providerName(entry.platform)} · ${fmtTokens(entry.tokens)} tokens · ${entry.requests} requests',
-              style: const TextStyle(fontSize: 10, color: AppColors.textDim),
+              style: const TextStyle(fontSize: 11, color: AppColors.textDim),
             ),
             if (_showLimits && entry.limits.isNotEmpty)
               Padding(
-                padding: const EdgeInsets.only(top: 7),
+                padding: const EdgeInsets.only(top: 8),
                 child: Text(
                   entry.limits,
                   style: const TextStyle(
-                    fontSize: 10,
+                    fontSize: 11,
                     color: AppColors.textDim,
                     height: 1.4,
                   ),

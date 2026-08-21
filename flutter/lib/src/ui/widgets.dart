@@ -101,20 +101,153 @@ class ProviderAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        color: hexColor(providerColor(platform)),
-        borderRadius: BorderRadius.circular(6),
+    final asset = providerIconAsset(platform);
+    return Semantics(
+      label: '${providerName(platform)} logo',
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: AppColors.bgCard,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(7),
+          child: SizedBox(
+            width: size,
+            height: size,
+            child: asset != null
+                ? Image.asset(asset, fit: BoxFit.cover)
+                : Center(
+                    child: Text(
+                      platform.isNotEmpty ? platform[0].toUpperCase() : '?',
+                      style: TextStyle(
+                        fontSize: size * .38,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.textDim,
+                      ),
+                    ),
+                  ),
+          ),
+        ),
       ),
-      alignment: Alignment.center,
-      child: Text(
-        providerIcon(platform),
-        style: TextStyle(
-          fontSize: size * .3,
-          fontWeight: FontWeight.w800,
-          color: AppColors.text,
+    );
+  }
+}
+
+class AppBrandBar extends StatelessWidget {
+  final List<Widget>? actions;
+
+  const AppBrandBar({super.key, this.actions});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        const Expanded(child: Text('UsageLedger', style: AppText.brand)),
+        if (actions != null) ...actions!,
+      ],
+    );
+  }
+}
+
+class PageHeading extends StatelessWidget {
+  final String title;
+  final String? subtitle;
+  final Widget? trailing;
+
+  const PageHeading({
+    super.key,
+    required this.title,
+    this.subtitle,
+    this.trailing,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title, style: AppText.pageTitle),
+              if (subtitle != null) ...[
+                const SizedBox(height: 6),
+                Text(subtitle!, style: AppText.pageSubtitle),
+              ],
+            ],
+          ),
+        ),
+        if (trailing != null) trailing!,
+      ],
+    );
+  }
+}
+
+class InlineMessage extends StatelessWidget {
+  final String message;
+  final IconData icon;
+  final Color background;
+  final Color border;
+  final Color foreground;
+
+  const InlineMessage({
+    super.key,
+    required this.message,
+    required this.icon,
+    required this.background,
+    required this.border,
+    required this.foreground,
+  });
+
+  factory InlineMessage.error(String message) => InlineMessage(
+    message: message,
+    icon: Icons.error_outline,
+    background: AppColors.dangerSoft,
+    border: const Color(0xFFE4C4B6),
+    foreground: AppColors.danger,
+  );
+
+  factory InlineMessage.info(String message) => InlineMessage(
+    message: message,
+    icon: Icons.info_outline,
+    background: AppColors.accentSoft,
+    border: AppColors.border,
+    foreground: AppColors.accent,
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      container: true,
+      liveRegion: true,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: background,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: border),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(12, 11, 12, 11),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(icon, size: 18, color: foreground),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  message,
+                  style: TextStyle(
+                    color: foreground,
+                    fontSize: 12,
+                    height: 1.4,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -156,89 +289,105 @@ class AddAccountCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return OutlinedButton(
-      onPressed: onPressed,
-      style: OutlinedButton.styleFrom(
-        alignment: Alignment.centerLeft,
-        backgroundColor: AppColors.accentSoft,
-        foregroundColor: AppColors.accent,
-        side: const BorderSide(color: AppColors.accent),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(7)),
-        padding: const EdgeInsets.all(15),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 28,
-            height: 28,
-            decoration: const BoxDecoration(
-              color: AppColors.accent,
-              shape: BoxShape.circle,
+    return Semantics(
+      button: true,
+      label: 'Add another account',
+      child: OutlinedButton(
+        onPressed: onPressed,
+        style: OutlinedButton.styleFrom(
+          alignment: Alignment.centerLeft,
+          backgroundColor: AppColors.accentSoft,
+          foregroundColor: AppColors.accent,
+          side: const BorderSide(color: AppColors.accent),
+          minimumSize: const Size.fromHeight(56),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 12),
+        ),
+        child: Row(
+          children: [
+            DecoratedBox(
+              decoration: const BoxDecoration(
+                color: AppColors.accent,
+                shape: BoxShape.circle,
+              ),
+              child: const Padding(
+                padding: EdgeInsets.all(6),
+                child: Icon(Icons.add, size: 18, color: Colors.white),
+              ),
             ),
-            alignment: Alignment.center,
-            child: const Icon(Icons.add, size: 19, color: Colors.white),
-          ),
-          const SizedBox(width: 11),
-          const Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Add another account',
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
-                ),
-                SizedBox(height: 3),
-                Text(
-                  'Command Code or Cursor · stored securely',
-                  style: TextStyle(fontSize: 10, color: AppColors.textDim),
-                ),
-              ],
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Add another account',
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+                  ),
+                  SizedBox(height: 3),
+                  Text(
+                    'Command Code or Cursor · stored on this device',
+                    style: TextStyle(fontSize: 11, color: AppColors.textDim),
+                  ),
+                ],
+              ),
             ),
-          ),
-          const Icon(Icons.chevron_right, size: 19),
-        ],
+            const Icon(Icons.chevron_right, size: 20),
+          ],
+        ),
       ),
     );
   }
 }
 
 class EmptyState extends StatelessWidget {
-  final String icon;
+  final IconData icon;
   final String title;
   final String hint;
+  final Widget? action;
+
   const EmptyState({
     super.key,
     required this.icon,
     required this.title,
     required this.hint,
+    this.action,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(icon, style: const TextStyle(fontSize: 40)),
-            const SizedBox(height: 12),
-            Text(
-              title,
-              style: const TextStyle(
-                fontSize: 17,
-                fontWeight: FontWeight.w700,
-                color: AppColors.text,
-              ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 12),
+      child: Column(
+        children: [
+          DecoratedBox(
+            decoration: BoxDecoration(
+              color: AppColors.bgElevated,
+              shape: BoxShape.circle,
             ),
-            const SizedBox(height: 4),
-            Text(
-              hint,
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 13, color: AppColors.textDim),
+            child: Padding(
+              padding: const EdgeInsets.all(18),
+              child: Icon(icon, size: 28, color: AppColors.textDim),
             ),
-          ],
-        ),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            title,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 17,
+              fontWeight: FontWeight.w700,
+              color: AppColors.text,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            hint,
+            textAlign: TextAlign.center,
+            style: AppText.pageSubtitle,
+          ),
+          if (action != null) ...[const SizedBox(height: 18), action!],
+        ],
       ),
     );
   }
@@ -254,35 +403,55 @@ class AttentionBanner extends StatelessWidget {
     final first = items.first;
     final more = items.length - 1;
     final reset = fmtResetAt(first.$2.resetAt);
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.only(bottom: 14),
-      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF6E6DF),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0xFFE4C4B6)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            first.$2.exceeded ? 'Limit reached' : 'Near a limit',
-            style: const TextStyle(
-              color: AppColors.danger,
-              fontSize: 11,
-              fontWeight: FontWeight.w800,
-              letterSpacing: .4,
+    return Semantics(
+      container: true,
+      label: first.$2.exceeded ? 'Usage limit reached' : 'Usage nearing limit',
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 14),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: AppColors.dangerSoft,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: const Color(0xFFE4C4B6)),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(
+                  first.$2.exceeded ? Icons.warning_amber_rounded : Icons.speed,
+                  size: 18,
+                  color: AppColors.danger,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        first.$2.exceeded ? 'Limit reached' : 'Near a limit',
+                        style: const TextStyle(
+                          color: AppColors.danger,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: .4,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '${first.$1} · ${first.$2.label} is at ${fmtPct(first.$2.fraction)}'
+                        '${reset.isEmpty ? '' : ' · $reset'}'
+                        '${more > 0 ? ' · +$more more' : ''}',
+                        style: const TextStyle(fontSize: 12, height: 1.35),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 4),
-          Text(
-            '${first.$1} · ${first.$2.label} is at ${fmtPct(first.$2.fraction)}'
-            '${reset.isEmpty ? '' : ' · $reset'}'
-            '${more > 0 ? ' · +$more more' : ''}',
-            style: const TextStyle(fontSize: 12, height: 1.35),
-          ),
-        ],
+        ),
       ),
     );
   }

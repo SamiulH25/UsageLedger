@@ -13,25 +13,14 @@ AiProvider? providerById(String id) {
 
 String providerName(String id) => providerById(id)?.name ?? id;
 
-String providerColor(String id) {
+String? providerIconAsset(String id) {
   switch (id) {
     case 'commandcode':
-      return '#F2C39E';
+      return 'assets/providers/commandcode.png';
     case 'cursor':
-      return '#C3D5E0';
+      return 'assets/providers/cursor.png';
     default:
-      return '#D8D8D1';
-  }
-}
-
-String providerIcon(String id) {
-  switch (id) {
-    case 'commandcode':
-      return '▦';
-    case 'cursor':
-      return '⬛';
-    default:
-      return '◈';
+      return null;
   }
 }
 

@@ -28,7 +28,7 @@ class _AddAccountScreenState extends State<AddAccountScreen> {
   Future<void> _add() async {
     final token = _tokenController.text.trim();
     if (token.isEmpty) {
-      setState(() => _error = 'Paste a token first.');
+      setState(() => _error = 'Paste an API key first.');
       return;
     }
     setState(() {
@@ -60,18 +60,18 @@ class _AddAccountScreenState extends State<AddAccountScreen> {
       padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
       child: Material(
         color: AppColors.bg,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(22)),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
         clipBehavior: Clip.antiAlias,
         child: SafeArea(
           top: false,
           child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(20, 10, 20, 26),
+            padding: const EdgeInsets.fromLTRB(20, 10, 20, 24),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Center(
                   child: Container(
-                    width: 36,
+                    width: 40,
                     height: 4,
                     decoration: BoxDecoration(
                       color: AppColors.border,
@@ -79,7 +79,7 @@ class _AddAccountScreenState extends State<AddAccountScreen> {
                     ),
                   ),
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 18),
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -87,21 +87,11 @@ class _AddAccountScreenState extends State<AddAccountScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
+                          Text('New account', style: AppText.pageTitle),
+                          SizedBox(height: 6),
                           Text(
-                            'New account',
-                            style: TextStyle(
-                              fontSize: 24,
-                              fontWeight: FontWeight.w500,
-                              letterSpacing: -1,
-                            ),
-                          ),
-                          SizedBox(height: 5),
-                          Text(
-                            'Choose a provider, then verify its token.',
-                            style: TextStyle(
-                              color: AppColors.textDim,
-                              fontSize: 12,
-                            ),
+                            'Pick a provider, paste its API key, and we will verify it before saving.',
+                            style: AppText.pageSubtitle,
                           ),
                         ],
                       ),
@@ -115,76 +105,36 @@ class _AddAccountScreenState extends State<AddAccountScreen> {
                   ],
                 ),
                 const SizedBox(height: 22),
-                const Text(
-                  'PLATFORM',
-                  style: TextStyle(
-                    color: AppColors.textDim,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 1,
-                  ),
-                ),
-                const SizedBox(height: 8),
+                const Text('PLATFORM', style: AppText.sectionLabel),
+                const SizedBox(height: 10),
                 for (final option in providers) ...[
                   _providerOption(option),
                   if (option != providers.last) const SizedBox(height: 8),
                 ],
-                const SizedBox(height: 19),
-                const Text(
-                  'API KEY / TOKEN',
-                  style: TextStyle(
-                    color: AppColors.textDim,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 1,
-                  ),
-                ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 20),
+                const Text('API KEY', style: AppText.sectionLabel),
+                const SizedBox(height: 10),
                 TextField(
                   controller: _tokenController,
                   obscureText: true,
                   maxLines: 2,
-                  autofocus: false,
+                  textInputAction: TextInputAction.done,
+                  onSubmitted: (_) => _busy ? null : _add(),
                   decoration: InputDecoration(
-                    hintText: _providerId == 'commandcode'
-                        ? 'user_…'
-                        : 'Paste access token',
-                  ),
-                ),
-                const SizedBox(height: 7),
-                Text(
-                  provider?.howToGetToken ?? '',
-                  style: const TextStyle(
-                    color: AppColors.textDim,
-                    fontSize: 10,
-                    height: 1.45,
+                    labelText: 'Paste API key',
+                    hintText: _providerId == 'commandcode' ? 'user_…' : 'crsr_…',
+                    helperText: provider?.howToGetToken ?? '',
+                    helperMaxLines: 4,
                   ),
                 ),
                 if (_error != null) ...[
-                  const SizedBox(height: 12),
-                  Text(
-                    _error!,
-                    style: const TextStyle(
-                      color: AppColors.danger,
-                      fontSize: 11,
-                    ),
-                  ),
+                  const SizedBox(height: 14),
+                  InlineMessage.error(_error!),
                 ],
-                const SizedBox(height: 19),
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton(
-                    onPressed: _busy ? null : _add,
-                    style: FilledButton.styleFrom(
-                      backgroundColor: AppColors.text,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                    ),
-                    child: Text(_busy ? 'Verifying…' : 'Verify & add account'),
-                  ),
+                const SizedBox(height: 20),
+                FilledButton(
+                  onPressed: _busy ? null : _add,
+                  child: Text(_busy ? 'Verifying…' : 'Verify & add account'),
                 ),
               ],
             ),
@@ -196,54 +146,59 @@ class _AddAccountScreenState extends State<AddAccountScreen> {
 
   Widget _providerOption(AiProvider option) {
     final selected = option.id == _providerId;
-    return OutlinedButton(
-      onPressed: _busy
-          ? null
-          : () => setState(() {
-              _providerId = option.id;
-              _error = null;
-            }),
-      style: OutlinedButton.styleFrom(
-        alignment: Alignment.centerLeft,
-        backgroundColor: selected ? AppColors.accentSoft : AppColors.bgCard,
-        foregroundColor: AppColors.text,
-        side: BorderSide(
-          color: selected ? AppColors.accent : AppColors.border,
-          width: selected ? 1.5 : 1,
-        ),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-        padding: const EdgeInsets.all(12),
-      ),
-      child: Row(
-        children: [
-          ProviderAvatar(platform: option.id, size: 32),
-          const SizedBox(width: 11),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  option.name,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                Text(
-                  option.id == 'commandcode'
-                      ? 'user_… API key'
-                      : 'access token',
-                  style: const TextStyle(
-                    color: AppColors.textDim,
-                    fontSize: 10,
-                  ),
-                ),
-              ],
-            ),
+    return Semantics(
+      selected: selected,
+      button: true,
+      label: '${option.name} provider',
+      child: OutlinedButton(
+        onPressed: _busy
+            ? null
+            : () => setState(() {
+                _providerId = option.id;
+                _error = null;
+              }),
+        style: OutlinedButton.styleFrom(
+          alignment: Alignment.centerLeft,
+          backgroundColor: selected ? AppColors.accentSoft : AppColors.bgCard,
+          foregroundColor: AppColors.text,
+          side: BorderSide(
+            color: selected ? AppColors.accent : AppColors.border,
+            width: selected ? 1.5 : 1,
           ),
-          if (selected)
-            const Icon(Icons.check, size: 18, color: AppColors.accent),
-        ],
+          minimumSize: const Size.fromHeight(56),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        ),
+        child: Row(
+          children: [
+            ProviderAvatar(platform: option.id, size: 34),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    option.name,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  Text(
+                    option.id == 'commandcode'
+                        ? 'user_… API key'
+                        : 'User API key',
+                    style: const TextStyle(
+                      color: AppColors.textDim,
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (selected)
+              const Icon(Icons.check_circle, size: 20, color: AppColors.accent),
+          ],
+        ),
       ),
     );
   }

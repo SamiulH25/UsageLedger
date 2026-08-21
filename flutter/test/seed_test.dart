@@ -1,5 +1,5 @@
 // Seeds the DB with real accounts by driving the app's own services.
-// Run: flutter test tool/seed_test.dart --dart-define=CC_TOKEN=... --dart-define=CUR_TOKEN=...
+// Run: flutter test tool/seed_test.dart --dart-define=CC_TOKEN=... --dart-define=CUR_TOKEN=crsr_...
 import 'dart:io';
 
 import 'package:ai_usage_monitor/src/db/db.dart';

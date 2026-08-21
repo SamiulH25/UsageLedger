@@ -66,7 +66,7 @@ class _AccountsScreenState extends State<AccountsScreen> {
       builder: (dialogContext) => AlertDialog(
         title: const Text('Remove account'),
         content: Text(
-          'Remove ${view.totals.account.label}? Its data and stored token will be deleted.',
+          'Remove ${view.totals.account.label}? Its usage data and stored API key will be deleted from this device.',
         ),
         actions: [
           TextButton(
@@ -98,39 +98,33 @@ class _AccountsScreenState extends State<AccountsScreen> {
           onRefresh: _load,
           child: ListView(
             physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.fromLTRB(16, 22, 16, 34),
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.pageHorizontal,
+              16,
+              AppSpacing.pageHorizontal,
+              AppSpacing.pageBottom,
+            ),
             children: [
-              const Text(
-                'UsageLedger',
-                style: TextStyle(
-                  fontSize: 19,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -1,
-                ),
-              ),
-              const SizedBox(height: 28),
-              const Text(
-                'Accounts',
-                style: TextStyle(
-                  fontSize: 31,
-                  fontWeight: FontWeight.w500,
-                  letterSpacing: -1.5,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                _accounts.isEmpty
-                    ? 'Connect a provider to begin tracking.'
-                    : '${_accounts.length} connected · tokens stay on this device',
-                style: const TextStyle(color: AppColors.textDim, fontSize: 12),
-              ),
+              const AppBrandBar(),
               const SizedBox(height: 20),
+              PageHeading(
+                title: 'Accounts',
+                subtitle: _accounts.isEmpty
+                    ? 'Connect a provider to begin tracking.'
+                    : '${_accounts.length} connected · keys stay on this device',
+              ),
+              const SizedBox(height: 18),
               if (_accounts.isEmpty)
-                const EmptyState(
-                  icon: '◌',
+                EmptyState(
+                  icon: Icons.account_circle_outlined,
                   title: 'No accounts yet',
                   hint:
-                      'Add a Command Code or Cursor account to see spend and limits here.',
+                      'Add Command Code or Cursor to see spend, limits, and reset times here.',
+                  action: FilledButton.icon(
+                    onPressed: widget.onOpenAdd,
+                    icon: const Icon(Icons.add, size: 18),
+                    label: const Text('Add an account'),
+                  ),
                 )
               else ...[
                 for (final account in _accounts) _accountCard(account),
@@ -159,14 +153,14 @@ class _AccountsScreenState extends State<AccountsScreen> {
         children: [
           TextButton.icon(
             onPressed: _busy ? null : () => _refreshOne(view),
-            icon: const Icon(Icons.refresh, size: 16),
+            icon: const Icon(Icons.refresh, size: 18),
             label: Text(_busy ? 'Refreshing…' : 'Refresh'),
           ),
           TextButton(
             onPressed: () => _removeOne(view),
             child: const Text(
               'Remove',
-              style: TextStyle(color: AppColors.danger, fontSize: 12),
+              style: TextStyle(color: AppColors.danger, fontSize: 13),
             ),
           ),
         ],
