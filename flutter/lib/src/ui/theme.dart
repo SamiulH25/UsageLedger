@@ -29,6 +29,7 @@ class AppSpacing {
 
 /// Data face — every numeral, timestamp and eyebrow label.
 const String monoFamily = 'JetBrainsMono';
+
 /// Display face — headings and the brand.
 const String displayFamily = 'SpaceGrotesk';
 
@@ -182,7 +183,11 @@ ThemeData buildTheme() {
         fontSize: 13,
         fontFamily: monoFamily,
       ),
-      helperStyle: const TextStyle(color: AppColors.textDim, fontSize: 11, height: 1.4),
+      helperStyle: const TextStyle(
+        color: AppColors.textDim,
+        fontSize: 11,
+        height: 1.4,
+      ),
     ),
     filledButtonTheme: FilledButtonThemeData(
       style: FilledButton.styleFrom(
@@ -239,10 +244,13 @@ ThemeData buildTheme() {
     ),
     switchTheme: SwitchThemeData(
       thumbColor: WidgetStateProperty.resolveWith(
-        (s) => s.contains(WidgetState.selected) ? AppColors.bg : AppColors.textDim,
+        (s) =>
+            s.contains(WidgetState.selected) ? AppColors.bg : AppColors.textDim,
       ),
       trackColor: WidgetStateProperty.resolveWith(
-        (s) => s.contains(WidgetState.selected) ? AppColors.accent : AppColors.border,
+        (s) => s.contains(WidgetState.selected)
+            ? AppColors.accent
+            : AppColors.border,
       ),
     ),
   );
@@ -286,8 +294,18 @@ String fmtResetAt(int resetAt, {DateTime? now}) {
     return 'resets ${days[when.weekday - 1]}';
   }
   const months = [
-    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
   ];
   return 'resets ${months[when.month - 1]} ${when.day}';
 }

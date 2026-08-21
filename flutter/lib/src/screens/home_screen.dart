@@ -8,6 +8,7 @@ import '../ui/cost_chart.dart';
 import '../ui/theme.dart';
 import '../ui/widgets.dart';
 import 'account_detail_screen.dart';
+import 'settings_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   final VoidCallback onOpenAdd;
@@ -41,7 +42,10 @@ class HomeScreen extends StatelessWidget {
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(
-        AppSpacing.pageHorizontal + 4, 20, AppSpacing.pageHorizontal + 4, AppSpacing.pageBottom,
+        AppSpacing.pageHorizontal + 4,
+        20,
+        AppSpacing.pageHorizontal + 4,
+        AppSpacing.pageBottom,
       ),
       children: [
         const _BrandRow(),
@@ -55,7 +59,8 @@ class HomeScreen extends StatelessWidget {
         EmptyState(
           icon: Icons.speed_outlined,
           title: 'No accounts yet',
-          hint: 'Add Command Code or Cursor to start tracking usage on this device.',
+          hint:
+              'Add Command Code or Cursor to start tracking usage on this device.',
           action: FilledButton.icon(
             onPressed: onOpenAdd,
             icon: const Icon(Icons.add, size: 18),
@@ -73,7 +78,10 @@ class HomeScreen extends StatelessWidget {
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(
-        AppSpacing.pageHorizontal, 16, AppSpacing.pageHorizontal, AppSpacing.pageBottom,
+        AppSpacing.pageHorizontal,
+        16,
+        AppSpacing.pageHorizontal,
+        AppSpacing.pageBottom,
       ),
       children: [
         const _BrandRow(),
@@ -100,7 +108,10 @@ class HomeScreen extends StatelessWidget {
                 children: [
                   Text('ALL ACCOUNTS', style: AppText.sectionLabel),
                   const SizedBox(height: 10),
-                  Text(fmtCost(state.totals.costUsd), style: AppText.heroNumber()),
+                  Text(
+                    fmtCost(state.totals.costUsd),
+                    style: AppText.heroNumber(),
+                  ),
                   const SizedBox(height: 4),
                   Text(
                     '${fmtTokens(tokenCount)} tokens · ${state.totals.requests} requests',
@@ -145,15 +156,40 @@ class HomeScreen extends StatelessWidget {
 
   void _openDetail(BuildContext context, String key) {
     Navigator.of(context).push(
-      MaterialPageRoute<void>(builder: (_) => AccountDetailScreen(accountKey: key)),
+      MaterialPageRoute<void>(
+        builder: (_) => AccountDetailScreen(accountKey: key),
+      ),
     );
   }
 }
 
 String _todayLabel() {
   final now = DateTime.now();
-  const weekdays = ['', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-  const months = ['', 'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  const weekdays = [
+    '',
+    'Monday',
+    'Tuesday',
+    'Wednesday',
+    'Thursday',
+    'Friday',
+    'Saturday',
+    'Sunday',
+  ];
+  const months = [
+    '',
+    'January',
+    'February',
+    'March',
+    'April',
+    'May',
+    'June',
+    'July',
+    'August',
+    'September',
+    'October',
+    'November',
+    'December',
+  ];
   return '${weekdays[now.weekday].toUpperCase()}, ${months[now.month].toUpperCase()} ${now.day}';
 }
 
@@ -161,7 +197,14 @@ class _BrandRow extends StatelessWidget {
   const _BrandRow();
 
   @override
-  Widget build(BuildContext context) => const BrandBarWithSync();
+  Widget build(BuildContext context) =>
+      BrandBarWithSync(onOpenSettings: () => _openSettings(context));
+
+  void _openSettings(BuildContext context) {
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute<void>(builder: (_) => const SettingsScreen()));
+  }
 }
 
 /// The most urgent pool, framed as an instrument readout.
@@ -184,8 +227,11 @@ class _HeroWallCard extends StatelessWidget {
 
     // Caret: where the level lands at reset if the pace holds.
     double? caret;
-    if (outlook.perDay > 0 && outlook.daysToReset != null && outlook.daysToReset! > 0) {
-      caret = ((window.used + outlook.perDay * outlook.daysToReset!) / window.cap);
+    if (outlook.perDay > 0 &&
+        outlook.daysToReset != null &&
+        outlook.daysToReset! > 0) {
+      caret =
+          ((window.used + outlook.perDay * outlook.daysToReset!) / window.cap);
     }
 
     return DecoratedBox(
@@ -205,11 +251,18 @@ class _HeroWallCard extends StatelessWidget {
               children: [
                 Icon(Icons.speed, size: 15, color: color),
                 const SizedBox(width: 7),
-                Text('NEXT WALL', style: AppText.sectionLabel.copyWith(color: color)),
+                Text(
+                  'NEXT WALL',
+                  style: AppText.sectionLabel.copyWith(color: color),
+                ),
                 const Spacer(),
                 Text(
                   fmtCost(window.used),
-                  style: AppText.data(size: 13, weight: FontWeight.w700, color: color),
+                  style: AppText.data(
+                    size: 13,
+                    weight: FontWeight.w700,
+                    color: color,
+                  ),
                 ),
                 Text(
                   ' / ${fmtCost(window.cap)}',
@@ -222,10 +275,7 @@ class _HeroWallCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.baseline,
               textBaseline: TextBaseline.alphabetic,
               children: [
-                Text(
-                  fmtPct(f),
-                  style: AppText.heroNumber(color: color),
-                ),
+                Text(fmtPct(f), style: AppText.heroNumber(color: color)),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
@@ -235,7 +285,11 @@ class _HeroWallCard extends StatelessWidget {
                     ].join(' · '),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: AppText.data(size: 10, color: AppColors.textDim, spacing: 0.8),
+                    style: AppText.data(
+                      size: 10,
+                      color: AppColors.textDim,
+                      spacing: 0.8,
+                    ),
                   ),
                 ),
               ],

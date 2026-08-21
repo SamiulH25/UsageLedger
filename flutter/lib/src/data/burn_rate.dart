@@ -18,8 +18,10 @@ import '../providers/types.dart';
         ..sort((a, b) => a.day.compareTo(b.day));
 
   // Baseline: mean of the most recent complete days (today excluded).
-  final past =
-      points.where((p) => p.day.isBefore(today)).map((p) => p.cost).toList();
+  final past = points
+      .where((p) => p.day.isBefore(today))
+      .map((p) => p.cost)
+      .toList();
   if (past.isEmpty) return (perDay: 0, windowDays: windowDays);
   final recent = past.length > windowDays
       ? past.sublist(past.length - windowDays)
@@ -77,7 +79,8 @@ class PoolOutlook {
     final daysToEmpty = (window.cap > 0 && perDay > 0)
         ? remaining / perDay
         : null;
-    final runsOutEarly = daysToEmpty != null &&
+    final runsOutEarly =
+        daysToEmpty != null &&
         daysToReset != null &&
         daysToReset > 0 &&
         daysToEmpty < daysToReset &&

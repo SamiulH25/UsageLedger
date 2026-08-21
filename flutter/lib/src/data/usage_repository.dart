@@ -67,8 +67,9 @@ class UsageRepository {
 
   Future<List<({String day, double costUsd})>> dailySpend() => db.dailySpend();
 
-  Future<List<({String day, double costUsd})>> dailySpendFor(String accountKey) =>
-      db.dailySpend(accountKey: accountKey);
+  Future<List<({String day, double costUsd})>> dailySpendFor(
+    String accountKey,
+  ) => db.dailySpend(accountKey: accountKey);
 
   Future<({double costUsd, int requests, int inputTokens, int outputTokens})>
   totals() => db.aggregated();
@@ -88,11 +89,15 @@ class UsageRepository {
     try {
       final provider = providerById(account.platform);
       if (provider == null) {
-        return RefreshResult(ok: false, account: account.key, error: 'Unknown provider');
+        const error = 'Unknown provider';
+        await db.setSyncStatus(account.key, ok: false, error: error);
+        return RefreshResult(ok: false, account: account.key, error: error);
       }
       final token = await db.getToken(account.key);
       if (token == null) {
-        return RefreshResult(ok: false, account: account.key, error: 'No stored token');
+        const error = 'No stored token';
+        await db.setSyncStatus(account.key, ok: false, error: error);
+        return RefreshResult(ok: false, account: account.key, error: error);
       }
       final usage = await provider.fetchUsage(token);
       await db.saveSnapshot(
@@ -108,20 +113,41 @@ class UsageRepository {
           models: usage.models,
         ),
       );
-      await db.upsertAccount(
-        AccountRow(
-          key: account.key,
-          platform: account.platform,
-          label: account.label,
-          email: account.email,
-          addedAt: account.addedAt,
-          lastRefreshAt: DateTime.now().millisecondsSinceEpoch,
-        ),
-      );
+      await db.setSyncStatus(account.key, ok: true);
       return RefreshResult(ok: true, account: account.key);
     } catch (e) {
-      return RefreshResult(ok: false, account: account.key, error: e.toString());
+      final error = e.toString().replaceFirst('Exception: ', '');
+      await db.setSyncStatus(account.key, ok: false, error: error);
+      return RefreshResult(ok: false, account: account.key, error: error);
     }
+  }
+
+  /// Replace the stored credential for [key] (re-auth flow). Verifies the new
+  /// token with the provider before saving; refreshes and returns the result.
+  Future<RefreshResult> updateToken(String key, String token) async {
+    final accounts = await db.listAccounts();
+    AccountRow? account;
+    for (final a in accounts) {
+      if (a.key == key) account = a;
+    }
+    if (account == null) {
+      return RefreshResult(ok: false, account: key, error: 'Account not found');
+    }
+    final provider = providerById(account.platform);
+    if (provider == null) {
+      return RefreshResult(ok: false, account: key, error: 'Unknown provider');
+    }
+    try {
+      await provider.verify(token.trim());
+    } catch (e) {
+      return RefreshResult(
+        ok: false,
+        account: key,
+        error: e.toString().replaceFirst('Exception: ', ''),
+      );
+    }
+    await db.saveToken(key, token.trim());
+    return refreshAccount(account);
   }
 
   Future<AccountRow> addAccount({

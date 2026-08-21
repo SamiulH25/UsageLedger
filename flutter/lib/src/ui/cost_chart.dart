@@ -11,7 +11,9 @@ class CostChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final data = series.length > 14 ? series.sublist(series.length - 14) : series;
+    final data = series.length > 14
+        ? series.sublist(series.length - 14)
+        : series;
     if (data.length < 2) {
       return const SizedBox(height: 0);
     }
@@ -37,8 +39,10 @@ class CostChart extends StatelessWidget {
                         children: [
                           Container(
                             width: double.infinity,
-                            height:
-                                ((data[i].costUsd / denom) * chartH).clamp(3.0, chartH),
+                            height: ((data[i].costUsd / denom) * chartH).clamp(
+                              3.0,
+                              chartH,
+                            ),
                             decoration: BoxDecoration(
                               color: i == data.length - 1
                                   ? AppColors.accent
@@ -124,7 +128,8 @@ class _SparklinePainter extends CustomPainter {
     final path = Path();
     for (var i = 0; i < values.length; i++) {
       final x = i / (values.length - 1) * size.width;
-      final y = size.height - 2 - ((values[i] - minV) / span) * (size.height - 4);
+      final y =
+          size.height - 2 - ((values[i] - minV) / span) * (size.height - 4);
       if (i == 0) {
         path.moveTo(x, y);
       } else {

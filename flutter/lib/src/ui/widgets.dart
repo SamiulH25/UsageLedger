@@ -81,7 +81,10 @@ class PoolGauge extends StatelessWidget {
             ),
             const Spacer(),
             if (reset.isNotEmpty)
-              Text(reset, style: AppText.data(size: 10, color: AppColors.textDim)),
+              Text(
+                reset,
+                style: AppText.data(size: 10, color: AppColors.textDim),
+              ),
           ],
         ),
       ],
@@ -206,7 +209,11 @@ class ShareBar extends StatelessWidget {
             ),
             Text(
               fmtPct(f),
-              style: AppText.data(size: 10, weight: FontWeight.w700, color: color),
+              style: AppText.data(
+                size: 10,
+                weight: FontWeight.w700,
+                color: color,
+              ),
             ),
           ],
         ),
@@ -249,7 +256,11 @@ class StatCell extends StatelessWidget {
         const SizedBox(height: 3),
         Text(
           value,
-          style: AppText.data(size: 15, weight: FontWeight.w700, color: valueColor ?? AppColors.text),
+          style: AppText.data(
+            size: 15,
+            weight: FontWeight.w700,
+            color: valueColor ?? AppColors.text,
+          ),
         ),
       ],
     );
@@ -334,7 +345,9 @@ class AppBrandBar extends StatelessWidget {
 
 /// Brand row with the live sync chip — used on every tab.
 class BrandBarWithSync extends StatelessWidget {
-  const BrandBarWithSync({super.key});
+  final VoidCallback? onOpenSettings;
+
+  const BrandBarWithSync({super.key, this.onOpenSettings});
 
   @override
   Widget build(BuildContext context) {
@@ -348,6 +361,13 @@ class BrandBarWithSync extends StatelessWidget {
             syncing: scope.sync.syncing,
             onTap: () => scope.sync.sync(),
           ),
+          if (onOpenSettings != null)
+            IconButton(
+              onPressed: onOpenSettings,
+              icon: const Icon(Icons.settings_outlined, size: 19),
+              color: AppColors.textDim,
+              tooltip: 'Settings',
+            ),
         ],
       ),
     );
@@ -372,8 +392,8 @@ class SyncChip extends StatelessWidget {
     final label = syncing
         ? 'SYNCING…'
         : lastSyncAt == null
-            ? 'NOT SYNCED'
-            : 'SYNCED ${_ago(lastSyncAt!).toUpperCase()}';
+        ? 'NOT SYNCED'
+        : 'SYNCED ${_ago(lastSyncAt!).toUpperCase()}';
     final color = syncing ? AppColors.accent : AppColors.textDim;
     return ActionChip(
       onPressed: syncing ? null : onTap,
@@ -390,7 +410,12 @@ class SyncChip extends StatelessWidget {
           : Icon(Icons.satellite_alt_outlined, size: 13, color: color),
       label: Text(
         label,
-        style: AppText.data(size: 9.5, weight: FontWeight.w600, color: color, spacing: 0.8),
+        style: AppText.data(
+          size: 9.5,
+          weight: FontWeight.w600,
+          color: color,
+          spacing: 0.8,
+        ),
       ),
     );
   }
@@ -446,6 +471,9 @@ class InlineMessage extends StatelessWidget {
   final Color border;
   final Color foreground;
 
+  /// Optional trailing action (e.g. "Update key").
+  final Widget? action;
+
   const InlineMessage({
     super.key,
     required this.message,
@@ -453,15 +481,18 @@ class InlineMessage extends StatelessWidget {
     required this.background,
     required this.border,
     required this.foreground,
+    this.action,
   });
 
-  factory InlineMessage.error(String message) => InlineMessage(
-    message: message,
-    icon: Icons.error_outline,
-    background: AppColors.dangerSoft,
-    border: AppColors.danger.withValues(alpha: .4),
-    foreground: AppColors.danger,
-  );
+  factory InlineMessage.error(String message, {Widget? action}) =>
+      InlineMessage(
+        message: message,
+        icon: Icons.error_outline,
+        background: AppColors.dangerSoft,
+        border: AppColors.danger.withValues(alpha: .4),
+        foreground: AppColors.danger,
+        action: action,
+      );
 
   factory InlineMessage.info(String message) => InlineMessage(
     message: message,
@@ -500,6 +531,7 @@ class InlineMessage extends StatelessWidget {
                   ),
                 ),
               ),
+              if (action != null) ...[const SizedBox(width: 8), action!],
             ],
           ),
         ),
@@ -522,9 +554,15 @@ class SectionHeader extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          Text(title.toUpperCase(), style: AppText.sectionLabel.copyWith(fontSize: 11)),
+          Text(
+            title.toUpperCase(),
+            style: AppText.sectionLabel.copyWith(fontSize: 11),
+          ),
           if (trailing != null)
-            Text(trailing!, style: AppText.data(size: 10, color: AppColors.textDim)),
+            Text(
+              trailing!,
+              style: AppText.data(size: 10, color: AppColors.textDim),
+            ),
         ],
       ),
     );
@@ -549,12 +587,18 @@ class AddAccountCard extends StatelessWidget {
           foregroundColor: AppColors.text,
           side: const BorderSide(color: AppColors.border),
           minimumSize: const Size.fromHeight(56),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
           padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 12),
         ),
         child: Row(
           children: [
-            const Icon(Icons.add_circle_outline, size: 20, color: AppColors.accent),
+            const Icon(
+              Icons.add_circle_outline,
+              size: 20,
+              color: AppColors.accent,
+            ),
             const SizedBox(width: 12),
             const Expanded(
               child: Column(
@@ -647,6 +691,9 @@ class AccountUsageCard extends StatelessWidget {
   final VoidCallback? onOpen;
   final Widget? footer;
 
+  /// Rendered under the header when the last sync failed (re-auth nudge).
+  final Widget? banner;
+
   const AccountUsageCard({
     super.key,
     required this.account,
@@ -659,6 +706,7 @@ class AccountUsageCard extends StatelessWidget {
     this.lastRefreshAt = 0,
     this.onOpen,
     this.footer,
+    this.banner,
   });
 
   @override
@@ -696,11 +744,18 @@ class AccountUsageCard extends StatelessWidget {
                   Text(
                     [
                       providerName(account.platform).toUpperCase(),
-                      if (ago.isNotEmpty) ago,
+                      if (account.syncError.isNotEmpty) 'SYNC FAILED',
+                      if (ago.isNotEmpty && account.syncError.isEmpty) ago,
                     ].join(' · '),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: AppText.data(size: 9.5, color: AppColors.textDim, spacing: 0.6),
+                    style: AppText.data(
+                      size: 9.5,
+                      color: account.syncError.isNotEmpty
+                          ? AppColors.danger
+                          : AppColors.textDim,
+                      spacing: 0.6,
+                    ),
                   ),
                 ],
               ),
@@ -711,11 +766,19 @@ class AccountUsageCard extends StatelessWidget {
             ),
             if (onOpen != null) ...[
               const SizedBox(width: 4),
-              const Icon(Icons.chevron_right, size: 18, color: AppColors.textDim),
+              const Icon(
+                Icons.chevron_right,
+                size: 18,
+                color: AppColors.textDim,
+              ),
             ],
           ],
         ),
-        if (bursts.isNotEmpty || budgets.isNotEmpty || shares.isNotEmpty || extras.isNotEmpty) ...[
+        if (banner != null) ...[const SizedBox(height: 10), banner!],
+        if (bursts.isNotEmpty ||
+            budgets.isNotEmpty ||
+            shares.isNotEmpty ||
+            extras.isNotEmpty) ...[
           const SizedBox(height: 14),
           for (final budget in budgets.take(2)) ...[
             PoolGauge(window: budget, compact: true),
@@ -731,16 +794,32 @@ class AccountUsageCard extends StatelessWidget {
               padding: const EdgeInsets.only(bottom: 4),
               child: Row(
                 children: [
-                  Expanded(child: ShareBar(label: shares[0].label, fraction: shares[0].fraction, exceeded: shares[0].exceeded)),
+                  Expanded(
+                    child: ShareBar(
+                      label: shares[0].label,
+                      fraction: shares[0].fraction,
+                      exceeded: shares[0].exceeded,
+                    ),
+                  ),
                   const SizedBox(width: 16),
-                  Expanded(child: ShareBar(label: shares[1].label, fraction: shares[1].fraction, exceeded: shares[1].exceeded)),
+                  Expanded(
+                    child: ShareBar(
+                      label: shares[1].label,
+                      fraction: shares[1].fraction,
+                      exceeded: shares[1].exceeded,
+                    ),
+                  ),
                 ],
               ),
             )
           else if (shares.length == 1)
             Padding(
               padding: const EdgeInsets.only(bottom: 4),
-              child: ShareBar(label: shares.first.label, fraction: shares.first.fraction, exceeded: shares.first.exceeded),
+              child: ShareBar(
+                label: shares.first.label,
+                fraction: shares.first.fraction,
+                exceeded: shares.first.exceeded,
+              ),
             ),
           for (final extra in extras)
             Padding(
@@ -750,7 +829,10 @@ class AccountUsageCard extends StatelessWidget {
                   const Expanded(
                     child: Text('EXTRA USAGE', style: AppText.sectionLabel),
                   ),
-                  Text(fmtCost(extra.used), style: AppText.data(size: 11, weight: FontWeight.w700)),
+                  Text(
+                    fmtCost(extra.used),
+                    style: AppText.data(size: 11, weight: FontWeight.w700),
+                  ),
                 ],
               ),
             ),
@@ -776,7 +858,10 @@ class AccountUsageCard extends StatelessWidget {
     if (onOpen == null) {
       return Card(
         margin: const EdgeInsets.only(bottom: 10),
-        child: Padding(padding: const EdgeInsets.fromLTRB(15, 14, 15, 14), child: body),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(15, 14, 15, 14),
+          child: body,
+        ),
       );
     }
     return Card(
@@ -784,7 +869,10 @@ class AccountUsageCard extends StatelessWidget {
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
         onTap: onOpen,
-        child: Padding(padding: const EdgeInsets.fromLTRB(15, 14, 15, 14), child: body),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(15, 14, 15, 14),
+          child: body,
+        ),
       ),
     );
   }
@@ -802,7 +890,10 @@ class ModelBreakdownPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final totalCost = models.fold<double>(0, (sum, model) => sum + model.costUsd);
+    final totalCost = models.fold<double>(
+      0,
+      (sum, model) => sum + model.costUsd,
+    );
 
     return Theme(
       data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
@@ -842,7 +933,10 @@ class ModelBreakdownPanel extends StatelessWidget {
         ..sort((a, b) => b.costUsd.compareTo(a.costUsd));
 
   Widget _groupSection(String title, List<ModelUsage> items, double totalCost) {
-    final groupCost = items.fold<double>(0, (sum, model) => sum + model.costUsd);
+    final groupCost = items.fold<double>(
+      0,
+      (sum, model) => sum + model.costUsd,
+    );
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: Column(
@@ -850,9 +944,15 @@ class ModelBreakdownPanel extends StatelessWidget {
         children: [
           Row(
             children: [
-              Text(title, style: AppText.sectionLabel.copyWith(color: AppColors.accent)),
+              Text(
+                title,
+                style: AppText.sectionLabel.copyWith(color: AppColors.accent),
+              ),
               const Spacer(),
-              Text(fmtCost(groupCost), style: AppText.data(size: 10, color: AppColors.textDim)),
+              Text(
+                fmtCost(groupCost),
+                style: AppText.data(size: 10, color: AppColors.textDim),
+              ),
             ],
           ),
           const SizedBox(height: 6),
@@ -866,7 +966,9 @@ class ModelBreakdownPanel extends StatelessWidget {
     final sorted = [...items]..sort((a, b) => b.costUsd.compareTo(a.costUsd));
     return Padding(
       padding: const EdgeInsets.only(bottom: 4),
-      child: Column(children: sorted.map((model) => _modelRow(model, totalCost)).toList()),
+      child: Column(
+        children: sorted.map((model) => _modelRow(model, totalCost)).toList(),
+      ),
     );
   }
 
@@ -899,8 +1001,14 @@ class ModelBreakdownPanel extends StatelessWidget {
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Text(fmtCost(model.costUsd), style: AppText.data(size: 11, weight: FontWeight.w700)),
-              Text(fmtPct(share), style: AppText.data(size: 10, color: AppColors.textDim)),
+              Text(
+                fmtCost(model.costUsd),
+                style: AppText.data(size: 11, weight: FontWeight.w700),
+              ),
+              Text(
+                fmtPct(share),
+                style: AppText.data(size: 10, color: AppColors.textDim),
+              ),
             ],
           ),
         ],
@@ -917,9 +1025,9 @@ class ApiKeyPanel extends StatelessWidget {
   Future<void> _copy(BuildContext context) async {
     await Clipboard.setData(ClipboardData(text: apiKey));
     if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('API key copied')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('API key copied')));
   }
 
   @override
@@ -945,7 +1053,11 @@ class ApiKeyPanel extends StatelessWidget {
                   Expanded(
                     child: SelectableText(
                       apiKey,
-                      style: AppText.data(size: 11, color: AppColors.textDim, height: 1.45),
+                      style: AppText.data(
+                        size: 11,
+                        color: AppColors.textDim,
+                        height: 1.45,
+                      ),
                     ),
                   ),
                   IconButton(

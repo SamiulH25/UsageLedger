@@ -14,6 +14,19 @@ Updated: 2026-08-21
 - [2026-08-20] **Android packaging**: installed Android SDK (platform 36, build-tools, cmdline-tools) at /opt/android-sdk + JDK 17 (/usr/lib/jvm/java-17-openjdk). DB layer now uses native `sqflite` on Android (FFI only on Linux); added INTERNET permission; generated `upload-keystore.jks` + `key.properties` (both gitignored) wired into build.gradle.kts release signing. Built signed `app-release.apk` (21.9MB), copied to repo root as `ai-usage-monitor.apk`.
 - [2026-08-20] **GitHub publish**: repo **SamiulH25/UsageLedger** (public). Landing page in `docs/` → GitHub Pages at https://samiulh25.github.io/UsageLedger/. Release **v0.1.0** with `ai-usage-monitor.apk` attached. Name: **UsageLedger**.
 - [2026-08-20] **v0.2.0**: Accounts First light mobile UI overhaul — bottom-sheet add account; Cursor shows one included $70 pool with Auto/API shares plus extra/bonus spend; Command Code billing-period totals (weekly pool, monthly period+credits, 5-hour burst ready state, relative reset times). Signed APK built and attached to GitHub Release **v0.2.0**.
+- [2026-08-21] **v0.4.0**: Trust & reliability. Account health — migration v4
+  adds `account.sync_error`; refresh failures persist per account and render
+  as a red "SYNC FAILED" state + inline banner with an "Update key" re-auth
+  dialog (verifies new key before saving). Settings screen (gear in brand
+  bar): sync-interval chips now actually wired to `SyncController.setInterval`
+  (was unreachable), limit-alert toggle (`notificationsEnabled`), about card.
+  Real background sync on Android via workmanager 0.9.2 — periodic refresh +
+  limit notifications fire with the app closed; minSdk bumped to 23;
+  workmanager subpackages pinned (0.9.x ships mutually incompatible
+  apple/android/interface versions). Providers refactored to accept an
+  injected `http.Client`; 9 new fixture tests (int64-as-string, window
+  math, error paths) + v3→v4 db migration test — 21 total. CI: analyze +
+  hermetic tests on push, signed APK on version tags.
 - [2026-08-21] **v0.3.0**: MVVM refactor — `AppScope` DI + `SyncController`
   (configurable auto-refresh interval, persisted in settings) + per-tab
   ViewModels; new Account Detail screen (pools, trend, token split,
@@ -31,6 +44,9 @@ Updated: 2026-08-21
 
 ## Next
 
+- Roadmap to v1.0 lives in `ROADMAP.md` (v0.4.0 reliability → v0.5.0
+  OpenRouter/OpenAI → v0.6.0 insights → v1.0.0 hardening). Items below are
+  folded into it.
 - Verify limit notifications fire on a real device after sideloading v0.3.0.
 - Android: app icon polish (low priority; sideload only, no Play Store).
 ## Notes
@@ -38,6 +54,11 @@ Updated: 2026-08-21
 - Running as root here; all real data under `/home/bob2142`. Always run the app as bob (`sudo -u bob2142`), DISPLAY=:0 (Hyprland + Xwayland). Screenshots: `sudo -u bob2142 DISPLAY=:0 import -window <id> /tmp/x.png`.
 - gh auth is under **bob's keyring** (SamiulH25) — run all `gh`/git push as bob, not root.
 - Android build env: `JAVA_HOME=/usr/lib/jvm/java-17-openjdk ANDROID_HOME=/opt/android-sdk ANDROID_SDK_ROOT=/opt/android-sdk` (system java is 1.8). `android/local.properties` points at /opt/android-sdk.
+- Screenshots: ImageMagick 7.1.2.29 update broke `import` ("missing an image
+  filename"); use `grim /tmp/full.png` (needs XDG_RUNTIME_DIR +
+  WAYLAND_DISPLAY=wayland-1) then `magick -crop WxH+X+Y`. Window geometry:
+  query `hyprctl clients -j` (Xdotool geometry lies under Hyprland); the app
+  lands on ws 8, monitor 2.
 - Cursor API: tokens in JSON come as **strings** for int64 fields (inputTokens, billingCycleEnd) — must coerce. Plan percentages are authoritative for limit bars. aggregation `totalCents` includes bonus spend, so don't derive splits from it.
 - Flutter: `databaseFactory = databaseFactoryFfi` only on Linux desktop (Android uses native sqflite). `path_provider` needs platform channels — tests override the data dir via `setOverrideDir`.
 - Seed/refresh headless: `flutter test test/seed_test.dart --dart-define=CC_TOKEN=... --dart-define=CUR_TOKEN=...` (writes to the real app data dir).

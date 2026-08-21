@@ -36,10 +36,9 @@ class _AddAccountScreenState extends State<AddAccountScreen> {
       _error = null;
     });
     try {
-      await AppScope.of(context).repository.addAccount(
-            providerId: _providerId,
-            token: token,
-          );
+      await AppScope.of(
+        context,
+      ).repository.addAccount(providerId: _providerId, token: token);
       if (mounted) Navigator.pop(context, true);
     } catch (error) {
       if (mounted) {
@@ -120,8 +119,13 @@ class _AddAccountScreenState extends State<AddAccountScreen> {
                   onSubmitted: (_) => _busy ? null : _add(),
                   decoration: InputDecoration(
                     labelText: 'Paste API key',
-                    labelStyle: AppText.data(size: 13, color: AppColors.textDim),
-                    hintText: _providerId == 'commandcode' ? 'user_…' : 'crsr_…',
+                    labelStyle: AppText.data(
+                      size: 13,
+                      color: AppColors.textDim,
+                    ),
+                    hintText: _providerId == 'commandcode'
+                        ? 'user_…'
+                        : 'crsr_…',
                     helperText: provider?.howToGetToken ?? '',
                     helperMaxLines: 4,
                   ),
@@ -158,7 +162,9 @@ class _AddAccountScreenState extends State<AddAccountScreen> {
               }),
         style: OutlinedButton.styleFrom(
           alignment: Alignment.centerLeft,
-          backgroundColor: selected ? AppColors.accentSoft : AppColors.surfaceHi,
+          backgroundColor: selected
+              ? AppColors.accentSoft
+              : AppColors.surfaceHi,
           foregroundColor: AppColors.text,
           side: BorderSide(
             color: selected ? AppColors.accent : AppColors.border,
@@ -184,7 +190,9 @@ class _AddAccountScreenState extends State<AddAccountScreen> {
                     ),
                   ),
                   Text(
-                    option.id == 'commandcode' ? 'user_… API key' : 'crsr_… User API key',
+                    option.id == 'commandcode'
+                        ? 'user_… API key'
+                        : 'crsr_… User API key',
                     style: AppText.data(size: 11, color: AppColors.textDim),
                   ),
                 ],

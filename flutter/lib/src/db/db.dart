@@ -16,6 +16,9 @@ class AccountRow {
   final String email;
   final int addedAt;
   final int lastRefreshAt;
+
+  /// Last sync failure message; empty when the last sync succeeded.
+  final String syncError;
   const AccountRow({
     required this.key,
     required this.platform,
@@ -23,6 +26,7 @@ class AccountRow {
     required this.email,
     required this.addedAt,
     required this.lastRefreshAt,
+    this.syncError = '',
   });
 
   Map<String, Object?> toMap() => {
@@ -32,6 +36,7 @@ class AccountRow {
     'email': email,
     'added_at': addedAt,
     'last_refresh_at': lastRefreshAt,
+    'sync_error': syncError,
   };
 
   factory AccountRow.fromMap(Map<String, Object?> m) => AccountRow(
@@ -41,6 +46,7 @@ class AccountRow {
     email: m['email'] as String? ?? '',
     addedAt: (m['added_at'] as num?)?.toInt() ?? 0,
     lastRefreshAt: (m['last_refresh_at'] as num?)?.toInt() ?? 0,
+    syncError: m['sync_error'] as String? ?? '',
   );
 }
 
@@ -108,7 +114,7 @@ Future<Database> getDb() async {
   final path = p.join(dir, 'usage.db');
   _db = await openDatabase(
     path,
-    version: 3,
+    version: 4,
     onUpgrade: (db, oldV, newV) async {
       if (oldV < 2) {
         final cols = await db.rawQuery('PRAGMA table_info(usage_snapshot)');
@@ -124,6 +130,11 @@ Future<Database> getDb() async {
           'CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL)',
         );
       }
+      if (oldV < 4) {
+        await db.execute(
+          "ALTER TABLE account ADD COLUMN sync_error TEXT NOT NULL DEFAULT ''",
+        );
+      }
     },
     onCreate: (db, _) async {
       await db.execute('''
@@ -132,8 +143,8 @@ Future<Database> getDb() async {
           platform TEXT NOT NULL,
           label TEXT NOT NULL DEFAULT '',
           email TEXT NOT NULL DEFAULT '',
-          added_at INTEGER NOT NULL DEFAULT 0,
-          last_refresh_at INTEGER NOT NULL DEFAULT 0
+          last_refresh_at INTEGER NOT NULL DEFAULT 0,
+          sync_error TEXT NOT NULL DEFAULT ''
         )''');
       await db.execute(
         'CREATE INDEX idx_account_platform ON account(platform)',
@@ -192,6 +203,27 @@ Future<void> removeAccount(String key) async {
       whereArgs: [key],
     );
   });
+}
+
+/// Record a sync outcome: success refreshes [AccountRow.lastRefreshAt] and
+/// clears the error; failure stores [error] but keeps the last success time.
+Future<void> setSyncStatus(
+  String key, {
+  required bool ok,
+  String? error,
+}) async {
+  final db = await getDb();
+  await db.update(
+    'account',
+    ok
+        ? {
+            'last_refresh_at': DateTime.now().millisecondsSinceEpoch,
+            'sync_error': '',
+          }
+        : {'sync_error': error ?? 'Sync failed'},
+    where: 'key = ?',
+    whereArgs: [key],
+  );
 }
 
 Future<void> renameAccount(String key, String label) async {

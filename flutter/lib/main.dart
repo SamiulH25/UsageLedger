@@ -1,6 +1,8 @@
-import 'src/services/limit_notifier.dart';
+import 'dart:io';
+
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:workmanager/workmanager.dart';
 
 import 'src/data/usage_repository.dart';
 import 'src/screens/accounts_screen.dart';
@@ -10,10 +12,20 @@ import 'src/screens/home_screen.dart';
 import 'src/state/app_scope.dart';
 import 'src/state/sync_controller.dart';
 import 'src/state/view_models.dart';
+import 'src/background.dart';
+import 'src/services/limit_notifier.dart';
 import 'src/ui/theme.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  if (Platform.isAndroid) {
+    await Workmanager().initialize(callbackDispatcher);
+    // Respect the persisted interval; the task itself clamps to >=15 min.
+    final stored = await UsageRepository.instance.setting(
+      'syncIntervalMinutes',
+    );
+    await scheduleBackgroundSync(int.tryParse(stored ?? '') ?? 15);
+  }
   runApp(const UsageLedgerApp());
 }
 

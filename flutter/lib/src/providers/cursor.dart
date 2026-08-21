@@ -18,8 +18,11 @@ class _CachedAccessToken {
 
 /// Connect unary over plain HTTPS + JSON — verified working against api2.cursor.sh.
 class CursorProvider implements AiProvider {
-  static final _accessTokenCache = <String, _CachedAccessToken>{};
+  CursorProvider({http.Client? client}) : _client = client ?? http.Client();
 
+  final http.Client _client;
+
+  static final _accessTokenCache = <String, _CachedAccessToken>{};
   @override
   String get id => 'cursor';
   @override
@@ -40,7 +43,7 @@ class CursorProvider implements AiProvider {
     bool retried = false,
   }) async {
     final accessToken = await _resolveAccessToken(credential);
-    final res = await http.post(
+    final res = await _client.post(
       Uri.parse('$_base/$service/$method'),
       headers: {
         'Content-Type': 'application/json',
@@ -82,7 +85,7 @@ class CursorProvider implements AiProvider {
   }
 
   Future<_CachedAccessToken> _exchangeApiKey(String apiKey) async {
-    final res = await http.post(
+    final res = await _client.post(
       Uri.parse('$_base/auth/exchange_user_api_key'),
       headers: {
         'Content-Type': 'application/json',
@@ -126,9 +129,11 @@ class CursorProvider implements AiProvider {
     final parts = jwt.split('.');
     if (parts.length < 2) return null;
     try {
-      final payload = jsonDecode(
-        utf8.decode(base64Url.decode(base64Url.normalize(parts[1]))),
-      ) as Map<String, dynamic>;
+      final payload =
+          jsonDecode(
+                utf8.decode(base64Url.decode(base64Url.normalize(parts[1]))),
+              )
+              as Map<String, dynamic>;
       final exp = payload['exp'];
       if (exp is num) return exp.toInt() * 1000;
     } catch (_) {}
@@ -143,12 +148,7 @@ class CursorProvider implements AiProvider {
       throw Exception('Invalid Cursor API key');
     }
 
-    final me = await _rpc(
-      'aiserver.v1.DashboardService',
-      'GetMe',
-      {},
-      trimmed,
-    );
+    final me = await _rpc('aiserver.v1.DashboardService', 'GetMe', {}, trimmed);
     final id = me['userId'] ?? me['authId'];
     if (id == null) throw Exception('Invalid Cursor credentials');
     final first = me['firstName'] as String? ?? '';

@@ -3,8 +3,11 @@
 library;
 
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+
+import '../background.dart';
 import '../data/usage_repository.dart';
 import '../services/limit_notifier.dart';
 
@@ -47,6 +50,13 @@ class SyncController extends ChangeNotifier {
     _intervalMinutes = minutes;
     await _repo.setSettingValue(_intervalKey, '$minutes');
     _applyTimer();
+    if (Platform.isAndroid) {
+      try {
+        await scheduleBackgroundSync(minutes);
+      } catch (e) {
+        debugPrint('background reschedule failed: $e');
+      }
+    }
     notifyListeners();
   }
 

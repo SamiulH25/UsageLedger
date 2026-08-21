@@ -100,6 +100,7 @@ class ModelUsage {
   final int cacheReadTokens;
   final int cacheWriteTokens;
   final double costUsd;
+
   /// Cursor only: `auto` or `api`. Null for other providers.
   final String? bucket;
   const ModelUsage({
@@ -112,7 +113,8 @@ class ModelUsage {
     this.bucket,
   });
 
-  int get totalTokens => inputTokens + outputTokens + cacheReadTokens + cacheWriteTokens;
+  int get totalTokens =>
+      inputTokens + outputTokens + cacheReadTokens + cacheWriteTokens;
 
   Map<String, dynamic> toJson() => {
     'model': model,

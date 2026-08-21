@@ -16,7 +16,8 @@ class OverviewState {
   final bool loading;
   final List<AccountOverview> accounts;
   final List<({String day, double costUsd})> series;
-  final ({double costUsd, int requests, int inputTokens, int outputTokens}) totals;
+  final ({double costUsd, int requests, int inputTokens, int outputTokens})
+  totals;
   final double perDay;
 
   /// The most urgent budget pool across all accounts (hero gauge).
@@ -48,9 +49,11 @@ class OverviewViewModel extends ChangeNotifier {
   final UsageRepository _repo;
   final SyncController _sync;
 
-  OverviewViewModel({required UsageRepository repo, required SyncController sync})
-      : _repo = repo,
-        _sync = sync {
+  OverviewViewModel({
+    required UsageRepository repo,
+    required SyncController sync,
+  }) : _repo = repo,
+       _sync = sync {
     _sync.addListener(_onSyncChanged);
   }
 
@@ -92,7 +95,9 @@ class OverviewViewModel extends ChangeNotifier {
         perDay: pace.perDay,
         heroWindow: hero,
         heroAccountLabel: heroLabel,
-        heroOutlook: hero == null ? null : PoolOutlook.forWindow(hero, pace.perDay),
+        heroOutlook: hero == null
+            ? null
+            : PoolOutlook.forWindow(hero, pace.perDay),
       );
     } catch (e) {
       // Keep last good data on failure.
@@ -130,7 +135,9 @@ class AccountsViewModel extends ChangeNotifier {
     final rows = <AccountRowView>[];
     for (final o in overviews) {
       final token = await _repo.tokenFor(o.account.key);
-      rows.add(AccountRowView(data: o, hasToken: token != null && token.isNotEmpty));
+      rows.add(
+        AccountRowView(data: o, hasToken: token != null && token.isNotEmpty),
+      );
     }
     _rows = rows;
     notifyListeners();
@@ -140,6 +147,12 @@ class AccountsViewModel extends ChangeNotifier {
     final target = _rows.where((r) => r.data.account.key == key).toList();
     if (target.isEmpty) return false;
     final result = await _repo.refreshAccount(target.first.data.account);
+    await load();
+    return result.ok;
+  }
+
+  Future<bool> updateToken(String key, String token) async {
+    final result = await _repo.updateToken(key, token);
     await load();
     return result.ok;
   }
@@ -184,8 +197,7 @@ class HistoryViewModel extends ChangeNotifier {
       byDay.putIfAbsent(dayKey, () => []).add(s);
     }
     final days = [
-      for (final e in byDay.entries)
-        HistoryDay(day: e.key, entries: e.value),
+      for (final e in byDay.entries) HistoryDay(day: e.key, entries: e.value),
     ]..sort((a, b) => b.day.compareTo(a.day));
     _days = days;
     _loading = false;

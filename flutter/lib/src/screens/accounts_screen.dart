@@ -1,3 +1,4 @@
+import '../providers/registry.dart';
 import 'package:flutter/material.dart';
 
 import '../state/app_scope.dart';
@@ -5,6 +6,7 @@ import '../state/view_models.dart';
 import '../ui/theme.dart';
 import '../ui/widgets.dart';
 import 'account_detail_screen.dart';
+import 'settings_screen.dart';
 
 class AccountsScreen extends StatelessWidget {
   final VoidCallback onOpenAdd;
@@ -30,10 +32,15 @@ class AccountsScreen extends StatelessWidget {
               child: ListView(
                 physics: const AlwaysScrollableScrollPhysics(),
                 padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.pageHorizontal, 16, AppSpacing.pageHorizontal, AppSpacing.pageBottom,
+                  AppSpacing.pageHorizontal,
+                  16,
+                  AppSpacing.pageHorizontal,
+                  AppSpacing.pageBottom,
                 ),
                 children: [
-                  const BrandBarWithSync(),
+                  BrandBarWithSync(
+                    onOpenSettings: () => _openSettings(context),
+                  ),
                   const SizedBox(height: 20),
                   PageHeading(
                     title: 'Accounts',
@@ -46,7 +53,8 @@ class AccountsScreen extends StatelessWidget {
                     EmptyState(
                       icon: Icons.account_circle_outlined,
                       title: 'No accounts yet',
-                      hint: 'Add Command Code or Cursor to see spend, limits, and reset times here.',
+                      hint:
+                          'Add Command Code or Cursor to see spend, limits, and reset times here.',
                       action: FilledButton.icon(
                         onPressed: onOpenAdd,
                         icon: const Icon(Icons.add, size: 18),
@@ -65,9 +73,21 @@ class AccountsScreen extends StatelessWidget {
                         windows: row.data.windows,
                         models: row.data.latest?.models ?? const [],
                         lastRefreshAt: row.data.account.lastRefreshAt,
-                        onOpen: () => _openDetail(context, row.data.account.key),
+                        onOpen: () =>
+                            _openDetail(context, row.data.account.key),
                         footer: _footer(context, scope, row),
+                        banner: row.data.account.syncError.isEmpty
+                            ? null
+                            : InlineMessage.error(
+                                row.data.account.syncError,
+                                action: TextButton(
+                                  onPressed: () =>
+                                      _updateKey(context, scope, row),
+                                  child: const Text('Update key'),
+                                ),
+                              ),
                       ),
+
                   const SizedBox(height: 4),
                   AddAccountCard(onPressed: onOpenAdd),
                 ],
@@ -79,9 +99,17 @@ class AccountsScreen extends StatelessWidget {
     );
   }
 
+  void _openSettings(BuildContext context) {
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute<void>(builder: (_) => const SettingsScreen()));
+  }
+
   void _openDetail(BuildContext context, String key) {
     Navigator.of(context).push(
-      MaterialPageRoute<void>(builder: (_) => AccountDetailScreen(accountKey: key)),
+      MaterialPageRoute<void>(
+        builder: (_) => AccountDetailScreen(accountKey: key),
+      ),
     );
   }
 
@@ -109,17 +137,71 @@ class AccountsScreen extends StatelessWidget {
     );
   }
 
-  Future<void> _refreshOne(BuildContext context, AppScope scope, String key) async {
+  Future<void> _refreshOne(
+    BuildContext context,
+    AppScope scope,
+    String key,
+  ) async {
     final ok = await scope.accountsVm.refreshOne(key);
     if (!context.mounted) return;
     if (!ok) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Sync failed — check the API key and connection.')),
+        const SnackBar(
+          content: Text('Sync failed — check the API key and connection.'),
+        ),
       );
     }
   }
 
-  Future<void> _rename(BuildContext context, AppScope scope, AccountRowView row) async {
+  Future<void> _updateKey(
+    BuildContext context,
+    AppScope scope,
+    AccountRowView row,
+  ) async {
+    final controller = TextEditingController();
+    final token = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text('Update ${providerName(row.data.account.platform)} key'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          obscureText: true,
+          decoration: InputDecoration(
+            labelText: 'New API key',
+            helperText: providerById(row.data.account.platform)?.howToGetToken,
+          ),
+          onSubmitted: (value) => Navigator.pop(dialogContext, value),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, controller.text),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+    if (token == null || token.trim().isEmpty) return;
+    final ok = await scope.accountsVm.updateToken(row.data.account.key, token);
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          ok ? 'Key updated — account synced.' : 'That key was rejected.',
+        ),
+      ),
+    );
+  }
+
+  Future<void> _rename(
+    BuildContext context,
+    AppScope scope,
+    AccountRowView row,
+  ) async {
     final controller = TextEditingController(text: row.data.account.label);
     final label = await showDialog<String>(
       context: context,

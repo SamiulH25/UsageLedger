@@ -47,7 +47,10 @@ class _AccountDetailScreenState extends State<AccountDetailScreen> {
           appBar: AppBar(
             title: Text(
               account?.label ?? 'Account',
-              style: const TextStyle(fontFamily: displayFamily, fontWeight: FontWeight.w700),
+              style: const TextStyle(
+                fontFamily: displayFamily,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
           body: state.loading || account == null
@@ -64,13 +67,18 @@ class _AccountDetailScreenState extends State<AccountDetailScreen> {
                   child: ListView(
                     physics: const AlwaysScrollableScrollPhysics(),
                     padding: const EdgeInsets.fromLTRB(
-                      AppSpacing.pageHorizontal, 8, AppSpacing.pageHorizontal, AppSpacing.pageBottom,
+                      AppSpacing.pageHorizontal,
+                      8,
+                      AppSpacing.pageHorizontal,
+                      AppSpacing.pageBottom,
                     ),
                     children: [
                       _header(state),
                       if (state.latest != null) ...[
                         const SectionHeader(title: 'Pools'),
-                        for (final window in _orderedWindows(state.latest!.windows))
+                        for (final window in _orderedWindows(
+                          state.latest!.windows,
+                        ))
                           Padding(
                             padding: const EdgeInsets.only(bottom: 14),
                             child: PoolGauge(
@@ -87,22 +95,36 @@ class _AccountDetailScreenState extends State<AccountDetailScreen> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Sparkline(values: state.series.map((e) => e.costUsd).toList()),
+                                Sparkline(
+                                  values: state.series
+                                      .map((e) => e.costUsd)
+                                      .toList(),
+                                ),
                                 const SizedBox(height: 6),
                                 Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
                                   children: [
                                     Text(
                                       state.series.first.day.substring(5),
-                                      style: AppText.data(size: 9, color: AppColors.textDim),
+                                      style: AppText.data(
+                                        size: 9,
+                                        color: AppColors.textDim,
+                                      ),
                                     ),
                                     Text(
                                       'pace ${fmtCost(state.perDay)}/day',
-                                      style: AppText.data(size: 9.5, color: AppColors.textDim),
+                                      style: AppText.data(
+                                        size: 9.5,
+                                        color: AppColors.textDim,
+                                      ),
                                     ),
                                     Text(
                                       state.series.last.day.substring(5),
-                                      style: AppText.data(size: 9, color: AppColors.textDim),
+                                      style: AppText.data(
+                                        size: 9,
+                                        color: AppColors.textDim,
+                                      ),
                                     ),
                                   ],
                                 ),
@@ -117,20 +139,36 @@ class _AccountDetailScreenState extends State<AccountDetailScreen> {
                         const SectionHeader(title: 'Token split'),
                         Card(
                           child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 14,
+                            ),
                             child: StatRow(
                               children: [
-                                StatCell(label: 'IN', value: fmtTokens(state.latest!.inputTokens)),
-                                StatCell(label: 'OUT', value: fmtTokens(state.latest!.outputTokens)),
-                                StatCell(label: 'REQUESTS', value: '${state.latest!.requests}'),
+                                StatCell(
+                                  label: 'IN',
+                                  value: fmtTokens(state.latest!.inputTokens),
+                                ),
+                                StatCell(
+                                  label: 'OUT',
+                                  value: fmtTokens(state.latest!.outputTokens),
+                                ),
+                                StatCell(
+                                  label: 'REQUESTS',
+                                  value: '${state.latest!.requests}',
+                                ),
                               ],
                             ),
                           ),
                         ),
                       ],
                       if (state.history.length > 1) ...[
-                        SectionHeader(title: 'Snapshots', trailing: '${state.history.length}'),
-                        for (final snapshot in state.history.take(10)) _snapshotTile(snapshot),
+                        SectionHeader(
+                          title: 'Snapshots',
+                          trailing: '${state.history.length}',
+                        ),
+                        for (final snapshot in state.history.take(10))
+                          _snapshotTile(snapshot),
                       ],
                       if (state.token != null && state.token!.isNotEmpty) ...[
                         const SizedBox(height: 8),
@@ -151,11 +189,12 @@ class _AccountDetailScreenState extends State<AccountDetailScreen> {
       LimitKind.share => 2,
       LimitKind.extra => 3,
     };
-    final sorted = [...windows]..sort((a, b) {
-      final c = rank(a.kind).compareTo(rank(b.kind));
-      if (c != 0) return c;
-      return b.fraction.compareTo(a.fraction);
-    });
+    final sorted = [...windows]
+      ..sort((a, b) {
+        final c = rank(a.kind).compareTo(rank(b.kind));
+        if (c != 0) return c;
+        return b.fraction.compareTo(a.fraction);
+      });
     return sorted;
   }
 
@@ -184,7 +223,10 @@ class _AccountDetailScreenState extends State<AccountDetailScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(account.label, style: AppText.pageTitle.copyWith(fontSize: 20)),
+                      Text(
+                        account.label,
+                        style: AppText.pageTitle.copyWith(fontSize: 20),
+                      ),
                       if (account.email.isNotEmpty)
                         Text(account.email, style: AppText.pageSubtitle),
                     ],
@@ -206,9 +248,25 @@ class _AccountDetailScreenState extends State<AccountDetailScreen> {
   }
 
   Widget _snapshotTile(SnapshotRow snapshot) {
-    final when = DateTime.fromMillisecondsSinceEpoch(snapshot.capturedAt).toLocal();
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    final stamp = '${months[when.month - 1]} ${when.day} · ${when.hour.toString().padLeft(2, '0')}:${when.minute.toString().padLeft(2, '0')}';
+    final when = DateTime.fromMillisecondsSinceEpoch(
+      snapshot.capturedAt,
+    ).toLocal();
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    final stamp =
+        '${months[when.month - 1]} ${when.day} · ${when.hour.toString().padLeft(2, '0')}:${when.minute.toString().padLeft(2, '0')}';
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       child: Theme(
@@ -236,7 +294,11 @@ class _AccountDetailScreenState extends State<AccountDetailScreen> {
                   snapshot.models
                       .map((m) => '${m.model}: ${fmtCost(m.costUsd)}')
                       .join('  ·  '),
-                  style: AppText.data(size: 10, color: AppColors.textDim, height: 1.6),
+                  style: AppText.data(
+                    size: 10,
+                    color: AppColors.textDim,
+                    height: 1.6,
+                  ),
                 ),
               ),
           ],

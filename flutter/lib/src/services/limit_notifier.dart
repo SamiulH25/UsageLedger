@@ -22,6 +22,7 @@ class LimitNotifier {
       FlutterLocalNotificationsPlugin();
   bool _ready = false;
 
+  static const _enabledKey = 'notificationsEnabled';
   static const _channelId = 'limit_alerts';
   static const _channelName = 'Limit alerts';
   static const _channelDesc = 'Fires when a budget pool runs out';
@@ -42,6 +43,7 @@ class LimitNotifier {
   /// just ran out.
   Future<void> evaluate(List<AccountOverview> accounts) async {
     if (!_ready) return;
+    if (await _repo.setting(_enabledKey) == '0') return;
     for (final account in accounts) {
       for (final w in account.windows) {
         if (w.cap <= 0) continue;

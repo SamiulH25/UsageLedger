@@ -6,6 +6,11 @@ import 'types.dart';
 const _base = 'https://api.commandcode.ai';
 
 class CommandCodeProvider implements AiProvider {
+  CommandCodeProvider({http.Client? client})
+    : _client = client ?? http.Client();
+
+  final http.Client _client;
+
   @override
   String get id => 'commandcode';
   @override
@@ -16,7 +21,7 @@ class CommandCodeProvider implements AiProvider {
       'Find it in ~/.commandcode/auth.json (field "apiKey") or run /login in Command Code.';
 
   Future<Map<String, dynamic>> _api(String path, String token) async {
-    final res = await http.get(
+    final res = await _client.get(
       Uri.parse('$_base$path'),
       headers: {
         'Authorization': 'Bearer $token',
