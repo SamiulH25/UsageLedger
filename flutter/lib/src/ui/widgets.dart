@@ -1,8 +1,7 @@
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../data/burn_rate.dart';
 import '../db/db.dart';
 import '../providers/registry.dart';
 import '../providers/types.dart';
@@ -10,15 +9,317 @@ import '../state/app_scope.dart';
 import 'theme.dart';
 
 // ---------------------------------------------------------------------------
-// Signature element: the pool gauge.
+// Signature element: the runway lane.
 //
-// Every budget window is drawn as an instrument meter — a tick-marked track,
-// a fill in its semantic color, and (when burn rate says so) a caret marking
-// where the level will sit when the window resets.
+// Each lane is one pool's own window, normalised so the reset always sits at
+// the far right. The fill runs as far as the current burn rate will carry you.
+// A bar that reaches the edge means you make it; a bar that stops short leaves
+// a dead zone, and the width of that gap is how long you are stuck with
+// nothing. Trouble is therefore a *shape*, readable without numbers.
+// ---------------------------------------------------------------------------
+
+/// A pool paired with the burn-rate projection for it.
+class RunwayEntry {
+  final String accountLabel;
+  final LimitWindow window;
+  final PoolOutlook outlook;
+
+  const RunwayEntry({
+    required this.accountLabel,
+    required this.window,
+    required this.outlook,
+  });
+
+  /// Fraction of the window the current pace carries you through.
+  /// 1.0 means the pool outlasts the window.
+  double get survivedFraction {
+    final toReset = outlook.daysToReset;
+    if (toReset == null || toReset <= 0) return 1;
+    if (window.exceeded || window.fraction >= 1) return 0;
+    final toEmpty = outlook.daysToEmpty;
+    if (toEmpty == null) return 1;
+    return (toEmpty / toReset).clamp(0.0, 1.0);
+  }
+
+  /// How long before the reset the pool runs dry, or null if it survives.
+  Duration? get dryEarlyBy {
+    final toReset = outlook.daysToReset;
+    final toEmpty = outlook.daysToEmpty;
+    if (toReset == null || toEmpty == null || toEmpty >= toReset) return null;
+    return Duration(
+      milliseconds: (((toReset - toEmpty) * 86400000).round()).clamp(
+        0,
+        1 << 52,
+      ),
+    );
+  }
+
+  /// Time left before the wall: empty-at-pace, or the reset if already dry.
+  Duration? get timeToWall {
+    if (window.exceeded || window.fraction >= 1) return Duration.zero;
+    final toEmpty = outlook.daysToEmpty;
+    if (toEmpty == null) return null;
+    final toReset = outlook.daysToReset;
+    if (toReset != null && toEmpty >= toReset) return null;
+    return Duration(
+      milliseconds: ((toEmpty * 86400000).round()).clamp(0, 1 << 52),
+    );
+  }
+
+  bool get pending => outlook.daysToReset == null;
+}
+
+class RunwayLane extends StatelessWidget {
+  final RunwayEntry entry;
+
+  /// Hides the account name when the surrounding card already names it.
+  final bool showAccount;
+
+  const RunwayLane({super.key, required this.entry, this.showAccount = true});
+
+  @override
+  Widget build(BuildContext context) {
+    final window = entry.window;
+    final dry = window.exceeded || window.fraction >= 1;
+    final survived = entry.survivedFraction;
+    final color = runwayColor(survived, dry: dry);
+    final early = entry.dryEarlyBy;
+    final reset = untilReset(window);
+
+    final String verdict;
+    final Color verdictColor;
+    if (dry) {
+      verdict = reset == null ? 'empty' : 'empty · back in ${fmtSpan(reset)}';
+      verdictColor = AppColors.hotLit;
+    } else if (entry.pending || entry.outlook.daysToEmpty == null) {
+      verdict = 'pace unknown';
+      verdictColor = AppColors.haze;
+    } else if (early == null) {
+      verdict = 'lasts to reset';
+      verdictColor = AppColors.coldLit;
+    } else {
+      verdict = 'dry ${fmtSpan(early)} early';
+      verdictColor = runwayTextColor(survived);
+    }
+
+    final title = showAccount
+        ? '${entry.accountLabel} · ${window.label}'
+        : window.label;
+
+    return Semantics(
+      container: true,
+      label:
+          '$title. ${fmtLeft(window)}. $verdict.'
+          '${reset == null ? '' : ' Resets in ${fmtSpan(reset)}.'}',
+      child: ExcludeSemantics(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 9),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppText.data(
+                        size: 12,
+                        weight: FontWeight.w700,
+                        color: AppColors.beam,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Text(
+                    fmtLeft(window),
+                    style: AppText.data(size: 12, color: AppColors.haze),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 7),
+              _RunwayTrack(
+                survived: survived,
+                color: color,
+                unknown: entry.pending || entry.outlook.daysToEmpty == null,
+              ),
+              const SizedBox(height: 6),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      verdict,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppText.data(
+                        size: 10.5,
+                        weight: FontWeight.w600,
+                        color: verdictColor,
+                      ),
+                    ),
+                  ),
+                  if (reset != null)
+                    Text(
+                      'reset ${fmtSpan(reset)}',
+                      style: AppText.data(size: 10.5, color: AppColors.haze),
+                    ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The lane itself: live fill, dead zone, and the reset gate at the right edge.
+class _RunwayTrack extends StatelessWidget {
+  final double survived;
+  final Color color;
+  final bool unknown;
+
+  const _RunwayTrack({
+    required this.survived,
+    required this.color,
+    required this.unknown,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    const height = 12.0;
+    final animate = AppMotion.enabled(context);
+    return SizedBox(
+      height: height,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final width = constraints.maxWidth;
+          return TweenAnimationBuilder<double>(
+            tween: Tween(begin: animate ? 0 : survived, end: survived),
+            duration: animate ? AppMotion.settle : Duration.zero,
+            curve: AppMotion.curve,
+            builder: (context, value, _) => CustomPaint(
+              size: Size(width, height),
+              painter: _RunwayPainter(
+                survived: value,
+                color: color,
+                unknown: unknown,
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _RunwayPainter extends CustomPainter {
+  final double survived;
+  final Color color;
+  final bool unknown;
+
+  _RunwayPainter({
+    required this.survived,
+    required this.color,
+    required this.unknown,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    const gate = 3.0;
+    final laneW = size.width - gate - 4;
+    final radius = Radius.circular(AppRadius.track);
+
+    // Bed.
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(0, 0, laneW, size.height),
+        radius,
+      ),
+      Paint()..color = AppColors.riser,
+    );
+
+    if (unknown) {
+      _paintHatch(canvas, Rect.fromLTWH(0, 0, laneW, size.height));
+    } else {
+      final liveW = laneW * survived.clamp(0.0, 1.0);
+
+      // Dead zone: the stretch after the pool runs dry, hatched so it reads as
+      // unusable rather than merely unfilled.
+      if (survived < 0.999) {
+        canvas.save();
+        canvas.clipRRect(
+          RRect.fromRectAndRadius(
+            Rect.fromLTWH(0, 0, laneW, size.height),
+            radius,
+          ),
+        );
+        _paintHatch(
+          canvas,
+          Rect.fromLTWH(liveW, 0, laneW - liveW, size.height),
+        );
+        canvas.restore();
+      }
+
+      if (liveW > 0.5) {
+        canvas.drawRRect(
+          RRect.fromRectAndRadius(
+            Rect.fromLTWH(0, 0, liveW, size.height),
+            radius,
+          ),
+          Paint()..color = color,
+        );
+        // Bright meniscus at the level, so the edge reads as a liquid surface.
+        if (survived < 0.999) {
+          canvas.drawRect(
+            Rect.fromLTWH(liveW - 2, 0, 2, size.height),
+            Paint()..color = Color.lerp(color, Colors.white, 0.45)!,
+          );
+        }
+      }
+    }
+
+    // Reset gate: the finish line the fill is racing towards.
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(size.width - gate, -1, gate, size.height + 2),
+        const Radius.circular(1),
+      ),
+      Paint()..color = survived >= 0.999 ? color : AppColors.haze,
+    );
+  }
+
+  void _paintHatch(Canvas canvas, Rect rect) {
+    if (rect.width <= 0) return;
+    canvas.save();
+    canvas.clipRect(rect);
+    final paint = Paint()
+      ..color = AppColors.rule
+      ..strokeWidth = 1;
+    for (var x = rect.left - rect.height; x < rect.right; x += 5) {
+      canvas.drawLine(
+        Offset(x, rect.bottom),
+        Offset(x + rect.height, rect.top),
+        paint,
+      );
+    }
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(_RunwayPainter old) =>
+      old.survived != survived || old.color != color || old.unknown != unknown;
+}
+
+// ---------------------------------------------------------------------------
+// Pool gauge — how much is left, as opposed to how long it lasts.
 // ---------------------------------------------------------------------------
 
 class PoolGauge extends StatelessWidget {
   final LimitWindow window;
+
+  /// Where the level lands at reset if the current pace holds.
   final double? paceCaretFraction;
   final bool compact;
 
@@ -35,16 +336,15 @@ class PoolGauge extends StatelessWidget {
     final color = limitColor(f, exceeded: window.exceeded);
     final textColor = limitTextColor(f, exceeded: window.exceeded);
     final reset = fmtResetAt(window.resetAt);
-    final caret = paceCaretFraction?.clamp(0.0, 1.0);
 
     final semanticStatus = window.cap > 0
         ? '${fmtPct(f)} used, ${fmtLeft(window)}'
         : '${fmtCost(window.used)} spent, uncapped';
-    final semanticReset = reset.isEmpty ? '' : ', $reset';
 
     return Semantics(
       container: true,
-      label: '${window.label}: $semanticStatus$semanticReset.',
+      label:
+          '${window.label}: $semanticStatus${reset.isEmpty ? '' : ', $reset'}.',
       child: ExcludeSemantics(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -55,47 +355,48 @@ class PoolGauge extends StatelessWidget {
               children: [
                 Expanded(
                   child: Text(
-                    window.label.toUpperCase(),
-                    style: AppText.sectionLabel.copyWith(color: AppColors.text),
+                    window.label,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
+                    style: AppText.data(
+                      size: compact ? 11.5 : 12.5,
+                      weight: FontWeight.w700,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 8),
                 Text(
                   window.cap > 0 ? fmtLeft(window) : fmtCost(window.used),
-                  style: AppText.data(size: 11, color: AppColors.textDim),
+                  style: AppText.data(size: 11.5, color: AppColors.haze),
                 ),
               ],
             ),
-            const SizedBox(height: 6),
-            _GaugeTrack(
+            SizedBox(height: compact ? 5 : 7),
+            Meter(
               fraction: f,
               color: color,
-              caretFraction: caret,
-              height: compact ? 8 : 12,
+              height: compact ? 6 : 9,
+              caretFraction: paceCaretFraction,
             ),
-            const SizedBox(height: 5),
+            SizedBox(height: compact ? 4 : 6),
             Row(
               children: [
                 Text(
-                  window.exceeded
-                      ? 'EMPTY'
-                      : window.cap > 0
-                      ? '${fmtPct(f)} used'
+                  window.cap > 0
+                      ? heatLabel(f, exceeded: window.exceeded)
                       : 'UNCAPPED',
-                  style: AppText.data(
-                    size: 10,
-                    weight: FontWeight.w700,
-                    color: textColor,
-                    spacing: 0.6,
-                  ),
+                  style: AppText.tag(color: textColor, size: 9.5),
                 ),
                 const Spacer(),
                 if (reset.isNotEmpty)
-                  Text(
-                    reset,
-                    style: AppText.data(size: 10, color: AppColors.textDim),
+                  Flexible(
+                    child: Text(
+                      reset,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.end,
+                      style: AppText.data(size: 10.5, color: AppColors.haze),
+                    ),
                   ),
               ],
             ),
@@ -106,89 +407,89 @@ class PoolGauge extends StatelessWidget {
   }
 }
 
-class _GaugeTrack extends StatelessWidget {
+/// A single filled track. Animates to its value and honours reduced motion.
+class Meter extends StatelessWidget {
   final double fraction;
   final Color color;
-  final double? caretFraction;
   final double height;
+  final double? caretFraction;
 
-  const _GaugeTrack({
+  const Meter({
+    super.key,
     required this.fraction,
     required this.color,
-    required this.height,
+    this.height = 8,
     this.caretFraction,
   });
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final width = constraints.maxWidth;
-        Widget ticks = Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            for (var i = 1; i < 10; i++)
-              Container(
-                width: 1,
-                height: height * 0.55,
-                color: AppColors.border.withValues(alpha: .7),
-              ),
-          ],
-        );
-        return SizedBox(
-          height: height,
-          width: width,
-          child: Stack(
-            clipBehavior: Clip.none,
-            children: [
-              // Track
-              DecoratedBox(
-                decoration: BoxDecoration(
-                  color: AppColors.surfaceHi,
-                  borderRadius: BorderRadius.circular(height / 2),
-                  border: Border.all(color: AppColors.border),
-                ),
-                child: const SizedBox.expand(),
-              ),
-              // Fill
-              FractionallySizedBox(
-                widthFactor: math.max(fraction, 0.004),
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: color,
-                    borderRadius: BorderRadius.circular(height / 2),
-                  ),
-                  child: const SizedBox.expand(),
-                ),
-              ),
-              // Tick marks over everything
-              Positioned.fill(
-                child: Padding(
-                  padding: EdgeInsets.symmetric(horizontal: height * .55),
-                  child: ticks,
-                ),
-              ),
-              // Pace caret
-              if (caretFraction != null && caretFraction! > fraction + 0.01)
-                Positioned(
-                  left: width * caretFraction! - 4,
-                  top: -3,
-                  child: Column(
-                    children: [
-                      Icon(
-                        Icons.play_arrow_rounded,
-                        size: height + 2,
-                        color: AppColors.textDim,
-                      ),
-                    ],
-                  ),
-                ),
-            ],
+    final animate = AppMotion.enabled(context);
+    final target = fraction.clamp(0.0, 1.0);
+    return SizedBox(
+      height: height,
+      child: TweenAnimationBuilder<double>(
+        tween: Tween(begin: animate ? 0 : target, end: target),
+        duration: animate ? AppMotion.settle : Duration.zero,
+        curve: AppMotion.curve,
+        builder: (context, value, _) => CustomPaint(
+          size: Size(double.infinity, height),
+          painter: _MeterPainter(
+            fraction: value,
+            color: color,
+            caret: caretFraction?.clamp(0.0, 1.0),
           ),
-        );
-      },
+        ),
+      ),
     );
   }
+}
+
+class _MeterPainter extends CustomPainter {
+  final double fraction;
+  final Color color;
+  final double? caret;
+
+  _MeterPainter({required this.fraction, required this.color, this.caret});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final radius = Radius.circular(AppRadius.track);
+    final bed = RRect.fromRectAndRadius(Offset.zero & size, radius);
+    canvas.drawRRect(bed, Paint()..color = AppColors.riser);
+
+    final fillW = size.width * fraction;
+    if (fillW > 0.5) {
+      canvas.save();
+      canvas.clipRRect(bed);
+      canvas.drawRect(
+        Rect.fromLTWH(0, 0, fillW, size.height),
+        Paint()..color = color,
+      );
+      if (fraction < 0.995) {
+        canvas.drawRect(
+          Rect.fromLTWH(fillW - 1.5, 0, 1.5, size.height),
+          Paint()..color = Color.lerp(color, Colors.white, 0.5)!,
+        );
+      }
+      canvas.restore();
+    }
+
+    // Projected level at reset — a notch, not a second bar, so it never
+    // competes with the actual reading.
+    final c = caret;
+    if (c != null && c > fraction + 0.02) {
+      final x = (size.width * c).clamp(0.0, size.width - 1);
+      canvas.drawRect(
+        Rect.fromLTWH(x - 0.75, -2, 1.5, size.height + 4),
+        Paint()..color = AppColors.haze,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(_MeterPainter old) =>
+      old.fraction != fraction || old.color != color || old.caret != caret;
 }
 
 /// Tiny inline share bar (Auto/API slices of one pool).
@@ -207,8 +508,6 @@ class ShareBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final f = fraction.clamp(0.0, 1.0);
-    final color = limitColor(f, exceeded: exceeded);
-    final textColor = limitTextColor(f, exceeded: exceeded);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -217,30 +516,26 @@ class ShareBar extends StatelessWidget {
             Expanded(
               child: Text(
                 label,
-                style: AppText.data(size: 10, color: AppColors.textDim),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
+                style: AppText.data(size: 10.5, color: AppColors.haze),
               ),
             ),
             Text(
               fmtPct(f),
               style: AppText.data(
-                size: 10,
+                size: 10.5,
                 weight: FontWeight.w700,
-                color: textColor,
+                color: limitTextColor(f, exceeded: exceeded),
               ),
             ),
           ],
         ),
         const SizedBox(height: 4),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(3),
-          child: LinearProgressIndicator(
-            value: f,
-            minHeight: 4,
-            backgroundColor: AppColors.surfaceHi,
-            valueColor: AlwaysStoppedAnimation(color),
-          ),
+        Meter(
+          fraction: f,
+          color: limitColor(f, exceeded: exceeded),
+          height: 4,
         ),
       ],
     );
@@ -248,73 +543,226 @@ class ShareBar extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// Structure & chrome
+// Surfaces
 // ---------------------------------------------------------------------------
 
-class StatCell extends StatelessWidget {
-  final String label;
-  final String value;
-  final Color? valueColor;
-  const StatCell({
+/// The card language for the whole app: a hairline box with a thermal rail
+/// down its left edge. Scanning the rails alone tells you where the trouble
+/// is, before any number is read.
+class ThermalCard extends StatelessWidget {
+  final Widget child;
+  final Color? rail;
+  final EdgeInsetsGeometry padding;
+  final EdgeInsetsGeometry margin;
+  final VoidCallback? onTap;
+  final Color? background;
+
+  const ThermalCard({
     super.key,
-    required this.label,
+    required this.child,
+    this.rail,
+    this.padding = const EdgeInsets.fromLTRB(15, 14, 15, 14),
+    this.margin = EdgeInsets.zero,
+    this.onTap,
+    this.background,
+  });
+
+  static const _railWidth = 3.0;
+
+  @override
+  Widget build(BuildContext context) {
+    final railColor = rail ?? AppColors.rule;
+    Widget content = Padding(
+      padding: const EdgeInsets.only(left: _railWidth).add(padding),
+      child: child,
+    );
+    if (onTap != null) {
+      content = Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          splashColor: railColor.withValues(alpha: .08),
+          highlightColor: railColor.withValues(alpha: .05),
+          child: content,
+        ),
+      );
+    }
+    return Padding(
+      padding: margin,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: background ?? AppColors.deck,
+          borderRadius: BorderRadius.circular(AppRadius.card),
+          border: Border.all(color: AppColors.rule),
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(AppRadius.card - 1),
+          // Stack rather than a stretched Row: the rail must span whatever
+          // height the content ends up at, including inside a scroll view
+          // where the height is unbounded.
+          child: Stack(
+            children: [
+              content,
+              Positioned(
+                left: 0,
+                top: 0,
+                bottom: 0,
+                child: SizedBox(
+                  width: _railWidth,
+                  child: ColoredBox(color: railColor),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Big instrument reading: eyebrow, numeral, and a line of context.
+class Readout extends StatelessWidget {
+  final String eyebrow;
+  final String value;
+  final String? detail;
+  final Color color;
+  final double size;
+
+  const Readout({
+    super.key,
+    required this.eyebrow,
     required this.value,
-    this.valueColor,
+    this.detail,
+    this.color = AppColors.beam,
+    this.size = 46,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: AppText.sectionLabel),
-        const SizedBox(height: 3),
-        Text(
-          value,
-          style: AppText.data(
-            size: 15,
-            weight: FontWeight.w700,
-            color: valueColor ?? AppColors.text,
-          ),
+    return Semantics(
+      container: true,
+      label: '$eyebrow: $value.${detail == null ? '' : ' $detail'}',
+      child: ExcludeSemantics(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(eyebrow, style: AppText.tag(color: color)),
+            const SizedBox(height: 10),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Text(value, style: AppText.readout(size, color: color)),
+            ),
+            if (detail != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                detail!,
+                style: AppText.data(size: 11.5, color: AppColors.haze),
+              ),
+            ],
+          ],
         ),
-      ],
+      ),
     );
   }
 }
 
-class StatRow extends StatelessWidget {
-  final List<Widget> children;
-  const StatRow({super.key, required this.children});
+/// Label/value pairs separated by hairlines.
+class MetricRow extends StatelessWidget {
+  final List<Metric> metrics;
+
+  const MetricRow({super.key, required this.metrics});
 
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        if (constraints.maxWidth < 330) {
-          final width = (constraints.maxWidth - 16) / 2;
-          return Wrap(
-            spacing: 16,
-            runSpacing: 12,
+        final stack = constraints.maxWidth < 250 && metrics.length > 2;
+        if (stack) {
+          return Column(
             children: [
-              for (final child in children)
-                SizedBox(width: width, child: child),
+              for (var i = 0; i < metrics.length; i++) ...[
+                if (i > 0)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 10),
+                    child: Divider(height: 1),
+                  ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(metrics[i].label, style: AppText.tag()),
+                    Text(
+                      metrics[i].value,
+                      style: AppText.data(
+                        size: 14,
+                        weight: FontWeight.w700,
+                        color: metrics[i].color ?? AppColors.beam,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ],
           );
         }
-        return Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [for (final child in children) Expanded(child: child)],
+        return IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              for (var i = 0; i < metrics.length; i++) ...[
+                if (i > 0)
+                  const VerticalDivider(
+                    width: 21,
+                    thickness: 1,
+                    color: AppColors.rule,
+                  ),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        metrics[i].label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppText.tag(),
+                      ),
+                      const SizedBox(height: 6),
+                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          metrics[i].value,
+                          style: AppText.data(
+                            size: 15,
+                            weight: FontWeight.w700,
+                            color: metrics[i].color ?? AppColors.beam,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ],
+          ),
         );
       },
     );
   }
 }
 
+class Metric {
+  final String label;
+  final String value;
+  final Color? color;
+  const Metric(this.label, this.value, {this.color});
+}
+
 class ProviderAvatar extends StatelessWidget {
   final String platform;
   final double size;
 
-  const ProviderAvatar({super.key, required this.platform, this.size = 35});
+  const ProviderAvatar({super.key, required this.platform, this.size = 34});
 
   @override
   Widget build(BuildContext context) {
@@ -323,12 +771,12 @@ class ProviderAvatar extends StatelessWidget {
       label: '${providerName(platform)} logo',
       child: DecoratedBox(
         decoration: BoxDecoration(
-          color: AppColors.surfaceHi,
-          borderRadius: BorderRadius.circular(9),
-          border: Border.all(color: AppColors.border),
+          color: AppColors.riser,
+          borderRadius: BorderRadius.circular(AppRadius.control),
+          border: Border.all(color: AppColors.rule),
         ),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(AppRadius.control - 1),
           child: SizedBox(
             width: size,
             height: size,
@@ -337,10 +785,10 @@ class ProviderAvatar extends StatelessWidget {
                 : Center(
                     child: Text(
                       platform.isNotEmpty ? platform[0].toUpperCase() : '?',
-                      style: TextStyle(
-                        fontSize: size * .38,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.textDim,
+                      style: AppText.data(
+                        size: size * .38,
+                        weight: FontWeight.w700,
+                        color: AppColors.haze,
                       ),
                     ),
                   ),
@@ -351,7 +799,11 @@ class ProviderAvatar extends StatelessWidget {
   }
 }
 
-/// Brand row with optional trailing actions (sync button etc).
+// ---------------------------------------------------------------------------
+// Chrome
+// ---------------------------------------------------------------------------
+
+/// Wordmark plus trailing actions.
 class AppBrandBar extends StatelessWidget {
   final List<Widget>? actions;
 
@@ -361,6 +813,12 @@ class AppBrandBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
+        Container(
+          width: 3,
+          height: 15,
+          margin: const EdgeInsets.only(right: 9),
+          color: AppColors.cold,
+        ),
         const Expanded(child: Text('UsageLedger', style: AppText.brand)),
         if (actions != null) ...actions!,
       ],
@@ -368,7 +826,7 @@ class AppBrandBar extends StatelessWidget {
   }
 }
 
-/// Brand row with the live sync chip — used on every tab.
+/// Wordmark with the live sync status — used on every tab.
 class BrandBarWithSync extends StatelessWidget {
   final VoidCallback? onOpenSettings;
 
@@ -388,20 +846,22 @@ class BrandBarWithSync extends StatelessWidget {
             failed: scope.sync.syncFailed,
             onTap: () => scope.sync.sync(),
           ),
-          if (onOpenSettings != null)
+          if (onOpenSettings != null) ...[
+            const SizedBox(width: 2),
             IconButton(
               onPressed: onOpenSettings,
-              icon: const Icon(Icons.settings_outlined, size: 19),
-              color: AppColors.textDim,
+              icon: const Icon(Icons.tune, size: 19),
+              color: AppColors.haze,
               tooltip: 'Settings',
             ),
+          ],
         ],
       ),
     );
   }
 }
 
-/// Mono status chip: SYNCED 2M AGO / SYNCING… / AUTO OFF.
+/// Status pill: SYNCED 2M AGO / SYNCING… / SYNC FAILED.
 class SyncChip extends StatelessWidget {
   final DateTime? lastAttemptAt;
   final DateTime? lastSuccessAt;
@@ -421,43 +881,62 @@ class SyncChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final label = syncing
-        ? 'SYNCING…'
+        ? 'SYNCING'
         : failed
         ? 'SYNC FAILED'
         : lastSuccessAt == null
         ? 'NOT SYNCED'
-        : 'SYNCED ${_ago(lastSuccessAt!).toUpperCase()}';
+        : _ago(lastSuccessAt!).toUpperCase();
     final color = syncing
-        ? AppColors.accent
+        ? AppColors.coldLit
         : failed
-        ? AppColors.dangerText
-        : AppColors.textDim;
-    return ConstrainedBox(
-      constraints: const BoxConstraints(minHeight: 48),
-      child: ActionChip(
-        onPressed: syncing ? null : onTap,
-        backgroundColor: Colors.transparent,
-        side: BorderSide(color: AppColors.border),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
-        visualDensity: VisualDensity.standard,
-        tooltip: failed ? 'Retry sync' : 'Sync now',
-        avatar: syncing
-            ? SizedBox(
-                width: 12,
-                height: 12,
-                child: CircularProgressIndicator(
-                  strokeWidth: 1.6,
-                  color: color,
+        ? AppColors.hotLit
+        : AppColors.haze;
+
+    return Tooltip(
+      message: failed ? 'Retry sync' : 'Sync now',
+      child: Semantics(
+        button: true,
+        label: failed
+            ? 'Sync failed. Retry sync.'
+            : syncing
+            ? 'Syncing'
+            : 'Synced $label. Sync now.',
+        child: ExcludeSemantics(
+          child: InkWell(
+            onTap: syncing ? null : onTap,
+            borderRadius: BorderRadius.circular(AppRadius.control),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: 44, minWidth: 48),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 9),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (syncing)
+                      SizedBox(
+                        width: 10,
+                        height: 10,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 1.6,
+                          color: color,
+                        ),
+                      )
+                    else
+                      Container(
+                        width: 6,
+                        height: 6,
+                        decoration: BoxDecoration(
+                          color: failed ? AppColors.hot : AppColors.cold,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                    const SizedBox(width: 7),
+                    Text(label, style: AppText.tag(color: color, size: 9.5)),
+                  ],
                 ),
-              )
-            : Icon(Icons.satellite_alt_outlined, size: 13, color: color),
-        label: Text(
-          label,
-          style: AppText.data(
-            size: 9.5,
-            weight: FontWeight.w600,
-            color: color,
-            spacing: 0.8,
+              ),
+            ),
           ),
         ),
       ),
@@ -476,12 +955,14 @@ class SyncChip extends StatelessWidget {
 class PageHeading extends StatelessWidget {
   final String title;
   final String? subtitle;
+  final String? eyebrow;
   final Widget? trailing;
 
   const PageHeading({
     super.key,
     required this.title,
     this.subtitle,
+    this.eyebrow,
     this.trailing,
   });
 
@@ -494,9 +975,13 @@ class PageHeading extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              if (eyebrow != null) ...[
+                Text(eyebrow!, style: AppText.tag(color: AppColors.coldLit)),
+                const SizedBox(height: 8),
+              ],
               Text(title, style: AppText.pageTitle),
               if (subtitle != null) ...[
-                const SizedBox(height: 6),
+                const SizedBox(height: 7),
                 Text(subtitle!, style: AppText.pageSubtitle),
               ],
             ],
@@ -511,9 +996,8 @@ class PageHeading extends StatelessWidget {
 class InlineMessage extends StatelessWidget {
   final String message;
   final IconData icon;
+  final Color tone;
   final Color background;
-  final Color border;
-  final Color foreground;
 
   /// Optional trailing action (e.g. "Update key").
   final Widget? action;
@@ -522,29 +1006,37 @@ class InlineMessage extends StatelessWidget {
     super.key,
     required this.message,
     required this.icon,
+    required this.tone,
     required this.background,
-    required this.border,
-    required this.foreground,
     this.action,
   });
 
   factory InlineMessage.error(String message, {Widget? action}) =>
       InlineMessage(
         message: message,
-        icon: Icons.error_outline,
-        background: AppColors.dangerSoft,
-        border: AppColors.danger.withValues(alpha: .4),
-        foreground: AppColors.dangerText,
+        icon: Icons.priority_high_rounded,
+        tone: AppColors.hotLit,
+        background: AppColors.hotSoft,
         action: action,
       );
 
-  factory InlineMessage.info(String message) => InlineMessage(
-    message: message,
-    icon: Icons.info_outline,
-    background: AppColors.accentSoft,
-    border: AppColors.accent.withValues(alpha: .35),
-    foreground: AppColors.accent,
-  );
+  factory InlineMessage.info(String message, {Widget? action}) =>
+      InlineMessage(
+        message: message,
+        icon: Icons.info_outline_rounded,
+        tone: AppColors.coldLit,
+        background: AppColors.coldSoft,
+        action: action,
+      );
+
+  factory InlineMessage.warn(String message, {Widget? action}) =>
+      InlineMessage(
+        message: message,
+        icon: Icons.warning_amber_rounded,
+        tone: AppColors.warm,
+        background: AppColors.warmSoft,
+        action: action,
+      );
 
   @override
   Widget build(BuildContext context) {
@@ -554,28 +1046,26 @@ class InlineMessage extends StatelessWidget {
       child: DecoratedBox(
         decoration: BoxDecoration(
           color: background,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: border),
+          borderRadius: BorderRadius.circular(AppRadius.control),
+          border: Border.all(color: tone.withValues(alpha: .3)),
         ),
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(12, 11, 12, 11),
+          padding: const EdgeInsets.fromLTRB(12, 11, 10, 11),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(icon, size: 18, color: foreground),
+              Icon(icon, size: 17, color: tone),
               const SizedBox(width: 10),
               Expanded(
-                child: Text(
-                  message,
-                  style: TextStyle(
-                    color: foreground,
-                    fontSize: 12,
-                    height: 1.4,
-                    fontWeight: FontWeight.w500,
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 1),
+                  child: Text(
+                    message,
+                    style: AppText.body(size: 12.5, color: tone),
                   ),
                 ),
               ),
-              if (action != null) ...[const SizedBox(width: 8), action!],
+              if (action != null) ...[const SizedBox(width: 6), action!],
             ],
           ),
         ),
@@ -584,6 +1074,7 @@ class InlineMessage extends StatelessWidget {
   }
 }
 
+/// Section divider: a rule with the title sitting on it.
 class SectionHeader extends StatelessWidget {
   final String title;
   final String? trailing;
@@ -593,20 +1084,20 @@ class SectionHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(2, 22, 2, 10),
+      padding: const EdgeInsets.fromLTRB(0, AppSpacing.sectionGap, 0, 12),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        crossAxisAlignment: CrossAxisAlignment.end,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Text(
             title.toUpperCase(),
-            style: AppText.sectionLabel.copyWith(fontSize: 11),
+            style: AppText.tag(color: AppColors.beam, size: 10.5),
           ),
-          if (trailing != null)
-            Text(
-              trailing!,
-              style: AppText.data(size: 10, color: AppColors.textDim),
-            ),
+          const SizedBox(width: 12),
+          const Expanded(child: Divider(height: 1)),
+          if (trailing != null) ...[
+            const SizedBox(width: 12),
+            Text(trailing!, style: AppText.data(size: 10, color: AppColors.haze)),
+          ],
         ],
       ),
     );
@@ -622,50 +1113,87 @@ class AddAccountCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Semantics(
       button: true,
-      label: 'Add another account',
-      child: OutlinedButton(
-        onPressed: onPressed,
-        style: OutlinedButton.styleFrom(
-          alignment: Alignment.centerLeft,
-          backgroundColor: Colors.transparent,
-          foregroundColor: AppColors.text,
-          side: const BorderSide(color: AppColors.border),
-          minimumSize: const Size.fromHeight(56),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 12),
-        ),
-        child: Row(
-          children: [
-            const Icon(
-              Icons.add_circle_outline,
-              size: 20,
-              color: AppColors.accent,
-            ),
-            const SizedBox(width: 12),
-            const Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Add account',
-                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-                  ),
-                  SizedBox(height: 2),
-                  Text(
-                    'Any connected provider · key stays on device',
-                    style: TextStyle(fontSize: 11, color: AppColors.textDim),
-                  ),
-                ],
+      label: 'Add an account',
+      child: ExcludeSemantics(
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onPressed,
+            borderRadius: BorderRadius.circular(AppRadius.card),
+            child: DottedEdge(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 15, 14, 15),
+                child: Row(
+                  children: [
+                    const Icon(Icons.add, size: 19, color: AppColors.coldLit),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Add an account',
+                            style: AppText.body(
+                              size: 13.5,
+                              color: AppColors.beam,
+                              weight: FontWeight.w500,
+                            ),
+                          ),
+                          const SizedBox(height: 1),
+                          Text(
+                            'The key stays on this phone',
+                            style: AppText.body(size: 11.5),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
-            const Icon(Icons.chevron_right, size: 20, color: AppColors.textDim),
-          ],
+          ),
         ),
       ),
     );
   }
+}
+
+/// Dashed hairline box — reserved for "nothing here yet, put something here".
+class DottedEdge extends StatelessWidget {
+  final Widget child;
+  const DottedEdge({super.key, required this.child});
+
+  @override
+  Widget build(BuildContext context) => CustomPaint(
+    painter: _DashedBorderPainter(),
+    child: child,
+  );
+}
+
+class _DashedBorderPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = AppColors.rule
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1;
+    final rrect = RRect.fromRectAndRadius(
+      Rect.fromLTWH(.5, .5, size.width - 1, size.height - 1),
+      Radius.circular(AppRadius.card),
+    );
+    final metrics = Path()..addRRect(rrect);
+    for (final metric in metrics.computeMetrics()) {
+      var d = 0.0;
+      while (d < metric.length) {
+        final end = (d + 4).clamp(0.0, metric.length);
+        canvas.drawPath(metric.extractPath(d, end), paint);
+        d += 8;
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(_DashedBorderPainter oldDelegate) => false;
 }
 
 class EmptyState extends StatelessWidget {
@@ -685,42 +1213,49 @@ class EmptyState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 12),
+      padding: const EdgeInsets.symmetric(vertical: 34, horizontal: 8),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          DecoratedBox(
-            decoration: BoxDecoration(
-              color: AppColors.surfaceHi,
-              shape: BoxShape.circle,
-              border: Border.all(color: AppColors.border),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(18),
-              child: Icon(icon, size: 28, color: AppColors.textDim),
-            ),
-          ),
+          Icon(icon, size: 24, color: AppColors.haze),
           const SizedBox(height: 16),
-          Text(
-            title,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              fontFamily: displayFamily,
-              fontSize: 17,
-              fontWeight: FontWeight.w700,
-              color: AppColors.text,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(hint, textAlign: TextAlign.center, style: AppText.pageSubtitle),
-          if (action != null) ...[const SizedBox(height: 18), action!],
+          Text(title, style: AppText.pageTitle.copyWith(fontSize: 19)),
+          const SizedBox(height: 7),
+          Text(hint, style: AppText.pageSubtitle),
+          if (action != null) ...[const SizedBox(height: 20), action!],
         ],
       ),
     );
   }
 }
 
+/// Placeholder bar used while the first load is in flight.
+class SkeletonBar extends StatelessWidget {
+  final double height;
+  final double widthFactor;
+
+  const SkeletonBar({super.key, this.height = 12, this.widthFactor = 1});
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: FractionallySizedBox(
+        widthFactor: widthFactor,
+        child: Container(
+          height: height,
+          decoration: BoxDecoration(
+            color: AppColors.riser,
+            borderRadius: BorderRadius.circular(AppRadius.track),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 // ---------------------------------------------------------------------------
-// Account card (Overview + Accounts tabs)
+// Account card
 // ---------------------------------------------------------------------------
 
 class AccountUsageCard extends StatelessWidget {
@@ -758,97 +1293,105 @@ class AccountUsageCard extends StatelessWidget {
     final budgets = windows.where((w) => w.kind == LimitKind.budget).toList()
       ..sort((a, b) => b.fraction.compareTo(a.fraction));
     final shares = windows.where((w) => w.kind == LimitKind.share).toList();
-    final bursts = windows.where((w) => w.kind == LimitKind.burst).toList()
-      ..sort((a, b) => b.fraction.compareTo(a.fraction));
+    final bursts =
+        windows.where((w) => w.kind == LimitKind.burst && !w.idle).toList()
+          ..sort((a, b) => b.fraction.compareTo(a.fraction));
     final extras = windows.where((w) => w.kind == LimitKind.extra).toList();
+    final gauges = [...budgets.take(2), ...bursts];
     final ago = fmtAgo(lastRefreshAt);
     final tokenCount = inputTokens + outputTokens;
+    final failed = account.syncError.isNotEmpty;
 
-    final body = Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            ProviderAvatar(platform: account.platform),
-            const SizedBox(width: 11),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    account.label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontFamily: displayFamily,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
+    // The rail carries the account's worst pool, so a column of cards reads as
+    // a single health scan.
+    final hottest = [...budgets, ...bursts].isEmpty
+        ? null
+        : [...budgets, ...bursts].reduce(
+            (a, b) => a.fraction >= b.fraction ? a : b,
+          );
+    final rail = failed
+        ? AppColors.hot
+        : hottest == null
+        ? AppColors.rule
+        : limitColor(hottest.fraction, exceeded: hottest.exceeded);
+
+    return ThermalCard(
+      margin: const EdgeInsets.only(bottom: 10),
+      rail: rail,
+      onTap: onOpen,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              ProviderAvatar(platform: account.platform),
+              const SizedBox(width: 11),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      account.label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppText.cardTitle,
                     ),
-                  ),
-                  Text(
-                    [
-                      providerName(account.platform).toUpperCase(),
-                      if (account.syncError.isNotEmpty) 'SYNC FAILED',
-                      if (ago.isNotEmpty && account.syncError.isEmpty) ago,
-                    ].join(' · '),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppText.data(
-                      size: 9.5,
-                      color: account.syncError.isNotEmpty
-                          ? AppColors.dangerText
-                          : AppColors.textDim,
-                      spacing: 0.6,
+                    const SizedBox(height: 2),
+                    Text(
+                      [
+                        providerName(account.platform).toUpperCase(),
+                        if (failed) 'SYNC FAILED',
+                        if (ago.isNotEmpty && !failed) ago.toUpperCase(),
+                      ].join(' · '),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppText.tag(
+                        color: failed ? AppColors.hotLit : AppColors.haze,
+                        size: 9,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-            Flexible(
-              child: Text(
-                fmtCost(costUsd),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.end,
-                style: AppText.data(size: 17, weight: FontWeight.w700),
+              const SizedBox(width: 8),
+              Flexible(
+                child: Text(
+                  fmtCost(costUsd),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.end,
+                  style: AppText.data(size: 16, weight: FontWeight.w700),
+                ),
               ),
-            ),
-            if (onOpen != null) ...[
-              const SizedBox(width: 4),
-              const Icon(
-                Icons.chevron_right,
-                size: 18,
-                color: AppColors.textDim,
-              ),
+              if (onOpen != null)
+                const Icon(
+                  Icons.chevron_right,
+                  size: 18,
+                  color: AppColors.haze,
+                ),
             ],
-          ],
-        ),
-        if (account.platform == 'cursor' && costUsd <= 0 && tokenCount > 0) ...[
-          const SizedBox(height: 10),
-          Text(
-            'Tokens only — Cursor no longer reports per-request dollars on self-serve plans.',
-            style: AppText.data(size: 10.5, color: AppColors.accent),
           ),
-        ],
-        if (banner != null) ...[const SizedBox(height: 10), banner!],
-        if (bursts.isNotEmpty ||
-            budgets.isNotEmpty ||
-            shares.isNotEmpty ||
-            extras.isNotEmpty) ...[
-          const SizedBox(height: 14),
-          for (final budget in budgets.take(2)) ...[
-            PoolGauge(window: budget, compact: true),
-            const SizedBox(height: 12),
-          ],
-          for (final burst in bursts)
-            if (!burst.idle) ...[
-              PoolGauge(window: burst, compact: true),
-              const SizedBox(height: 12),
-            ],
-          if (shares.length >= 2)
+          if (account.platform == 'cursor' && costUsd <= 0 && tokenCount > 0)
             Padding(
-              padding: const EdgeInsets.only(bottom: 4),
-              child: Row(
+              padding: const EdgeInsets.only(top: 10),
+              child: Text(
+                'Tokens only — Cursor no longer reports per-request dollars '
+                'on self-serve plans.',
+                style: AppText.body(size: 11.5, color: AppColors.warm),
+              ),
+            ),
+          if (banner != null) ...[const SizedBox(height: 11), banner!],
+          if (gauges.isNotEmpty) ...[
+            const SizedBox(height: 14),
+            for (var i = 0; i < gauges.length; i++) ...[
+              if (i > 0) const SizedBox(height: 12),
+              PoolGauge(window: gauges[i], compact: true),
+            ],
+          ],
+          if (shares.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            if (shares.length >= 2)
+              Row(
                 children: [
                   Expanded(
                     child: ShareBar(
@@ -866,69 +1409,48 @@ class AccountUsageCard extends StatelessWidget {
                     ),
                   ),
                 ],
-              ),
-            )
-          else if (shares.length == 1)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 4),
-              child: ShareBar(
+              )
+            else
+              ShareBar(
                 label: shares.first.label,
                 fraction: shares.first.fraction,
                 exceeded: shares.first.exceeded,
               ),
-            ),
+          ],
           for (final extra in extras)
             Padding(
-              padding: const EdgeInsets.only(top: 6),
+              padding: const EdgeInsets.only(top: 10),
               child: Row(
                 children: [
-                  const Expanded(
-                    child: Text('EXTRA USAGE', style: AppText.sectionLabel),
+                  Expanded(
+                    child: Text('EXTRA USAGE', style: AppText.tag(size: 9.5)),
                   ),
                   Text(
                     fmtCost(extra.used),
-                    style: AppText.data(size: 11, weight: FontWeight.w700),
+                    style: AppText.data(
+                      size: 11.5,
+                      weight: FontWeight.w700,
+                      color: AppColors.warm,
+                    ),
                   ),
                 ],
               ),
             ),
+          if (tokenCount > 0 || requests > 0)
+            Padding(
+              padding: const EdgeInsets.only(top: 10),
+              child: Text(
+                [
+                  if (tokenCount > 0) '${fmtTokens(tokenCount)} tok',
+                  if (requests > 0) '$requests req',
+                ].join('   '),
+                style: AppText.data(size: 10.5, color: AppColors.haze),
+              ),
+            ),
+          if (models.isNotEmpty)
+            ModelBreakdownPanel(models: models, platform: account.platform),
+          if (footer != null) footer!,
         ],
-        if (tokenCount > 0 || requests > 0) ...[
-          const SizedBox(height: 8),
-          Text(
-            [
-              if (tokenCount > 0) '${fmtTokens(tokenCount)} tok',
-              if (requests > 0) '$requests req',
-            ].join('  ·  '),
-            style: AppText.data(size: 10, color: AppColors.textDim),
-          ),
-        ],
-        if (models.isNotEmpty) ...[
-          const SizedBox(height: 6),
-          ModelBreakdownPanel(models: models, platform: account.platform),
-        ],
-        if (footer != null) footer!,
-      ],
-    );
-
-    if (onOpen == null) {
-      return Card(
-        margin: const EdgeInsets.only(bottom: 10),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(15, 14, 15, 14),
-          child: body,
-        ),
-      );
-    }
-    return Card(
-      margin: const EdgeInsets.only(bottom: 10),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: onOpen,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(15, 14, 15, 14),
-          child: body,
-        ),
       ),
     );
   }
@@ -946,10 +1468,7 @@ class ModelBreakdownPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final totalCost = models.fold<double>(
-      0,
-      (sum, model) => sum + model.costUsd,
-    );
+    final totalCost = models.fold<double>(0, (sum, m) => sum + m.costUsd);
 
     return Theme(
       data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
@@ -960,11 +1479,11 @@ class ModelBreakdownPanel extends StatelessWidget {
         showTrailingIcon: true,
         title: Text(
           'MODEL USAGE',
-          style: AppText.sectionLabel.copyWith(color: AppColors.text),
+          style: AppText.tag(color: AppColors.beam, size: 9.5),
         ),
         subtitle: Text(
           '${models.length} models · ${fmtCost(totalCost)}',
-          style: AppText.data(size: 10, color: AppColors.textDim),
+          style: AppText.data(size: 10.5, color: AppColors.haze),
         ),
         children: platform == 'cursor'
             ? [
@@ -989,29 +1508,25 @@ class ModelBreakdownPanel extends StatelessWidget {
         ..sort((a, b) => b.costUsd.compareTo(a.costUsd));
 
   Widget _groupSection(String title, List<ModelUsage> items, double totalCost) {
-    final groupCost = items.fold<double>(
-      0,
-      (sum, model) => sum + model.costUsd,
-    );
+    final groupCost = items.fold<double>(0, (sum, m) => sum + m.costUsd);
     return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.only(bottom: 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
             children: [
-              Text(
-                title,
-                style: AppText.sectionLabel.copyWith(color: AppColors.accent),
-              ),
-              const Spacer(),
+              Text(title, style: AppText.tag(color: AppColors.coldLit, size: 9.5)),
+              const SizedBox(width: 10),
+              const Expanded(child: Divider(height: 1)),
+              const SizedBox(width: 10),
               Text(
                 fmtCost(groupCost),
-                style: AppText.data(size: 10, color: AppColors.textDim),
+                style: AppText.data(size: 10.5, color: AppColors.haze),
               ),
             ],
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 8),
           ...items.map((model) => _modelRow(model, totalCost)),
         ],
       ),
@@ -1057,12 +1572,12 @@ class ModelBreakdownPanel extends StatelessWidget {
                   model.model,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: AppText.data(size: 11, weight: FontWeight.w600),
+                  style: AppText.data(size: 11.5, weight: FontWeight.w600),
                 ),
                 if (model.totalTokens > 0)
                   Text(
                     _tokenSplit(model),
-                    style: AppText.data(size: 10, color: AppColors.textDim),
+                    style: AppText.data(size: 10, color: AppColors.haze),
                   ),
               ],
             ),
@@ -1073,11 +1588,11 @@ class ModelBreakdownPanel extends StatelessWidget {
             children: [
               Text(
                 fmtCost(model.costUsd),
-                style: AppText.data(size: 11, weight: FontWeight.w700),
+                style: AppText.data(size: 11.5, weight: FontWeight.w700),
               ),
               Text(
                 fmtPct(share),
-                style: AppText.data(size: 10, color: AppColors.textDim),
+                style: AppText.data(size: 10, color: AppColors.haze),
               ),
             ],
           ),
@@ -1115,55 +1630,45 @@ class _ApiKeyPanelState extends State<ApiKeyPanel> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 12, bottom: 4),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const Text('API KEY', style: AppText.sectionLabel),
-          const SizedBox(height: 8),
-          DecoratedBox(
-            decoration: BoxDecoration(
-              color: AppColors.surfaceHi,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: AppColors.border),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(12, 4, 4, 4),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      _revealed ? widget.apiKey : _masked,
-                      style: AppText.data(
-                        size: 11,
-                        color: AppColors.textDim,
-                        height: 1.45,
-                      ),
-                    ),
-                  ),
-                  IconButton(
-                    onPressed: () => setState(() => _revealed = !_revealed),
-                    icon: Icon(
-                      _revealed
-                          ? Icons.visibility_off_outlined
-                          : Icons.visibility_outlined,
-                      size: 18,
-                    ),
-                    tooltip: _revealed ? 'Hide key' : 'Show key',
-                    visualDensity: VisualDensity.compact,
-                  ),
-                  IconButton(
-                    onPressed: _copy,
-                    icon: const Icon(Icons.copy, size: 18),
-                    tooltip: 'Copy API key',
-                    visualDensity: VisualDensity.compact,
-                  ),
-                ],
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: AppColors.riser,
+        borderRadius: BorderRadius.circular(AppRadius.control),
+        border: Border.all(color: AppColors.rule),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 4, 4, 4),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                _revealed ? widget.apiKey : _masked,
+                style: AppText.data(
+                  size: 11.5,
+                  color: AppColors.haze,
+                  height: 1.45,
+                ),
               ),
             ),
-          ),
-        ],
+            IconButton(
+              onPressed: () => setState(() => _revealed = !_revealed),
+              icon: Icon(
+                _revealed
+                    ? Icons.visibility_off_outlined
+                    : Icons.visibility_outlined,
+                size: 18,
+              ),
+              tooltip: _revealed ? 'Hide key' : 'Show key',
+              visualDensity: VisualDensity.compact,
+            ),
+            IconButton(
+              onPressed: _copy,
+              icon: const Icon(Icons.copy_rounded, size: 17),
+              tooltip: 'Copy API key',
+              visualDensity: VisualDensity.compact,
+            ),
+          ],
+        ),
       ),
     );
   }

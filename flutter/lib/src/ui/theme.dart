@@ -3,92 +3,166 @@ import 'package:flutter/services.dart';
 
 import '../providers/types.dart';
 
-/// Night-ledger design tokens.
+/// Horizon design tokens.
 ///
-/// Inverted paper ledger: warm ink-well ground, remaining funds in banker's
-/// green, brass when a pool is getting thin, carmine when it is gone.
+/// The app answers one question: how long until you hit a wall? So the ground
+/// is a cold, unlit blue-slate and depletion is expressed as *heat* — a full
+/// pool reads glacial, a draining pool warms, an empty one runs hot. Hue is
+/// never decorative: if something is coloured, that colour is its status.
 class AppColors {
-  static const bg = Color(0xFF161410);
-  static const surface = Color(0xFF1F1B16);
-  static const surfaceHi = Color(0xFF2A241C);
-  static const border = Color(0xFF3A342C);
-  static const text = Color(0xFFF2EDE4);
-  static const textDim = Color(0xFFA39888);
-  static const accent = Color(0xFFC4A35A); // brass
-  static const accentSoft = Color(0xFF2A2518);
-  static const ok = Color(0xFF3D8F6A); // remaining
-  static const okText = Color(0xFF6FC69B);
-  static const okSoft = Color(0xFF1A241C);
-  static const danger = Color(0xFFC44536);
-  static const dangerText = Color(0xFFF07A6A);
-  static const dangerSoft = Color(0xFF2A1816);
+  /// Page ground.
+  static const abyss = Color(0xFF0A0F17);
+
+  /// Card and sheet surface.
+  static const deck = Color(0xFF131B26);
+
+  /// Inset surface — gauge tracks, fields, chips.
+  static const riser = Color(0xFF1C2735);
+
+  /// Hairlines and dividers.
+  static const rule = Color(0xFF2B3A4C);
+
+  /// Primary text.
+  static const beam = Color(0xFFE6EDF6);
+
+  /// Secondary text and inactive icons.
+  static const haze = Color(0xFF8497AD);
+
+  // Thermal ramp — the only colours that carry meaning.
+  /// Plenty left. Doubles as the interactive colour, since "go" and "healthy"
+  /// are the same idea here.
+  static const cold = Color(0xFF3FC1B8);
+  static const coldLit = Color(0xFF7EE0D8);
+  static const coldSoft = Color(0xFF102A2C);
+
+  /// Getting thin.
+  static const warm = Color(0xFFF0A93B);
+  static const warmSoft = Color(0xFF2C2113);
+
+  /// Empty or over the cap.
+  static const hot = Color(0xFFFF6A5E);
+  static const hotLit = Color(0xFFFF9188);
+  static const hotSoft = Color(0xFF2E1614);
 }
 
 class AppSpacing {
-  static const pageHorizontal = 16.0;
-  static const pageBottom = 32.0;
-  static const sectionGap = 20.0;
+  static const pageHorizontal = 18.0;
+  static const pageTop = 14.0;
+  static const pageBottom = 40.0;
+  static const sectionGap = 26.0;
 }
 
-/// Data face — every numeral, timestamp and eyebrow label.
+class AppRadius {
+  static const card = 6.0;
+  static const control = 5.0;
+  static const track = 2.0;
+}
+
+class AppMotion {
+  static const quick = Duration(milliseconds: 180);
+  static const settle = Duration(milliseconds: 420);
+  static const curve = Curves.easeOutCubic;
+
+  /// Honour the OS "remove animations" setting everywhere motion is used.
+  static bool enabled(BuildContext context) =>
+      !MediaQuery.disableAnimationsOf(context);
+}
+
+/// Data face — numerals, timestamps, eyebrow labels.
 const String monoFamily = 'JetBrainsMono';
 
-/// Display face — headings and the brand.
-const String displayFamily = 'SpaceGrotesk';
+/// Interface face. Variable: weight 100–900, width 62–125.
+const String uiFamily = 'Archivo';
+
+List<FontVariation> _axes(double weight, double width) => [
+  FontVariation('wght', weight),
+  FontVariation('wdth', width),
+];
 
 class AppText {
+  /// Big instrument numerals. Wide and tightly tracked so a countdown reads
+  /// like a departure board rather than a paragraph.
+  static TextStyle readout(double size, {Color color = AppColors.beam}) =>
+      TextStyle(
+        fontFamily: uiFamily,
+        fontVariations: _axes(780, 118),
+        fontWeight: FontWeight.w800,
+        fontSize: size,
+        height: 1.0,
+        letterSpacing: -size * 0.028,
+        color: color,
+        fontFeatures: const [FontFeature.tabularFigures()],
+      );
+
   static const brand = TextStyle(
-    fontFamily: displayFamily,
-    fontSize: 17,
+    fontFamily: uiFamily,
+    fontVariations: [FontVariation('wght', 700), FontVariation('wdth', 112)],
     fontWeight: FontWeight.w700,
-    letterSpacing: 0.4,
-    color: AppColors.text,
-  );
-  static const pageTitle = TextStyle(
-    fontFamily: displayFamily,
-    fontSize: 27,
-    height: 1.05,
-    letterSpacing: -0.6,
-    fontWeight: FontWeight.w700,
-    color: AppColors.text,
-  );
-  static const pageSubtitle = TextStyle(
-    fontSize: 13,
-    height: 1.45,
-    color: AppColors.textDim,
-  );
-  static const sectionLabel = TextStyle(
-    fontFamily: monoFamily,
-    color: AppColors.textDim,
-    fontSize: 10,
-    fontWeight: FontWeight.w500,
-    letterSpacing: 1.4,
-  );
-  static const eyebrow = TextStyle(
-    fontFamily: monoFamily,
-    color: AppColors.accent,
-    fontSize: 10,
-    fontWeight: FontWeight.w500,
-    letterSpacing: 1.4,
+    fontSize: 15,
+    letterSpacing: 0.2,
+    color: AppColors.beam,
   );
 
-  /// Big hero numerals.
-  static TextStyle heroNumber({Color color = AppColors.text}) => TextStyle(
-    fontFamily: monoFamily,
-    fontSize: 34,
+  static const pageTitle = TextStyle(
+    fontFamily: uiFamily,
+    fontVariations: [FontVariation('wght', 700), FontVariation('wdth', 110)],
     fontWeight: FontWeight.w700,
-    letterSpacing: -1,
-    color: color,
-    fontFeatures: const [FontFeature.tabularFigures()],
+    fontSize: 24,
+    height: 1.1,
+    letterSpacing: -0.5,
+    color: AppColors.beam,
   );
+
+  static const cardTitle = TextStyle(
+    fontFamily: uiFamily,
+    fontVariations: [FontVariation('wght', 650), FontVariation('wdth', 104)],
+    fontWeight: FontWeight.w600,
+    fontSize: 14.5,
+    height: 1.2,
+    letterSpacing: -0.1,
+    color: AppColors.beam,
+  );
+
+  /// Running prose — subtitles, help text, empty-state copy.
+  static TextStyle body({
+    double size = 13,
+    Color color = AppColors.haze,
+    FontWeight weight = FontWeight.w400,
+  }) => TextStyle(
+    fontFamily: uiFamily,
+    fontVariations: _axes(weight == FontWeight.w400 ? 400 : 550, 100),
+    fontWeight: weight,
+    fontSize: size,
+    height: 1.5,
+    color: color,
+  );
+
+  static const pageSubtitle = TextStyle(
+    fontFamily: uiFamily,
+    fontVariations: [FontVariation('wght', 400), FontVariation('wdth', 100)],
+    fontSize: 13,
+    height: 1.5,
+    color: AppColors.haze,
+  );
+
+  /// Tiny uppercase machine label.
+  static TextStyle tag({Color color = AppColors.haze, double size = 10}) =>
+      TextStyle(
+        fontFamily: monoFamily,
+        fontSize: size,
+        fontWeight: FontWeight.w500,
+        letterSpacing: 1.5,
+        height: 1.3,
+        color: color,
+      );
 
   /// Inline data values.
   static TextStyle data({
-    double size = 13,
+    double size = 12.5,
     FontWeight weight = FontWeight.w500,
-    Color color = AppColors.text,
+    Color color = AppColors.beam,
     double spacing = 0,
-    double height = 1.3,
+    double height = 1.35,
   }) => TextStyle(
     fontFamily: monoFamily,
     fontSize: size,
@@ -109,155 +183,215 @@ Color hexColor(String hex) {
 ThemeData buildTheme() {
   final base = ThemeData.dark(useMaterial3: true);
   return base.copyWith(
-    scaffoldBackgroundColor: AppColors.bg,
+    scaffoldBackgroundColor: AppColors.abyss,
     colorScheme: base.colorScheme.copyWith(
-      primary: AppColors.accent,
-      surface: AppColors.surface,
-      onSurface: AppColors.text,
-      outline: AppColors.border,
-      error: AppColors.danger,
+      primary: AppColors.cold,
+      onPrimary: AppColors.abyss,
+      secondary: AppColors.warm,
+      surface: AppColors.deck,
+      onSurface: AppColors.beam,
+      outline: AppColors.rule,
+      error: AppColors.hot,
     ),
     appBarTheme: const AppBarTheme(
-      backgroundColor: AppColors.bg,
-      foregroundColor: AppColors.text,
+      backgroundColor: AppColors.abyss,
+      foregroundColor: AppColors.beam,
       elevation: 0,
+      scrolledUnderElevation: 0,
       centerTitle: false,
       systemOverlayStyle: SystemUiOverlayStyle.light,
+      titleTextStyle: AppText.cardTitle,
     ),
     cardTheme: CardThemeData(
-      color: AppColors.surface,
+      color: AppColors.deck,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(10),
-        side: const BorderSide(color: AppColors.border),
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        side: const BorderSide(color: AppColors.rule),
       ),
       elevation: 0,
       margin: EdgeInsets.zero,
     ),
-    dividerTheme: const DividerThemeData(color: AppColors.border),
-    textTheme: base.textTheme.apply(
-      bodyColor: AppColors.text,
-      displayColor: AppColors.text,
+    dividerTheme: const DividerThemeData(
+      color: AppColors.rule,
+      space: 1,
+      thickness: 1,
     ),
+    textTheme: base.textTheme.apply(
+      fontFamily: uiFamily,
+      bodyColor: AppColors.beam,
+      displayColor: AppColors.beam,
+    ),
+    iconTheme: const IconThemeData(color: AppColors.haze, size: 20),
     navigationBarTheme: NavigationBarThemeData(
-      backgroundColor: AppColors.bg,
-      indicatorColor: AppColors.accentSoft,
+      backgroundColor: AppColors.abyss,
+      indicatorColor: AppColors.coldSoft,
+      indicatorShape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppRadius.control),
+      ),
       surfaceTintColor: Colors.transparent,
-      height: 68,
+      height: 66,
       labelTextStyle: WidgetStateProperty.resolveWith((states) {
         final selected = states.contains(WidgetState.selected);
-        return TextStyle(
-          fontFamily: monoFamily,
-          color: selected ? AppColors.accent : AppColors.textDim,
-          fontSize: 10,
-          fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-          letterSpacing: 0.3,
-        );
+        return AppText.tag(
+          color: selected ? AppColors.coldLit : AppColors.haze,
+          size: 9.5,
+        ).copyWith(fontWeight: selected ? FontWeight.w700 : FontWeight.w500);
       }),
       iconTheme: WidgetStateProperty.resolveWith((states) {
         final selected = states.contains(WidgetState.selected);
         return IconThemeData(
-          color: selected ? AppColors.accent : AppColors.textDim,
+          size: 21,
+          color: selected ? AppColors.coldLit : AppColors.haze,
         );
       }),
     ),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
-      fillColor: AppColors.surfaceHi,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
-        borderSide: const BorderSide(color: AppColors.border),
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
-        borderSide: const BorderSide(color: AppColors.border),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
-        borderSide: const BorderSide(color: AppColors.accent, width: 1.5),
-      ),
-      errorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
-        borderSide: const BorderSide(color: AppColors.danger),
-      ),
-      labelStyle: const TextStyle(color: AppColors.textDim, fontSize: 13),
-      hintStyle: const TextStyle(
-        color: AppColors.textDim,
-        fontSize: 13,
-        fontFamily: monoFamily,
-      ),
-      helperStyle: const TextStyle(
-        color: AppColors.textDim,
-        fontSize: 11,
-        height: 1.4,
-      ),
+      fillColor: AppColors.riser,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 15),
+      border: _fieldBorder(AppColors.rule),
+      enabledBorder: _fieldBorder(AppColors.rule),
+      focusedBorder: _fieldBorder(AppColors.cold, width: 1.5),
+      errorBorder: _fieldBorder(AppColors.hot),
+      focusedErrorBorder: _fieldBorder(AppColors.hot, width: 1.5),
+      labelStyle: AppText.body(size: 13),
+      floatingLabelStyle: AppText.tag(color: AppColors.coldLit, size: 11),
+      hintStyle: AppText.data(size: 12.5, color: AppColors.haze),
+      helperStyle: AppText.body(size: 11.5),
+      helperMaxLines: 3,
+      errorStyle: AppText.body(size: 11.5, color: AppColors.hotLit),
     ),
     filledButtonTheme: FilledButtonThemeData(
       style: FilledButton.styleFrom(
-        backgroundColor: AppColors.accent,
-        foregroundColor: AppColors.bg,
-        minimumSize: const Size(64, 48),
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        textStyle: const TextStyle(
-          fontFamily: monoFamily,
-          fontSize: 13,
-          fontWeight: FontWeight.w600,
-          letterSpacing: 0.2,
+        backgroundColor: AppColors.cold,
+        foregroundColor: AppColors.abyss,
+        disabledBackgroundColor: AppColors.riser,
+        disabledForegroundColor: AppColors.haze,
+        minimumSize: const Size(64, 50),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadius.control),
         ),
+        textStyle: AppText.tag(size: 11.5).copyWith(fontWeight: FontWeight.w700),
       ),
     ),
     outlinedButtonTheme: OutlinedButtonThemeData(
       style: OutlinedButton.styleFrom(
-        foregroundColor: AppColors.text,
-        minimumSize: const Size(64, 48),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        side: const BorderSide(color: AppColors.border),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        foregroundColor: AppColors.beam,
+        minimumSize: const Size(64, 50),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+        side: const BorderSide(color: AppColors.rule),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadius.control),
+        ),
+        textStyle: AppText.tag(color: AppColors.beam, size: 11.5),
+      ),
+    ),
+    textButtonTheme: TextButtonThemeData(
+      style: TextButton.styleFrom(
+        foregroundColor: AppColors.coldLit,
+        minimumSize: const Size(48, 44),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadius.control),
+        ),
+        textStyle: AppText.tag(color: AppColors.coldLit, size: 11),
       ),
     ),
     snackBarTheme: SnackBarThemeData(
       behavior: SnackBarBehavior.floating,
-      backgroundColor: AppColors.surfaceHi,
-      contentTextStyle: const TextStyle(color: AppColors.text, fontSize: 13),
+      backgroundColor: AppColors.riser,
+      contentTextStyle: AppText.body(size: 12.5, color: AppColors.beam),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(10),
-        side: const BorderSide(color: AppColors.border),
+        borderRadius: BorderRadius.circular(AppRadius.control),
+        side: const BorderSide(color: AppColors.rule),
       ),
     ),
     dialogTheme: DialogThemeData(
-      backgroundColor: AppColors.surface,
+      backgroundColor: AppColors.deck,
+      surfaceTintColor: Colors.transparent,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(14),
-        side: const BorderSide(color: AppColors.border),
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        side: const BorderSide(color: AppColors.rule),
       ),
+      titleTextStyle: AppText.cardTitle,
+      contentTextStyle: AppText.body(size: 13),
     ),
     bottomSheetTheme: const BottomSheetThemeData(
-      backgroundColor: AppColors.surface,
-      modalBackgroundColor: AppColors.surface,
+      backgroundColor: AppColors.deck,
+      modalBackgroundColor: AppColors.deck,
+      surfaceTintColor: Colors.transparent,
       showDragHandle: false,
+    ),
+    popupMenuTheme: PopupMenuThemeData(
+      color: AppColors.riser,
+      surfaceTintColor: Colors.transparent,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppRadius.control),
+        side: const BorderSide(color: AppColors.rule),
+      ),
+      textStyle: AppText.body(size: 13, color: AppColors.beam),
     ),
     expansionTileTheme: const ExpansionTileThemeData(
       backgroundColor: Colors.transparent,
       collapsedBackgroundColor: Colors.transparent,
-      iconColor: AppColors.textDim,
-      collapsedIconColor: AppColors.textDim,
-      textColor: AppColors.text,
-      collapsedTextColor: AppColors.text,
+      iconColor: AppColors.haze,
+      collapsedIconColor: AppColors.haze,
+      textColor: AppColors.beam,
+      collapsedTextColor: AppColors.beam,
+      shape: Border(),
+      collapsedShape: Border(),
     ),
     switchTheme: SwitchThemeData(
       thumbColor: WidgetStateProperty.resolveWith(
-        (s) =>
-            s.contains(WidgetState.selected) ? AppColors.bg : AppColors.textDim,
+        (s) => s.contains(WidgetState.selected)
+            ? AppColors.abyss
+            : AppColors.haze,
       ),
       trackColor: WidgetStateProperty.resolveWith(
-        (s) => s.contains(WidgetState.selected)
-            ? AppColors.accent
-            : AppColors.border,
+        (s) =>
+            s.contains(WidgetState.selected) ? AppColors.cold : AppColors.riser,
       ),
+      trackOutlineColor: const WidgetStatePropertyAll(AppColors.rule),
+    ),
+    listTileTheme: ListTileThemeData(
+      iconColor: AppColors.haze,
+      titleTextStyle: AppText.body(
+        size: 13.5,
+        color: AppColors.beam,
+        weight: FontWeight.w500,
+      ),
+      subtitleTextStyle: AppText.body(size: 11.5),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppRadius.control),
+      ),
+    ),
+    progressIndicatorTheme: const ProgressIndicatorThemeData(
+      color: AppColors.cold,
+      linearTrackColor: AppColors.riser,
+      circularTrackColor: Colors.transparent,
+    ),
+    tooltipTheme: TooltipThemeData(
+      decoration: BoxDecoration(
+        color: AppColors.riser,
+        borderRadius: BorderRadius.circular(AppRadius.control),
+        border: Border.all(color: AppColors.rule),
+      ),
+      textStyle: AppText.body(size: 11.5, color: AppColors.beam),
     ),
   );
 }
+
+OutlineInputBorder _fieldBorder(Color color, {double width = 1}) =>
+    OutlineInputBorder(
+      borderRadius: BorderRadius.circular(AppRadius.control),
+      borderSide: BorderSide(color: color, width: width),
+    );
+
+// ---------------------------------------------------------------------------
+// Formatting
+// ---------------------------------------------------------------------------
 
 String fmtTokens(int n) {
   if (n >= 1000000) return '${(n / 1000000).toStringAsFixed(2)}M';
@@ -286,6 +420,26 @@ String fmtLeft(LimitWindow w) {
 
 String fmtPct(double fraction) =>
     '${(fraction.clamp(0.0, 1.0) * 100).round()}%';
+
+/// Compact duration for countdowns: `4d`, `18h 20m`, `47m`, `now`.
+String fmtSpan(Duration d) {
+  if (d.inSeconds <= 0) return 'now';
+  if (d.inMinutes < 60) return '${d.inMinutes}m';
+  if (d.inHours < 24) {
+    final minutes = d.inMinutes % 60;
+    return minutes == 0 ? '${d.inHours}h' : '${d.inHours}h ${minutes}m';
+  }
+  final hours = d.inHours % 24;
+  return hours == 0 ? '${d.inDays}d' : '${d.inDays}d ${hours}h';
+}
+
+/// Time until a window resets, or null when the provider gives no reset.
+Duration? untilReset(LimitWindow w, {DateTime? now}) {
+  if (w.resetAt <= 0) return null;
+  now ??= DateTime.now();
+  final diff = DateTime.fromMillisecondsSinceEpoch(w.resetAt).difference(now);
+  return diff.isNegative ? Duration.zero : diff;
+}
 
 String fmtResetAt(int resetAt, {DateTime? now}) {
   if (resetAt <= 0) return '';
@@ -331,18 +485,6 @@ String fmtResetAt(int resetAt, {DateTime? now}) {
   return 'resets ${months[when.month - 1]} ${when.day}';
 }
 
-Color limitColor(double fraction, {bool exceeded = false}) {
-  if (exceeded || fraction >= 0.9) return AppColors.danger;
-  if (fraction >= 0.8) return AppColors.accent;
-  return AppColors.ok;
-}
-
-Color limitTextColor(double fraction, {bool exceeded = false}) {
-  if (exceeded || fraction >= 0.9) return AppColors.dangerText;
-  if (fraction >= 0.8) return AppColors.accent;
-  return AppColors.okText;
-}
-
 String fmtAgo(int epochMs, {DateTime? now}) {
   if (epochMs <= 0) return '';
   now ??= DateTime.now();
@@ -352,4 +494,56 @@ String fmtAgo(int epochMs, {DateTime? now}) {
   if (diff.inHours < 24) return '${diff.inHours}h ago';
   if (diff.inDays == 1) return 'yesterday';
   return '${diff.inDays}d ago';
+}
+
+// ---------------------------------------------------------------------------
+// Thermal ramp
+// ---------------------------------------------------------------------------
+
+/// Fill colour for a pool that is [fraction] consumed.
+Color limitColor(double fraction, {bool exceeded = false}) {
+  if (exceeded || fraction >= 0.9) return AppColors.hot;
+  if (fraction >= 0.8) return AppColors.warm;
+  return AppColors.cold;
+}
+
+/// Text-weight variant of [limitColor], lifted for legibility on dark surfaces.
+Color limitTextColor(double fraction, {bool exceeded = false}) {
+  if (exceeded || fraction >= 0.9) return AppColors.hotLit;
+  if (fraction >= 0.8) return AppColors.warm;
+  return AppColors.coldLit;
+}
+
+/// Tinted background that pairs with [limitColor].
+Color limitSoftColor(double fraction, {bool exceeded = false}) {
+  if (exceeded || fraction >= 0.9) return AppColors.hotSoft;
+  if (fraction >= 0.8) return AppColors.warmSoft;
+  return AppColors.coldSoft;
+}
+
+/// Colour for a runway lane.
+///
+/// A gauge asks "how much is left"; a lane asks "does this survive its own
+/// window". They are different questions, so a pool can legitimately be cold
+/// on one and hot on the other — plenty left but burning far too fast, or
+/// nearly empty but refilling in ten minutes.
+Color runwayColor(double survivedFraction, {bool dry = false}) {
+  if (dry) return AppColors.hot;
+  if (survivedFraction >= 0.999) return AppColors.cold;
+  return survivedFraction < 0.5 ? AppColors.hot : AppColors.warm;
+}
+
+Color runwayTextColor(double survivedFraction, {bool dry = false}) {
+  if (dry) return AppColors.hotLit;
+  if (survivedFraction >= 0.999) return AppColors.coldLit;
+  return survivedFraction < 0.5 ? AppColors.hotLit : AppColors.warm;
+}
+
+/// One-word heat reading, used as the eyebrow on pool rows.
+String heatLabel(double fraction, {bool exceeded = false}) {
+  if (exceeded || fraction >= 1) return 'EMPTY';
+  if (fraction >= 0.9) return 'CRITICAL';
+  if (fraction >= 0.8) return 'LOW';
+  if (fraction >= 0.5) return 'HALF';
+  return 'HEALTHY';
 }

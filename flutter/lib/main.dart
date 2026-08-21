@@ -126,7 +126,7 @@ class _UsageLedgerAppState extends State<UsageLedgerApp> {
           },
         ),
         home: _onboarded == null
-            ? const Scaffold(body: Center(child: CircularProgressIndicator()))
+            ? const _Splash()
             : _onboarded!
             ? MainShell(
                 onDataChanged: _reloadAll,
@@ -199,7 +199,7 @@ class _MainShellState extends State<MainShell> {
       ),
       bottomNavigationBar: DecoratedBox(
         decoration: const BoxDecoration(
-          border: Border(top: BorderSide(color: AppColors.border)),
+          border: Border(top: BorderSide(color: AppColors.rule)),
         ),
         child: NavigationBar(
           selectedIndex: _tab,
@@ -207,21 +207,39 @@ class _MainShellState extends State<MainShell> {
           onDestinationSelected: (i) => setState(() => _tab = i),
           destinations: const [
             NavigationDestination(
-              icon: Icon(Icons.speed_outlined),
-              selectedIcon: Icon(Icons.speed),
-              label: 'Overview',
+              icon: Icon(Icons.timer_outlined),
+              selectedIcon: Icon(Icons.timer),
+              label: 'NOW',
             ),
             NavigationDestination(
-              icon: Icon(Icons.account_circle_outlined),
-              selectedIcon: Icon(Icons.account_circle),
-              label: 'Accounts',
+              icon: Icon(Icons.hub_outlined),
+              selectedIcon: Icon(Icons.hub),
+              label: 'ACCOUNTS',
             ),
             NavigationDestination(
-              icon: Icon(Icons.history_outlined),
-              selectedIcon: Icon(Icons.history),
-              label: 'History',
+              icon: Icon(Icons.receipt_long_outlined),
+              selectedIcon: Icon(Icons.receipt_long),
+              label: 'HISTORY',
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Held for the one frame it takes to read the onboarding flag.
+class _Splash extends StatelessWidget {
+  const _Splash();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Scaffold(
+      body: Center(
+        child: SizedBox(
+          width: 22,
+          height: 22,
+          child: CircularProgressIndicator(strokeWidth: 2),
         ),
       ),
     );

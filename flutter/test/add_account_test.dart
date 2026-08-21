@@ -43,7 +43,7 @@ void main() {
     expect(find.textContaining("doesn't look like a typical"), findsOneWidget);
     // The submit button stays enabled.
     final button = tester.widget<FilledButton>(
-      find.widgetWithText(FilledButton, 'Verify & add account'),
+      find.widgetWithText(FilledButton, 'VERIFY AND ADD'),
     );
     expect(button.onPressed, isNotNull);
   });

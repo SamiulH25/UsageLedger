@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../data/burn_rate.dart';
@@ -11,10 +13,34 @@ import '../ui/widgets.dart';
 import 'account_detail_screen.dart';
 import 'settings_screen.dart';
 
-class HomeScreen extends StatelessWidget {
+/// The glance. Answers "how long until I hit a wall?" before anything else.
+class HomeScreen extends StatefulWidget {
   final VoidCallback onOpenAdd;
 
   const HomeScreen({super.key, required this.onOpenAdd});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  Timer? _tick;
+
+  @override
+  void initState() {
+    super.initState();
+    // Countdowns are the whole point of this screen, so keep them honest
+    // without waiting for the next sync.
+    _tick = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _tick?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -23,19 +49,23 @@ class HomeScreen extends StatelessWidget {
       listenable: Listenable.merge([scope.overviewVm, scope.sync]),
       builder: (context, _) {
         final state = scope.overviewVm.state;
+        final Widget body;
+        if (state.loading && state.accounts.isEmpty) {
+          body = _loading();
+        } else if (state.accounts.isEmpty && state.error != null) {
+          body = _errorEmpty(context, state.error!);
+        } else if (state.accounts.isEmpty) {
+          body = _empty(context);
+        } else {
+          body = _content(context, state, scope.sync.lastError);
+        }
         return Scaffold(
           body: SafeArea(
             child: RefreshIndicator(
-              color: AppColors.accent,
-              backgroundColor: AppColors.surface,
+              color: AppColors.cold,
+              backgroundColor: AppColors.deck,
               onRefresh: () => scope.sync.sync(),
-              child: state.loading && state.accounts.isEmpty
-                  ? _loading()
-                  : state.accounts.isEmpty && state.error == null
-                  ? _empty(context)
-                  : state.accounts.isEmpty
-                  ? _errorEmpty(context, state.error!)
-                  : _content(context, state, scope.sync.lastError),
+              child: body,
             ),
           ),
         );
@@ -43,222 +73,222 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _loading() {
-    return ListView(
-      physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.pageHorizontal + 4,
-        20,
-        AppSpacing.pageHorizontal + 4,
-        AppSpacing.pageBottom,
-      ),
-      children: const [
-        _BrandRow(),
-        SizedBox(height: 24),
-        EmptyState(
-          icon: Icons.sync,
-          title: 'Loading usage',
-          hint: 'Reading saved accounts and latest snapshots.',
-        ),
-      ],
-    );
-  }
+  ListView _page(List<Widget> children) => ListView(
+    physics: const AlwaysScrollableScrollPhysics(),
+    padding: const EdgeInsets.fromLTRB(
+      AppSpacing.pageHorizontal,
+      AppSpacing.pageTop,
+      AppSpacing.pageHorizontal,
+      AppSpacing.pageBottom,
+    ),
+    children: children,
+  );
 
-  Widget _errorEmpty(BuildContext context, String error) {
-    return ListView(
-      physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.pageHorizontal + 4,
-        20,
-        AppSpacing.pageHorizontal + 4,
-        AppSpacing.pageBottom,
-      ),
-      children: [
-        const _BrandRow(),
-        const SizedBox(height: 24),
-        InlineMessage.error(
-          error,
-          action: TextButton(
-            onPressed: () => AppScope.of(context).overviewVm.load(),
-            child: const Text('Retry'),
-          ),
-        ),
-      ],
-    );
-  }
+  Widget _brand(BuildContext context) => BrandBarWithSync(
+    onOpenSettings: () => Navigator.of(
+      context,
+    ).push(MaterialPageRoute<void>(builder: (_) => const SettingsScreen())),
+  );
 
-  Widget _empty(BuildContext context) {
-    return ListView(
-      physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.pageHorizontal + 4,
-        20,
-        AppSpacing.pageHorizontal + 4,
-        AppSpacing.pageBottom,
+  Widget _loading() => _page([
+    _brand(context),
+    const SizedBox(height: 26),
+    const SkeletonBar(height: 10, widthFactor: .28),
+    const SizedBox(height: 16),
+    const SkeletonBar(height: 40, widthFactor: .62),
+    const SizedBox(height: 26),
+    const SkeletonBar(height: 74),
+    const SizedBox(height: 10),
+    const SkeletonBar(height: 74),
+  ]);
+
+  Widget _errorEmpty(BuildContext context, String error) => _page([
+    _brand(context),
+    const SizedBox(height: 24),
+    InlineMessage.error(
+      error,
+      action: TextButton(
+        onPressed: () => AppScope.of(context).overviewVm.load(),
+        child: const Text('RETRY'),
       ),
-      children: [
-        const _BrandRow(),
-        const SizedBox(height: 24),
-        const PageHeading(
-          title: 'Keep every account\nin view.',
-          subtitle:
-              'Connect a provider once, then see spend, limits, and resets in one place.',
-        ),
-        const SizedBox(height: 24),
-        EmptyState(
-          icon: Icons.speed_outlined,
-          title: 'No accounts yet',
-          hint: 'Connect a provider to start tracking usage on this device.',
-          action: FilledButton.icon(
-            onPressed: onOpenAdd,
-            icon: const Icon(Icons.add, size: 18),
-            label: const Text('Add an account'),
-          ),
-        ),
-      ],
-    );
-  }
+    ),
+  ]);
+
+  Widget _empty(BuildContext context) => _page([
+    _brand(context),
+    const SizedBox(height: 26),
+    const PageHeading(
+      eyebrow: 'NOTHING CONNECTED',
+      title: 'Know before you\nhit the wall.',
+      subtitle:
+          'Connect a provider and UsageLedger tracks what is left in every '
+          'pool, and how long your current pace will carry you.',
+    ),
+    const SizedBox(height: 26),
+    FilledButton.icon(
+      onPressed: widget.onOpenAdd,
+      icon: const Icon(Icons.add, size: 18),
+      label: const Text('ADD AN ACCOUNT'),
+    ),
+  ]);
 
   Widget _content(
     BuildContext context,
     OverviewState state,
     String? syncError,
   ) {
-    final tokenCount = state.totals.inputTokens + state.totals.outputTokens;
+    final runway = _runway(state);
+    final hero = _hero(runway);
     final accounts = state.accounts;
 
-    return ListView(
-      physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.pageHorizontal,
-        16,
-        AppSpacing.pageHorizontal,
-        AppSpacing.pageBottom,
-      ),
-      children: [
-        const _BrandRow(),
-        const SizedBox(height: 18),
-        Text(_todayLabel(), style: AppText.eyebrow),
-        const SizedBox(height: 6),
-        const PageHeading(
-          title: 'Overview',
-          subtitle: 'What is left in each pool, and when it resets.',
+    return _page([
+      _brand(context),
+      const SizedBox(height: 22),
+      Text(_todayLabel(), style: AppText.tag()),
+      const SizedBox(height: 14),
+      if (hero != null)
+        _WallCard(entry: hero, perDay: state.perDay)
+      else
+        _TotalsCard(state: state),
+      if (syncError != null || state.error != null) ...[
+        const SizedBox(height: 12),
+        InlineMessage.error(
+          syncError ?? state.error!,
+          action: TextButton(
+            onPressed: syncError != null
+                ? () => AppScope.of(context).sync.sync()
+                : () => AppScope.of(context).overviewVm.load(),
+            child: const Text('RETRY'),
+          ),
         ),
-        if (syncError != null || state.error != null) ...[
-          const SizedBox(height: 14),
-          InlineMessage.error(
-            syncError ?? state.error!,
-            action: TextButton(
-              onPressed: syncError != null
-                  ? () => AppScope.of(context).sync.sync()
-                  : () => AppScope.of(context).overviewVm.load(),
-              child: const Text('Retry'),
-            ),
-          ),
-        ],
-        if (!state.delta.isEmpty) ...[
-          const SizedBox(height: 10),
-          _SyncDeltaCard(delta: state.delta),
-        ],
-        const SizedBox(height: 18),
-        if (state.heroWindow != null)
-          _HeroWallCard(
-            window: state.heroWindow!,
-            accountLabel: state.heroAccountLabel ?? '',
-            outlook: state.heroOutlook!,
-          )
-        else ...[
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(18),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('ALL ACCOUNTS', style: AppText.sectionLabel),
-                  const SizedBox(height: 10),
-                  Text(
-                    fmtCost(state.totals.costUsd),
-                    style: AppText.heroNumber(),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '${fmtTokens(tokenCount)} tokens · ${state.totals.requests} requests',
-                    style: AppText.data(size: 11, color: AppColors.textDim),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 8),
-        ],
-        const SizedBox(height: 14),
-        _StatStrip(state: state, tokenCount: tokenCount),
-        const SizedBox(height: 8),
-        _SpendWindows(state: state),
-        if (state.monthlyBudget > 0) ...[
-          const SizedBox(height: 8),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-              child: PoolGauge(
-                window: LimitWindow(
-                  id: 'user:month',
-                  label: 'Your monthly budget',
-                  used: state.spend30,
-                  cap: state.monthlyBudget,
-                  kind: LimitKind.budget,
-                ),
-              ),
-            ),
-          ),
-        ],
-        _UrgencyList(accounts: accounts),
-        if (state.topModels.isNotEmpty) ...[
-          const SectionHeader(title: 'Top models', trailing: 'all accounts'),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(14),
-              child: Column(
-                children: [
-                  for (final m in state.topModels) ...[
-                    _ModelCostRow(
-                      model: m,
-                      maxCost: state.topModels.first.costUsd,
-                    ),
-                    if (m != state.topModels.last) const SizedBox(height: 10),
-                  ],
-                ],
-              ),
-            ),
-          ),
-        ],
-        if (state.series.length >= 2) ...[
-          const SectionHeader(title: 'Tracked spend by day'),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(14, 14, 14, 10),
-              child: CostChart(series: state.series),
-            ),
-          ),
-        ],
-        SectionHeader(title: 'Accounts', trailing: '${accounts.length} active'),
-        for (final account in accounts)
-          AccountUsageCard(
-            key: ValueKey(account.account.key),
-            account: account.account,
-            costUsd: account.latest?.costUsd ?? 0,
-            requests: account.latest?.requests ?? 0,
-            inputTokens: account.latest?.inputTokens ?? 0,
-            outputTokens: account.latest?.outputTokens ?? 0,
-            windows: account.windows,
-            models: account.latest?.models ?? const [],
-            lastRefreshAt: account.account.lastRefreshAt,
-            onOpen: () => _openDetail(context, account.account.key),
-          ),
-        const SizedBox(height: 4),
-        AddAccountCard(onPressed: onOpenAdd),
       ],
-    );
+      if (!state.delta.isEmpty) ...[
+        const SizedBox(height: 10),
+        _DeltaStrip(delta: state.delta),
+      ],
+      if (runway.length >= 2) ...[
+        const SectionHeader(title: 'Runway', trailing: 'to each reset'),
+        ThermalCard(
+          padding: const EdgeInsets.fromLTRB(15, 6, 15, 6),
+          child: Column(
+            children: [
+              for (var i = 0; i < runway.length && i < 5; i++) ...[
+                if (i > 0) const Divider(height: 1),
+                RunwayLane(entry: runway[i]),
+              ],
+            ],
+          ),
+        ),
+      ],
+      if (state.monthlyBudget > 0) ...[
+        const SectionHeader(title: 'Your budget', trailing: 'last 30 days'),
+        ThermalCard(
+          rail: limitColor(
+            state.monthlyBudget > 0 ? state.spend30 / state.monthlyBudget : 0,
+          ),
+          child: PoolGauge(
+            window: LimitWindow(
+              id: 'user:month',
+              label: 'Self-imposed monthly cap',
+              used: state.spend30,
+              cap: state.monthlyBudget,
+              kind: LimitKind.budget,
+            ),
+          ),
+        ),
+      ],
+      if (state.spend7 > 0 || state.spend30 > 0) ...[
+        const SectionHeader(title: 'Tracked spend'),
+        ThermalCard(
+          child: Column(
+            children: [
+              MetricRow(
+                metrics: [
+                  Metric('7 DAYS', fmtCost(state.spend7)),
+                  Metric('30 DAYS', fmtCost(state.spend30)),
+                  Metric(
+                    'PER DAY',
+                    state.perDay > 0 ? fmtCost(state.perDay) : '—',
+                  ),
+                ],
+              ),
+              if (state.series.length >= 2) ...[
+                const SizedBox(height: 18),
+                CostChart(series: state.series),
+              ],
+            ],
+          ),
+        ),
+      ],
+      if (state.topModels.isNotEmpty) ...[
+        const SectionHeader(title: 'Top models', trailing: 'all accounts'),
+        ThermalCard(
+          child: Column(
+            children: [
+              for (final m in state.topModels) ...[
+                if (m != state.topModels.first) const SizedBox(height: 11),
+                _ModelCostRow(model: m, maxCost: state.topModels.first.costUsd),
+              ],
+            ],
+          ),
+        ),
+      ],
+      SectionHeader(
+        title: 'Accounts',
+        trailing: '${accounts.length} connected',
+      ),
+      for (final account in accounts)
+        AccountUsageCard(
+          key: ValueKey(account.account.key),
+          account: account.account,
+          costUsd: account.latest?.costUsd ?? 0,
+          requests: account.latest?.requests ?? 0,
+          inputTokens: account.latest?.inputTokens ?? 0,
+          outputTokens: account.latest?.outputTokens ?? 0,
+          windows: account.windows,
+          models: account.latest?.models ?? const [],
+          lastRefreshAt: account.account.lastRefreshAt,
+          onOpen: () => _openDetail(context, account.account.key),
+        ),
+      const SizedBox(height: 2),
+      AddAccountCard(onPressed: widget.onOpenAdd),
+    ]);
+  }
+
+  /// Every capped pool worth projecting, most urgent first.
+  List<RunwayEntry> _runway(OverviewState state) {
+    final entries = <RunwayEntry>[];
+    for (final account in state.accounts) {
+      for (final window in account.windows) {
+        if (window.cap <= 0 || window.idle) continue;
+        if (window.kind == LimitKind.share ||
+            window.kind == LimitKind.extra) {
+          continue;
+        }
+        entries.add(
+          RunwayEntry(
+            accountLabel: account.account.label,
+            window: window,
+            outlook: PoolOutlook.forWindow(window, state.perDay),
+          ),
+        );
+      }
+    }
+    entries.sort((a, b) {
+      final aWall = a.timeToWall;
+      final bWall = b.timeToWall;
+      if (aWall != null && bWall != null) return aWall.compareTo(bWall);
+      if (aWall != null) return -1;
+      if (bWall != null) return 1;
+      return b.window.fraction.compareTo(a.window.fraction);
+    });
+    return entries;
+  }
+
+  /// The pool that decides your day: the soonest wall, else the tightest pool.
+  RunwayEntry? _hero(List<RunwayEntry> runway) {
+    if (runway.isEmpty) return null;
+    return runway.first;
   }
 
   void _openDetail(BuildContext context, String key) {
@@ -272,229 +302,146 @@ class HomeScreen extends StatelessWidget {
 
 String _todayLabel() {
   final now = DateTime.now();
-  const weekdays = [
-    '',
-    'Monday',
-    'Tuesday',
-    'Wednesday',
-    'Thursday',
-    'Friday',
-    'Saturday',
-    'Sunday',
-  ];
+  const weekdays = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
   const months = [
-    '',
-    'January',
-    'February',
-    'March',
-    'April',
-    'May',
-    'June',
-    'July',
-    'August',
-    'September',
-    'October',
-    'November',
-    'December',
+    'JAN',
+    'FEB',
+    'MAR',
+    'APR',
+    'MAY',
+    'JUN',
+    'JUL',
+    'AUG',
+    'SEP',
+    'OCT',
+    'NOV',
+    'DEC',
   ];
-  return '${weekdays[now.weekday].toUpperCase()}, ${months[now.month].toUpperCase()} ${now.day}';
+  final hh = now.hour.toString().padLeft(2, '0');
+  final mm = now.minute.toString().padLeft(2, '0');
+  return '${weekdays[now.weekday - 1]} ${now.day} ${months[now.month - 1]}'
+      '  ·  $hh:$mm';
 }
 
-class _BrandRow extends StatelessWidget {
-  const _BrandRow();
+/// The hero. A duration means you are heading for a wall; a dollar figure
+/// means nothing is at risk and the number that matters is what is left.
+class _WallCard extends StatelessWidget {
+  final RunwayEntry entry;
+  final double perDay;
 
-  @override
-  Widget build(BuildContext context) =>
-      BrandBarWithSync(onOpenSettings: () => _openSettings(context));
-
-  void _openSettings(BuildContext context) {
-    Navigator.of(
-      context,
-    ).push(MaterialPageRoute<void>(builder: (_) => const SettingsScreen()));
-  }
-}
-
-/// The most urgent pool, framed as an instrument readout.
-class _HeroWallCard extends StatelessWidget {
-  final LimitWindow window;
-  final String accountLabel;
-  final PoolOutlook outlook;
-
-  const _HeroWallCard({
-    required this.window,
-    required this.accountLabel,
-    required this.outlook,
-  });
+  const _WallCard({required this.entry, required this.perDay});
 
   @override
   Widget build(BuildContext context) {
-    final f = window.fraction.clamp(0.0, 1.0);
-    final color = limitColor(f, exceeded: window.exceeded);
-    final urgent = f >= 0.8 || window.exceeded;
-    final reset = fmtResetAt(window.resetAt);
-    final safe = outlook.safePerDay;
-    double? caret;
-    if (outlook.perDay > 0 &&
-        outlook.daysToReset != null &&
-        outlook.daysToReset! > 0 &&
-        window.cap > 0) {
-      caret =
-          (window.used + outlook.perDay * outlook.daysToReset!) / window.cap;
+    final window = entry.window;
+    final dry = window.exceeded || window.fraction >= 1;
+    final wall = entry.timeToWall;
+    final reset = untilReset(window);
+    final lit = limitTextColor(window.fraction, exceeded: window.exceeded);
+    // Racing a wall is a runway question; otherwise the rail just reports how
+    // much is left in the tightest pool.
+    final racing = dry || wall != null;
+    final color = racing
+        ? runwayColor(entry.survivedFraction, dry: dry)
+        : limitColor(window.fraction, exceeded: window.exceeded);
+    final valueColor = racing
+        ? runwayTextColor(entry.survivedFraction, dry: dry)
+        : AppColors.beam;
+
+    final String eyebrow;
+    final String value;
+    if (dry) {
+      eyebrow = 'EMPTY · REFILLS IN';
+      value = reset == null ? 'unknown' : fmtSpan(reset);
+    } else if (wall != null) {
+      eyebrow = 'DRY IN';
+      value = fmtSpan(wall);
+    } else {
+      eyebrow = 'TIGHTEST POOL';
+      value = fmtCost(windowRemaining(window));
     }
 
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-          color: urgent ? color.withValues(alpha: .55) : AppColors.border,
-        ),
+    final safe = entry.outlook.safePerDay;
+
+    return ThermalCard(
+      rail: color,
+      padding: const EdgeInsets.fromLTRB(17, 16, 17, 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Readout(
+            eyebrow: eyebrow,
+            value: value,
+            detail: '${entry.accountLabel} · ${window.label}',
+            color: valueColor,
+          ),
+          const SizedBox(height: 16),
+          const Divider(height: 1),
+          const SizedBox(height: 14),
+          MetricRow(
+            metrics: [
+              Metric('LEFT', fmtCost(windowRemaining(window)), color: lit),
+              Metric('PER DAY', perDay > 0 ? fmtCost(perDay) : '—'),
+              Metric('RESET', reset == null ? '—' : fmtSpan(reset)),
+            ],
+          ),
+          if (safe != null && safe > 0 && wall != null) ...[
+            const SizedBox(height: 14),
+            Text(
+              'Spend under ${fmtCost(safe)} a day and this pool lasts to '
+              'the reset.',
+              style: AppText.body(size: 12, color: AppColors.haze),
+            ),
+          ],
+        ],
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(18),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.speed, size: 15, color: color),
-                const SizedBox(width: 7),
-                Text(
-                  'NEXT WALL',
-                  style: AppText.sectionLabel.copyWith(color: color),
-                ),
-                const Spacer(),
-                if (reset.isNotEmpty)
-                  Text(
-                    reset,
-                    style: AppText.data(size: 11, color: AppColors.textDim),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            Text(
-              window.cap > 0
-                  ? fmtCost(windowRemaining(window))
-                  : fmtCost(window.used),
-              style: AppText.heroNumber(color: color),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              window.cap > 0
-                  ? 'LEFT · ${window.label.toUpperCase()} · ${accountLabel.toUpperCase()}'
-                  : 'SPENT · ${window.label.toUpperCase()} · ${accountLabel.toUpperCase()}',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: AppText.data(
-                size: 10,
-                color: AppColors.textDim,
-                spacing: 0.8,
-              ),
-            ),
-            const SizedBox(height: 12),
-            PoolGauge(window: window, paceCaretFraction: caret),
-            if (outlook.perDay > 0 || (safe != null && f >= 0.5)) ...[
-              const SizedBox(height: 10),
-              Text(
-                [
-                  if (outlook.perDay > 0)
-                    'pace ${fmtCost(outlook.perDay)}/day · ${outlook.verdict()}',
-                  if (safe != null && safe > 0 && f >= 0.5)
-                    '~${fmtCost(safe)}/day to stay under cap',
-                ].join(' · '),
-                style: AppText.data(size: 10.5, color: AppColors.textDim),
-                maxLines: 2,
+    );
+  }
+}
+
+/// Fallback hero when no account reports a capped pool.
+class _TotalsCard extends StatelessWidget {
+  final OverviewState state;
+
+  const _TotalsCard({required this.state});
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = state.totals.inputTokens + state.totals.outputTokens;
+    return ThermalCard(
+      padding: const EdgeInsets.fromLTRB(17, 16, 17, 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Readout(
+            eyebrow: 'TRACKED SPEND',
+            value: fmtCost(state.totals.costUsd),
+            detail: 'No provider on this device reports a capped pool.',
+          ),
+          const SizedBox(height: 16),
+          const Divider(height: 1),
+          const SizedBox(height: 14),
+          MetricRow(
+            metrics: [
+              Metric('TOKENS', fmtTokens(tokens)),
+              Metric('REQUESTS', '${state.totals.requests}'),
+              Metric(
+                'PACE / DAY',
+                state.perDay > 0 ? fmtCost(state.perDay) : '—',
               ),
             ],
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 }
 
-class _StatStrip extends StatelessWidget {
-  final OverviewState state;
-  final int tokenCount;
-
-  const _StatStrip({required this.state, required this.tokenCount});
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        child: StatRow(
-          children: [
-            StatCell(label: 'SPEND', value: fmtCost(state.totals.costUsd)),
-            StatCell(
-              label: 'PACE / DAY',
-              value: state.perDay > 0 ? fmtCost(state.perDay) : '—',
-            ),
-            StatCell(label: 'TOKENS', value: fmtTokens(tokenCount)),
-            StatCell(label: 'REQUESTS', value: '${state.totals.requests}'),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// 7-day / 30-day spend readout from the daily series.
-class _SpendWindows extends StatelessWidget {
-  final OverviewState state;
-
-  const _SpendWindows({required this.state});
-
-  @override
-  Widget build(BuildContext context) {
-    if (state.spend7 == 0 && state.spend30 == 0) return const SizedBox.shrink();
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('LAST 7 DAYS', style: AppText.sectionLabel),
-                  const SizedBox(height: 4),
-                  Text(
-                    fmtCost(state.spend7),
-                    style: AppText.data(size: 16, weight: FontWeight.w700),
-                  ),
-                ],
-              ),
-            ),
-            Container(width: 1, height: 34, color: AppColors.border),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.only(left: 14),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('LAST 30 DAYS', style: AppText.sectionLabel),
-                    const SizedBox(height: 4),
-                    Text(
-                      fmtCost(state.spend30),
-                      style: AppText.data(size: 16, weight: FontWeight.w700),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _SyncDeltaCard extends StatelessWidget {
+/// What the most recent sync actually added.
+class _DeltaStrip extends StatelessWidget {
   final UsageDelta delta;
 
-  const _SyncDeltaCard({required this.delta});
+  const _DeltaStrip({required this.delta});
 
   @override
   Widget build(BuildContext context) {
@@ -503,91 +450,14 @@ class _SyncDeltaCard extends StatelessWidget {
       if (delta.tokens > 0) '${fmtTokens(delta.tokens)} tokens',
       if (delta.requests > 0) '${delta.requests} requests',
     ];
-    return Card(
-      color: AppColors.accentSoft,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(14, 11, 14, 11),
-        child: Row(
-          children: [
-            const Icon(Icons.trending_up, size: 17, color: AppColors.accent),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                'SINCE LAST SYNC\n${parts.join(' · ')}',
-                style: AppText.data(
-                  size: 11,
-                  color: AppColors.accent,
-                  weight: FontWeight.w600,
-                  height: 1.5,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// Hottest capped pools across accounts, remaining-first.
-class _UrgencyList extends StatelessWidget {
-  final List<AccountOverview> accounts;
-
-  const _UrgencyList({required this.accounts});
-
-  @override
-  Widget build(BuildContext context) {
-    final rows = <({String label, LimitWindow window})>[];
-    for (final account in accounts) {
-      for (final window in account.windows) {
-        if (window.cap <= 0) continue;
-        if (window.kind == LimitKind.share) continue;
-        rows.add((label: account.account.label, window: window));
-      }
-    }
-    rows.sort((a, b) => b.window.fraction.compareTo(a.window.fraction));
-    final top = rows.take(4).toList();
-    if (top.length < 2) return const SizedBox.shrink();
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return Row(
       children: [
-        const SectionHeader(title: 'Hottest pools', trailing: 'by % used'),
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-            child: Column(
-              children: [
-                for (var i = 0; i < top.length; i++) ...[
-                  if (i > 0) const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          '${top[i].label} · ${top[i].window.label}',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: AppText.data(
-                            size: 11.5,
-                            weight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                      Text(
-                        fmtLeft(top[i].window),
-                        style: AppText.data(
-                          size: 11.5,
-                          weight: FontWeight.w700,
-                          color: limitColor(top[i].window.fraction),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                  PoolGauge(window: top[i].window, compact: true),
-                ],
-              ],
-            ),
+        const Icon(Icons.arrow_outward_rounded, size: 14, color: AppColors.haze),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            'Since last sync: ${parts.join(' · ')}',
+            style: AppText.data(size: 11, color: AppColors.haze),
           ),
         ),
       ],
@@ -625,16 +495,8 @@ class _ModelCostRow extends StatelessWidget {
             ),
           ],
         ),
-        const SizedBox(height: 5),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(3),
-          child: LinearProgressIndicator(
-            value: share,
-            minHeight: 4,
-            backgroundColor: AppColors.border.withValues(alpha: .4),
-            color: AppColors.accent,
-          ),
-        ),
+        const SizedBox(height: 6),
+        Meter(fraction: share, color: AppColors.rule, height: 3),
       ],
     );
   }

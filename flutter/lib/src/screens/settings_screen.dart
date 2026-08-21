@@ -17,7 +17,7 @@ import '../ui/widgets.dart';
 /// Shown in Settings; bump per release.
 const appVersion = '1.0.0';
 
-/// Sync interval, notification, and about settings.
+/// Sync, alerts, budget, backup and about.
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
 
@@ -71,255 +71,189 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return ListenableBuilder(
       listenable: scope.sync,
       builder: (context, _) => Scaffold(
-        body: SafeArea(
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.pageHorizontal,
-              16,
-              AppSpacing.pageHorizontal,
-              AppSpacing.pageBottom,
-            ),
-            children: [
-              Row(
+        appBar: AppBar(
+          leading: IconButton(
+            onPressed: () => Navigator.of(context).pop(),
+            icon: const Icon(Icons.arrow_back, size: 20),
+            tooltip: 'Back',
+          ),
+          title: const Text('Settings'),
+        ),
+        body: ListView(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.pageHorizontal,
+            4,
+            AppSpacing.pageHorizontal,
+            AppSpacing.pageBottom,
+          ),
+          children: [
+            const SectionHeader(title: 'Refresh', trailing: 'while open'),
+            ThermalCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  IconButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    icon: const Icon(Icons.arrow_back, size: 20),
+                  Text(
+                    scope.sync.intervalMinutes == 0
+                        ? 'Auto-refresh is off. Pull down on any tab to sync '
+                              'by hand.'
+                        : 'How often UsageLedger re-checks each provider. '
+                              'Android runs background refreshes no more than '
+                              'once every 15 minutes.',
+                    style: AppText.body(size: 12.5),
                   ),
-                  const SizedBox(width: 4),
-                  const Expanded(
-                    child: Text('Settings', style: AppText.pageTitle),
+                  const SizedBox(height: 14),
+                  Wrap(
+                    spacing: 7,
+                    runSpacing: 7,
+                    children: [
+                      for (final minutes in SyncController.intervalChoices)
+                        _Pill(
+                          label: _intervalLabel(minutes),
+                          selected: scope.sync.intervalMinutes == minutes,
+                          onTap: () => scope.sync.setInterval(minutes),
+                        ),
+                    ],
                   ),
                 ],
               ),
-              const SectionHeader(title: 'Sync interval'),
-              Card(
-                color: AppColors.surface,
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Foreground refresh while the app is open. '
-                        'Android background refresh runs every 15 minutes or more.'
-                        '${scope.sync.intervalMinutes == 0 ? ' Auto-sync is off — pull to refresh.' : ''}',
-                        style: AppText.data(size: 12, color: AppColors.textDim),
-                      ),
-                      const SizedBox(height: 12),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: [
-                          for (final minutes in SyncController.intervalChoices)
-                            ChoiceChip(
-                              label: Text(_intervalLabel(minutes)),
-                              selected: scope.sync.intervalMinutes == minutes,
-                              onSelected: (_) =>
-                                  scope.sync.setInterval(minutes),
-                              selectedColor: AppColors.accentSoft,
-                              labelStyle: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: scope.sync.intervalMinutes == minutes
-                                    ? AppColors.accent
-                                    : AppColors.textDim,
-                              ),
-                              side: BorderSide(
-                                color: scope.sync.intervalMinutes == minutes
-                                    ? AppColors.accent
-                                    : AppColors.border,
-                              ),
-                              showCheckmark: false,
-                            ),
-                        ],
-                      ),
-                    ],
+            ),
+            const SectionHeader(title: 'Alerts'),
+            ThermalCard(
+              padding: EdgeInsets.zero,
+              child: Column(
+                children: [
+                  SwitchListTile(
+                    title: const Text('Warn me before a pool empties'),
+                    subtitle: const Text(
+                      'A notification at 80% and 90%, then when it is gone.',
+                    ),
+                    value: _notificationsOn,
+                    onChanged: _setNotifications,
+                    contentPadding: const EdgeInsets.fromLTRB(14, 4, 8, 4),
                   ),
-                ),
+                  const Divider(height: 1),
+                  _SettingTile(
+                    title: 'Battery permissions',
+                    subtitle:
+                        'Android stops background refresh unless UsageLedger '
+                        'is exempt from battery optimisation.',
+                    icon: Icons.battery_saver_outlined,
+                    onTap: () => _openBatterySettings(context),
+                  ),
+                ],
               ),
-              const SectionHeader(title: 'Reliability'),
-              Card(
-                color: AppColors.surface,
-                child: ListTile(
-                  title: const Text(
-                    'Battery use',
-                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+            ),
+            const SectionHeader(title: 'Your budget', trailing: 'optional'),
+            ThermalCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'A cap you set for yourself, on top of whatever the '
+                    'providers allow. Measured against the last 30 days.',
+                    style: AppText.body(size: 12.5),
                   ),
-                  subtitle: Text(
-                    'Allow background refresh to run reliably on Android.',
-                    style: AppText.data(size: 11.5, color: AppColors.textDim),
+                  const SizedBox(height: 14),
+                  TextField(
+                    controller: _budgetCtrl,
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    decoration: InputDecoration(
+                      labelText: 'Monthly budget (USD)',
+                      hintText: '70',
+                      errorText: _budgetError,
+                    ),
+                    onSubmitted: (_) => _saveBudget(context),
                   ),
-                  trailing: const Icon(Icons.battery_saver_outlined, size: 19),
-                  onTap: () => _openBatterySettings(context),
-                ),
+                  const SizedBox(height: 12),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: FilledButton(
+                      onPressed: _savingBudget
+                          ? null
+                          : () => _saveBudget(context),
+                      child: Text(_savingBudget ? 'SAVING…' : 'SAVE BUDGET'),
+                    ),
+                  ),
+                ],
               ),
-              const SectionHeader(title: 'Budget'),
-              Card(
-                color: AppColors.surface,
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Optional monthly envelope on top of provider caps. '
-                        'Uses last-30-days spend.',
-                        style: AppText.data(size: 12, color: AppColors.textDim),
-                      ),
-                      const SizedBox(height: 10),
-                      TextField(
-                        controller: _budgetCtrl,
-                        keyboardType: const TextInputType.numberWithOptions(
-                          decimal: true,
-                        ),
-                        decoration: const InputDecoration(
-                          labelText: 'Monthly budget (USD)',
-                          hintText: '70',
-                        ),
-                        onSubmitted: (_) => _saveBudget(context),
-                      ),
-                      if (_budgetError != null) ...[
-                        const SizedBox(height: 8),
-                        Text(
-                          _budgetError!,
-                          style: TextStyle(
-                            color: AppColors.dangerText,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
-                      const SizedBox(height: 10),
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: FilledButton(
-                          onPressed: _savingBudget
-                              ? null
-                              : () => _saveBudget(context),
-                          child: Text(
-                            _savingBudget ? 'Saving…' : 'Save budget',
-                          ),
-                        ),
-                      ),
-                    ],
+            ),
+            const SectionHeader(title: 'Your data', trailing: 'stays local'),
+            ThermalCard(
+              padding: EdgeInsets.zero,
+              child: Column(
+                children: [
+                  _SettingTile(
+                    title: 'Export history',
+                    subtitle:
+                        'Every snapshot and per-model figure as a CSV file.',
+                    icon: Icons.ios_share_rounded,
+                    onTap: () => _exportCsv(context),
                   ),
-                ),
+                  const Divider(height: 1),
+                  _SettingTile(
+                    title: 'Back up accounts',
+                    subtitle:
+                        'A file you keep. Include your keys and it can '
+                        'restore everything after a wipe.',
+                    icon: Icons.lock_outline_rounded,
+                    onTap: () => _backup(context),
+                  ),
+                  const Divider(height: 1),
+                  _SettingTile(
+                    title: 'Restore from backup',
+                    subtitle: 'Read accounts back out of a UsageLedger file.',
+                    icon: Icons.file_open_outlined,
+                    onTap: () => _importBackup(context),
+                  ),
+                ],
               ),
-              const SectionHeader(title: 'Data'),
-              Card(
-                color: AppColors.surface,
-                child: ListTile(
-                  title: const Text(
-                    'Export history (CSV)',
-                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+            ),
+            const SectionHeader(title: 'About'),
+            ThermalCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const AppBrandBar(),
+                  const SizedBox(height: 10),
+                  Text(
+                    'Version $appVersion. Every API key lives in this phone\'s '
+                    'keystore. Nothing is uploaded anywhere, by anyone.',
+                    style: AppText.body(size: 12.5),
                   ),
-                  subtitle: Text(
-                    'Snapshots and per-model usage, shared as a file.',
-                    style: AppText.data(size: 11.5, color: AppColors.textDim),
+                  const SizedBox(height: 14),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: OutlinedButton(
+                      onPressed: () => _checkUpdate(context),
+                      child: const Text('CHECK FOR UPDATE'),
+                    ),
                   ),
-                  trailing: const Icon(Icons.ios_share, size: 18),
-                  onTap: () async {
-                    final messenger = ScaffoldMessenger.of(context);
-                    try {
-                      final repo = context
-                          .getInheritedWidgetOfExactType<AppScope>()!
-                          .repository;
-                      final path = await exportCsv(repo);
-                      messenger.showSnackBar(
-                        SnackBar(content: Text('Exported to $path')),
-                      );
-                    } catch (e) {
-                      messenger.showSnackBar(
-                        SnackBar(content: Text('Export failed: $e')),
-                      );
-                    }
-                  },
-                ),
+                ],
               ),
-              Card(
-                color: AppColors.surface,
-                child: ListTile(
-                  title: const Text(
-                    'Backup accounts',
-                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-                  ),
-                  subtitle: Text(
-                    'JSON file you keep. Keys optional — that file is a secret.',
-                    style: AppText.data(size: 11.5, color: AppColors.textDim),
-                  ),
-                  trailing: const Icon(Icons.ios_share, size: 18),
-                  onTap: () => _backup(context),
-                ),
-              ),
-              Card(
-                color: AppColors.surface,
-                child: ListTile(
-                  title: const Text(
-                    'Import backup',
-                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-                  ),
-                  subtitle: Text(
-                    'Restore accounts from a UsageLedger JSON file.',
-                    style: AppText.data(size: 11.5, color: AppColors.textDim),
-                  ),
-                  trailing: const Icon(Icons.file_open_outlined, size: 18),
-                  onTap: () => _importBackup(context),
-                ),
-              ),
-              const SectionHeader(title: 'Notifications'),
-              Card(
-                color: AppColors.surface,
-                child: SwitchListTile(
-                  title: const Text(
-                    'Limit alerts',
-                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-                  ),
-                  subtitle: Text(
-                    'Warn at 80% and 90%, then when a pool is empty.',
-                    style: AppText.data(size: 11.5, color: AppColors.textDim),
-                  ),
-                  value: _notificationsOn,
-                  onChanged: (value) => _setNotifications(value),
-                  activeColor: AppColors.accent,
-                ),
-              ),
-              const SectionHeader(title: 'About'),
-              Card(
-                color: AppColors.surface,
-                child: Padding(
-                  padding: const EdgeInsets.all(14),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('UsageLedger', style: AppText.brand),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Version $appVersion · keys stay on this device',
-                        style: AppText.data(
-                          size: 11.5,
-                          color: AppColors.textDim,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      OutlinedButton(
-                        onPressed: () => _checkUpdate(context),
-                        child: const Text('Check for update'),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
   }
 
   static String _intervalLabel(int minutes) {
-    if (minutes == 0) return 'Off';
-    if (minutes >= 60) return '${minutes ~/ 60}h';
-    return '${minutes}m';
+    if (minutes == 0) return 'OFF';
+    if (minutes >= 60) return '${minutes ~/ 60}H';
+    return '${minutes}M';
+  }
+
+  Future<void> _exportCsv(BuildContext context) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final repo = context.getInheritedWidgetOfExactType<AppScope>()!.repository;
+    try {
+      final path = await exportCsv(repo);
+      messenger.showSnackBar(SnackBar(content: Text('Exported to $path')));
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text('Export failed: $e')));
+    }
   }
 
   Future<void> _saveBudget(BuildContext context) async {
@@ -367,14 +301,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
         SnackBar(
           content: Text(
             info.newer
-                ? 'v${info.latestTag} is out. Open Releases to download.'
-                : 'You are on the latest (${info.latestTag}).',
+                ? 'v${info.latestTag} is out. Open Releases to download it.'
+                : 'You are on the latest release (${info.latestTag}).',
           ),
           action: SnackBarAction(
-            label: 'Link',
-            onPressed: () {
-              Share.share(info.htmlUrl);
-            },
+            label: 'LINK',
+            onPressed: () => Share.share(info.htmlUrl),
           ),
         ),
       );
@@ -389,19 +321,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final include = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Include API keys?'),
+        title: const Text('Include your API keys?'),
         content: const Text(
-          'A backup with keys can restore accounts after reinstall. '
-          'Treat that file as a secret.',
+          'With keys, this file restores every account after a reinstall — '
+          'and anyone who opens it can use them. Without keys it restores the '
+          'account list only.',
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Accounts only'),
+            child: const Text('ACCOUNTS ONLY'),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Include keys'),
+            child: const Text('INCLUDE KEYS'),
           ),
         ],
       ),
@@ -422,7 +355,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         includeKeys: include,
         passphrase: passphrase,
       );
-      messenger.showSnackBar(SnackBar(content: Text('Backup at $path')));
+      messenger.showSnackBar(SnackBar(content: Text('Backup saved to $path')));
     } catch (e) {
       messenger.showSnackBar(SnackBar(content: Text('Backup failed: $e')));
     }
@@ -466,7 +399,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'Imported ${result.imported} account${result.imported == 1 ? '' : 's'}'
+            'Restored ${result.imported} '
+            'account${result.imported == 1 ? '' : 's'}'
             '${result.withKeys > 0 ? ' with keys' : ''}'
             '${result.skipped > 0 ? ' · skipped ${result.skipped}' : ''}.',
           ),
@@ -476,7 +410,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       if (!context.mounted) return;
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('Import failed: $e')));
+      ).showSnackBar(SnackBar(content: Text('Restore failed: $e')));
     }
   }
 
@@ -489,25 +423,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
       return await showDialog<String?>(
         context: context,
         builder: (ctx) => AlertDialog(
-          title: Text(optional ? 'Protect backup' : 'Backup passphrase'),
+          title: Text(optional ? 'Lock this backup' : 'Backup passphrase'),
           content: TextField(
             controller: controller,
             autofocus: true,
             obscureText: true,
             decoration: InputDecoration(
               labelText: 'Passphrase',
-              hintText: optional ? 'Leave blank for plain JSON' : null,
+              helperText: optional
+                  ? 'Lose this and the backup cannot be opened again.'
+                  : 'The passphrase used when this backup was made.',
             ),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel'),
+              child: const Text('CANCEL'),
             ),
             if (optional)
               TextButton(
                 onPressed: () => Navigator.pop(ctx, ''),
-                child: const Text('Plain JSON'),
+                child: const Text('SKIP'),
               ),
             FilledButton(
               onPressed: () {
@@ -515,7 +451,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 if (value.isEmpty) return;
                 Navigator.pop(ctx, value);
               },
-              child: Text(optional ? 'Encrypt' : 'Unlock'),
+              child: Text(optional ? 'ENCRYPT' : 'UNLOCK'),
             ),
           ],
         ),
@@ -531,6 +467,75 @@ class _SettingsScreenState extends State<SettingsScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('Android battery settings are unavailable.'),
+      ),
+    );
+  }
+}
+
+class _SettingTile extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final VoidCallback onTap;
+
+  const _SettingTile({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      title: Text(title),
+      subtitle: Text(subtitle),
+      trailing: Icon(icon, size: 18, color: AppColors.haze),
+      contentPadding: const EdgeInsets.fromLTRB(14, 8, 14, 8),
+      onTap: onTap,
+    );
+  }
+}
+
+/// Small selectable pill used for the refresh interval.
+class _Pill extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _Pill({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      selected: selected,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppRadius.control),
+        child: Container(
+          constraints: const BoxConstraints(minWidth: 56, minHeight: 42),
+          alignment: Alignment.center,
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          decoration: BoxDecoration(
+            color: selected ? AppColors.coldSoft : Colors.transparent,
+            borderRadius: BorderRadius.circular(AppRadius.control),
+            border: Border.all(
+              color: selected ? AppColors.cold : AppColors.rule,
+            ),
+          ),
+          child: Text(
+            label,
+            style: AppText.tag(
+              size: 10.5,
+              color: selected ? AppColors.coldLit : AppColors.haze,
+            ),
+          ),
+        ),
       ),
     );
   }

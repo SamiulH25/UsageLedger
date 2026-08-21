@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../data/burn_rate.dart';
 import '../db/db.dart' show SnapshotRow;
+import '../providers/registry.dart';
 import '../providers/types.dart';
 import '../state/app_scope.dart';
 import '../state/view_models.dart';
@@ -8,7 +10,7 @@ import '../ui/cost_chart.dart';
 import '../ui/theme.dart';
 import '../ui/widgets.dart';
 
-/// Per-account instrument panel: every window, model table, trend, history.
+/// Per-account instrument panel: every pool, its runway, models and history.
 class AccountDetailScreen extends StatefulWidget {
   final String accountKey;
 
@@ -45,177 +47,217 @@ class _AccountDetailScreenState extends State<AccountDetailScreen> {
         final account = state.account;
         return Scaffold(
           appBar: AppBar(
-            title: Text(
-              account?.label ?? 'Account',
-              style: const TextStyle(
-                fontFamily: displayFamily,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
+            title: Text(account?.label ?? 'Account', style: AppText.cardTitle),
+            actions: [
+              if (account != null)
+                IconButton(
+                  onPressed: () => _refreshAccount(context),
+                  icon: const Icon(Icons.refresh_rounded, size: 19),
+                  tooltip: 'Sync this account',
+                ),
+              const SizedBox(width: 4),
+            ],
           ),
           body: state.loading
-              ? const Center(child: CircularProgressIndicator())
+              ? _skeleton()
               : account == null
               ? _missingState(context, state.error)
               : RefreshIndicator(
-                  color: AppColors.accent,
-                  backgroundColor: AppColors.surface,
+                  color: AppColors.cold,
+                  backgroundColor: AppColors.deck,
                   onRefresh: () => _refreshAccount(context),
-                  child: ListView(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    padding: const EdgeInsets.fromLTRB(
-                      AppSpacing.pageHorizontal,
-                      8,
-                      AppSpacing.pageHorizontal,
-                      AppSpacing.pageBottom,
-                    ),
-                    children: [
-                      _header(state),
-                      if (state.error != null) ...[
-                        const SizedBox(height: 12),
-                        InlineMessage.error(
-                          state.error!,
-                          action: TextButton(
-                            onPressed: () => _refreshAccount(context),
-                            child: const Text('Retry'),
-                          ),
-                        ),
-                      ],
-                      if (state.latest != null) ...[
-                        const SectionHeader(title: 'Pools'),
-                        for (final window in _orderedWindows(
-                          state.latest!.windows,
-                        ))
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 14),
-                            child: PoolGauge(
-                              window: window,
-                              paceCaretFraction: _caret(window, state.perDay),
-                            ),
-                          ),
-                      ],
-                      if (state.series.length >= 2) ...[
-                        const SectionHeader(title: 'Trend'),
-                        Card(
-                          child: Padding(
-                            padding: const EdgeInsets.fromLTRB(14, 12, 14, 10),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Sparkline(
-                                  values: state.series
-                                      .map((e) => e.costUsd)
-                                      .toList(),
-                                ),
-                                const SizedBox(height: 6),
-                                Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Text(
-                                      state.series.first.day.substring(5),
-                                      style: AppText.data(
-                                        size: 9,
-                                        color: AppColors.textDim,
-                                      ),
-                                    ),
-                                    Text(
-                                      'pace ${fmtCost(state.perDay)}/day',
-                                      style: AppText.data(
-                                        size: 9.5,
-                                        color: AppColors.textDim,
-                                      ),
-                                    ),
-                                    Text(
-                                      state.series.last.day.substring(5),
-                                      style: AppText.data(
-                                        size: 9,
-                                        color: AppColors.textDim,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
-                      if (state.latest != null &&
-                          (state.latest!.inputTokens > 0 ||
-                              state.latest!.outputTokens > 0)) ...[
-                        const SectionHeader(title: 'Token split'),
-                        Card(
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 14,
-                            ),
-                            child: StatRow(
-                              children: [
-                                StatCell(
-                                  label: 'IN',
-                                  value: fmtTokens(state.latest!.inputTokens),
-                                ),
-                                StatCell(
-                                  label: 'OUT',
-                                  value: fmtTokens(state.latest!.outputTokens),
-                                ),
-                                StatCell(
-                                  label: 'REQUESTS',
-                                  value: '${state.latest!.requests}',
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
-                      if (state.history.length > 1) ...[
-                        SectionHeader(
-                          title: 'Snapshots',
-                          trailing: '${state.history.length}',
-                        ),
-                        for (final snapshot in state.history.take(10))
-                          _snapshotTile(snapshot),
-                      ],
-                      if (state.token != null && state.token!.isNotEmpty) ...[
-                        const SizedBox(height: 8),
-                        ApiKeyPanel(apiKey: state.token!),
-                      ],
-                    ],
-                  ),
+                  child: _body(state),
                 ),
         );
       },
     );
   }
 
-  Widget _missingState(BuildContext context, String? error) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: EmptyState(
-          icon: error == null
-              ? Icons.account_circle_outlined
-              : Icons.error_outline,
-          title: error == null
-              ? 'This account was removed'
-              : 'Could not load account',
-          hint: error ?? 'Return to Accounts and choose another account.',
-          action: Column(
-            children: [
-              FilledButton(
-                onPressed: error == null
-                    ? () => Navigator.pop(context)
-                    : () => _vm.load(widget.accountKey),
-                child: Text(error == null ? 'Back to accounts' : 'Retry'),
-              ),
-              if (error != null)
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('Back'),
-                ),
-            ],
+  Widget _skeleton() => const Padding(
+    padding: EdgeInsets.fromLTRB(
+      AppSpacing.pageHorizontal,
+      8,
+      AppSpacing.pageHorizontal,
+      0,
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SkeletonBar(height: 96),
+        SizedBox(height: 22),
+        SkeletonBar(height: 10, widthFactor: .22),
+        SizedBox(height: 14),
+        SkeletonBar(height: 64),
+      ],
+    ),
+  );
+
+  Widget _body(AccountDetailState state) {
+    final account = state.account!;
+    final latest = state.latest;
+    final windows = _orderedWindows(latest?.windows ?? const []);
+    final runway = [
+      for (final window in windows)
+        if (window.cap > 0 &&
+            window.kind != LimitKind.share &&
+            window.kind != LimitKind.extra)
+          RunwayEntry(
+            accountLabel: account.label,
+            window: window,
+            outlook: PoolOutlook.forWindow(window, state.perDay),
           ),
+    ];
+
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.pageHorizontal,
+        8,
+        AppSpacing.pageHorizontal,
+        AppSpacing.pageBottom,
+      ),
+      children: [
+        _header(state),
+        if (state.error != null) ...[
+          const SizedBox(height: 12),
+          InlineMessage.error(
+            state.error!,
+            action: TextButton(
+              onPressed: () => _refreshAccount(context),
+              child: const Text('RETRY'),
+            ),
+          ),
+        ],
+        if (account.syncError.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          InlineMessage.error(account.syncError),
+        ],
+        if (runway.isNotEmpty) ...[
+          const SectionHeader(title: 'Runway', trailing: 'at current pace'),
+          ThermalCard(
+            padding: const EdgeInsets.fromLTRB(15, 6, 15, 6),
+            child: Column(
+              children: [
+                for (var i = 0; i < runway.length; i++) ...[
+                  if (i > 0) const Divider(height: 1),
+                  RunwayLane(entry: runway[i], showAccount: false),
+                ],
+              ],
+            ),
+          ),
+        ],
+        if (windows.isNotEmpty) ...[
+          const SectionHeader(title: 'Pools', trailing: 'what is left'),
+          ThermalCard(
+            child: Column(
+              children: [
+                for (var i = 0; i < windows.length; i++) ...[
+                  if (i > 0) const SizedBox(height: 16),
+                  PoolGauge(
+                    window: windows[i],
+                    paceCaretFraction: _caret(windows[i], state.perDay),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+        if (state.series.length >= 2) ...[
+          const SectionHeader(title: 'Trend', trailing: 'daily spend'),
+          ThermalCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Sparkline(
+                  values: [for (final point in state.series) point.costUsd],
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Text(
+                      state.series.first.day.substring(5).replaceAll('-', '.'),
+                      style: AppText.data(size: 9.5, color: AppColors.haze),
+                    ),
+                    const Spacer(),
+                    Text(
+                      'pace ${fmtCost(state.perDay)}/day',
+                      style: AppText.data(size: 10, color: AppColors.haze),
+                    ),
+                    const Spacer(),
+                    Text(
+                      state.series.last.day.substring(5).replaceAll('-', '.'),
+                      style: AppText.data(size: 9.5, color: AppColors.haze),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+        if (latest != null &&
+            (latest.inputTokens > 0 ||
+                latest.outputTokens > 0 ||
+                latest.requests > 0)) ...[
+          const SectionHeader(title: 'Traffic', trailing: 'latest snapshot'),
+          ThermalCard(
+            child: MetricRow(
+              metrics: [
+                Metric('TOKENS IN', fmtTokens(latest.inputTokens)),
+                Metric('TOKENS OUT', fmtTokens(latest.outputTokens)),
+                Metric('REQUESTS', '${latest.requests}'),
+              ],
+            ),
+          ),
+        ],
+        if (latest != null && latest.models.isNotEmpty) ...[
+          const SectionHeader(title: 'Models'),
+          ThermalCard(
+            child: ModelBreakdownPanel(
+              models: latest.models,
+              platform: account.platform,
+            ),
+          ),
+        ],
+        if (state.history.length > 1) ...[
+          SectionHeader(
+            title: 'Snapshots',
+            trailing: '${state.history.length} saved',
+          ),
+          for (final snapshot in state.history.take(10))
+            _snapshotTile(snapshot),
+        ],
+        if (state.token != null && state.token!.isNotEmpty) ...[
+          const SectionHeader(title: 'API key', trailing: 'on this device'),
+          ApiKeyPanel(apiKey: state.token!),
+        ],
+      ],
+    );
+  }
+
+  Widget _missingState(BuildContext context, String? error) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.pageHorizontal),
+      child: EmptyState(
+        icon: error == null
+            ? Icons.link_off_rounded
+            : Icons.priority_high_rounded,
+        title: error == null
+            ? 'This account was removed'
+            : 'Could not load this account',
+        hint: error ?? 'Go back to Accounts and pick another one.',
+        action: Row(
+          children: [
+            if (error != null)
+              FilledButton(
+                onPressed: () => _vm.load(widget.accountKey),
+                child: const Text('RETRY'),
+              ),
+            if (error != null) const SizedBox(width: 10),
+            OutlinedButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('BACK TO ACCOUNTS'),
+            ),
+          ],
         ),
       ),
     );
@@ -235,13 +277,11 @@ class _AccountDetailScreenState extends State<AccountDetailScreen> {
       LimitKind.share => 2,
       LimitKind.extra => 3,
     };
-    final sorted = windows.where((window) => !window.idle).toList()
+    return windows.where((window) => !window.idle).toList()
       ..sort((a, b) {
         final c = rank(a.kind).compareTo(rank(b.kind));
-        if (c != 0) return c;
-        return b.fraction.compareTo(a.fraction);
+        return c != 0 ? c : b.fraction.compareTo(a.fraction);
       });
-    return sorted;
   }
 
   double? _caret(LimitWindow window, double perDay) {
@@ -255,71 +295,60 @@ class _AccountDetailScreenState extends State<AccountDetailScreen> {
   Widget _header(AccountDetailState state) {
     final account = state.account!;
     final latest = state.latest;
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                ProviderAvatar(platform: account.platform, size: 40),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        account.label,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: AppText.pageTitle.copyWith(fontSize: 20),
-                      ),
-                      if (account.email.isNotEmpty)
-                        Text(account.email, style: AppText.pageSubtitle),
-                    ],
-                  ),
-                ),
-                if (latest != null)
-                  Flexible(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text(
-                          fmtCost(latest.costUsd),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: AppText.heroNumber(),
-                        ),
-                        if (latest.inputTokens + latest.outputTokens > 0 ||
-                            latest.requests > 0)
-                          Text(
-                            [
-                              if (latest.inputTokens + latest.outputTokens > 0)
-                                '${fmtTokens(latest.inputTokens + latest.outputTokens)} tok',
-                              if (latest.requests > 0) '${latest.requests} req',
-                            ].join(' · '),
-                            maxLines: 2,
-                            textAlign: TextAlign.end,
-                            style: AppText.data(
-                              size: 10,
-                              color: AppColors.textDim,
-                            ),
-                          ),
-                      ],
+    final hottest = (latest?.windows ?? const <LimitWindow>[])
+        .where((w) => w.cap > 0 && !w.idle)
+        .fold<LimitWindow?>(
+          null,
+          (best, w) => best == null || w.fraction > best.fraction ? w : best,
+        );
+    final rail = account.syncError.isNotEmpty
+        ? AppColors.hot
+        : hottest == null
+        ? AppColors.rule
+        : limitColor(hottest.fraction, exceeded: hottest.exceeded);
+
+    return ThermalCard(
+      rail: rail,
+      padding: const EdgeInsets.fromLTRB(17, 16, 17, 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              ProviderAvatar(platform: account.platform, size: 34),
+              const SizedBox(width: 11),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      providerName(account.platform).toUpperCase(),
+                      style: AppText.tag(size: 9.5),
                     ),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            Text(
-              account.lastRefreshAt > 0
-                  ? 'synced ${fmtAgo(account.lastRefreshAt)}'
-                  : 'not synced yet',
-              style: AppText.data(size: 10, color: AppColors.textDim),
-            ),
-          ],
-        ),
+                    if (account.email.isNotEmpty) ...[
+                      const SizedBox(height: 3),
+                      Text(
+                        account.email,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppText.body(size: 12),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Readout(
+            eyebrow: 'TRACKED SPEND',
+            value: fmtCost(latest?.costUsd ?? 0),
+            detail: account.lastRefreshAt > 0
+                ? 'Synced ${fmtAgo(account.lastRefreshAt)}'
+                : 'Not synced yet',
+            size: 38,
+          ),
+        ],
       ),
     );
   }
@@ -343,38 +372,42 @@ class _AccountDetailScreenState extends State<AccountDetailScreen> {
       'Dec',
     ];
     final stamp =
-        '${months[when.month - 1]} ${when.day} · ${when.hour.toString().padLeft(2, '0')}:${when.minute.toString().padLeft(2, '0')}';
-    return Card(
+        '${months[when.month - 1]} ${when.day} · '
+        '${when.hour.toString().padLeft(2, '0')}:'
+        '${when.minute.toString().padLeft(2, '0')}';
+
+    return ThermalCard(
       margin: const EdgeInsets.only(bottom: 8),
+      padding: EdgeInsets.zero,
       child: Theme(
         data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
         child: ExpansionTile(
           tilePadding: const EdgeInsets.symmetric(horizontal: 14),
           childrenPadding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
-          title: Text(stamp, style: AppText.data(size: 11.5)),
+          title: Text(stamp, style: AppText.data(size: 12)),
           subtitle: Text(
-            '${fmtCost(snapshot.costUsd)} · ${fmtTokens(snapshot.inputTokens + snapshot.outputTokens)} tok · ${snapshot.requests} req',
-            style: AppText.data(size: 10, color: AppColors.textDim),
+            '${fmtCost(snapshot.costUsd)} · '
+            '${fmtTokens(snapshot.inputTokens + snapshot.outputTokens)} tok · '
+            '${snapshot.requests} req',
+            style: AppText.data(size: 10.5, color: AppColors.haze),
           ),
           children: [
-            if (snapshot.windows.isNotEmpty) ...[
-              for (final window in snapshot.windows.where((w) => w.cap > 0))
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
-                  child: PoolGauge(window: window, compact: true),
-                ),
-            ],
+            for (final window in snapshot.windows.where((w) => w.cap > 0))
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: PoolGauge(window: window, compact: true),
+              ),
             if (snapshot.models.isNotEmpty)
               Align(
                 alignment: Alignment.centerLeft,
                 child: Text(
                   snapshot.models
-                      .map((m) => '${m.model}: ${fmtCost(m.costUsd)}')
-                      .join('  ·  '),
+                      .map((m) => '${m.model} ${fmtCost(m.costUsd)}')
+                      .join('   ·   '),
                   style: AppText.data(
-                    size: 10,
-                    color: AppColors.textDim,
-                    height: 1.6,
+                    size: 10.5,
+                    color: AppColors.haze,
+                    height: 1.7,
                   ),
                 ),
               ),

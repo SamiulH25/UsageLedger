@@ -18,7 +18,7 @@ void main() {
       ),
     );
 
-    await tester.tap(find.text('Add an account'));
+    await tester.tap(find.text('ADD AN ACCOUNT'));
     await tester.pumpAndSettle();
 
     expect(persisted, isTrue);
@@ -39,7 +39,7 @@ void main() {
       ),
     );
 
-    await tester.tap(find.text('Not now'));
+    await tester.tap(find.text('NOT NOW'));
     await tester.pumpAndSettle();
 
     expect(openAddAccount, isFalse);
