@@ -50,6 +50,14 @@ android {
         versionName = flutter.versionName
     }
 
+    // Keep .so files compressed in the APK (default flips to stored at
+    // minSdk >= 23, which doubled the download size).
+    packaging {
+        jniLibs {
+            useLegacyPackaging = true
+        }
+    }
+
     buildTypes {
         release {
             signingConfig = if (keystoreProperties.containsKey("storeFile")) {
