@@ -21,7 +21,12 @@ class _AiUsageMonitorAppState extends State<AiUsageMonitorApp> {
   int _tab = 0;
 
   Future<void> _openAdd() async {
-    await Navigator.of(context).push<bool>(MaterialPageRoute(builder: (_) => const AddAccountScreen()));
+    await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => const AddAccountScreen(),
+    );
     if (mounted) setState(() {}); // refresh tabs after adding
   }
 
@@ -44,8 +49,16 @@ class _AiUsageMonitorAppState extends State<AiUsageMonitorApp> {
           selectedIndex: _tab,
           onDestinationSelected: (i) => setState(() => _tab = i),
           destinations: const [
-            NavigationDestination(icon: Icon(Icons.dashboard_outlined), selectedIcon: Icon(Icons.dashboard), label: 'Home'),
-            NavigationDestination(icon: Icon(Icons.people_outline), selectedIcon: Icon(Icons.people), label: 'Accounts'),
+            NavigationDestination(
+              icon: Icon(Icons.dashboard_outlined),
+              selectedIcon: Icon(Icons.dashboard),
+              label: 'Overview',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.people_outline),
+              selectedIcon: Icon(Icons.people),
+              label: 'Accounts',
+            ),
             NavigationDestination(icon: Icon(Icons.history), label: 'History'),
           ],
         ),

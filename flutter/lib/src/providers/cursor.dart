@@ -16,7 +16,12 @@ class CursorProvider implements AiProvider {
       'Run `cursor-agent login` on your desktop (device OAuth prints a URL to approve), '
       'then paste the account token here. It lets this app read your usage only.';
 
-  Future<Map<String, dynamic>> _rpc(String service, String method, Map<String, dynamic> body, String token) async {
+  Future<Map<String, dynamic>> _rpc(
+    String service,
+    String method,
+    Map<String, dynamic> body,
+    String token,
+  ) async {
     final res = await http.post(
       Uri.parse('$_base/$service/$method'),
       headers: {
@@ -30,7 +35,9 @@ class CursorProvider implements AiProvider {
       body: jsonEncode(body),
     );
     if (res.statusCode != 200) {
-      throw Exception('Cursor API ${res.statusCode}: ${res.body.length > 200 ? res.body.substring(0, 200) : res.body}');
+      throw Exception(
+        'Cursor API ${res.statusCode}: ${res.body.length > 200 ? res.body.substring(0, 200) : res.body}',
+      );
     }
     return jsonDecode(res.body) as Map<String, dynamic>;
   }
@@ -53,7 +60,12 @@ class CursorProvider implements AiProvider {
   Future<ProviderUsage> fetchUsage(String token) async {
     final results = await Future.wait([
       _rpc('aiserver.v1.DashboardService', 'GetCurrentPeriodUsage', {}, token),
-      _rpc('aiserver.v1.DashboardService', 'GetAggregatedUsageEvents', {}, token),
+      _rpc(
+        'aiserver.v1.DashboardService',
+        'GetAggregatedUsageEvents',
+        {},
+        token,
+      ),
     ]);
     final period = results[0];
     final agg = results[1];
@@ -61,9 +73,12 @@ class CursorProvider implements AiProvider {
     final plan = period['planUsage'] as Map<String, dynamic>? ?? {};
     final spent = _num(plan['totalSpend']).toDouble();
     final included = _num(plan['includedSpend']).toDouble();
+    final bonus = _num(plan['bonusSpend']).toDouble();
+    final cycleEnd = _ms(_num(period['billingCycleEnd']));
 
-    // Token totals from per-model aggregations.
-    final aggs = (agg['aggregations'] as List?)?.cast<Map<String, dynamic>>() ?? const [];
+    final aggs =
+        (agg['aggregations'] as List?)?.cast<Map<String, dynamic>>() ??
+        const [];
     var inputTokens = 0, outputTokens = 0;
     final models = <ModelUsage>[];
     for (final a in aggs) {
@@ -74,68 +89,83 @@ class CursorProvider implements AiProvider {
       final tc = _num(a['totalCents']).toDouble();
       inputTokens += it;
       outputTokens += ot;
-      models.add(ModelUsage(
-        model: a['modelIntent'] as String? ?? 'unknown',
-        inputTokens: it,
-        outputTokens: ot,
-        cacheReadTokens: cr,
-        cacheWriteTokens: cw,
-        costUsd: tc / 100,
-      ));
+      models.add(
+        ModelUsage(
+          model: a['modelIntent'] as String? ?? 'unknown',
+          inputTokens: it,
+          outputTokens: ot,
+          cacheReadTokens: cr,
+          cacheWriteTokens: cw,
+          costUsd: tc / 100,
+        ),
+      );
     }
     if (models.isEmpty) {
-      // Fall back to response-level totals if aggregations are empty.
       inputTokens = _num(agg['totalInputTokens']).toInt();
       outputTokens = _num(agg['totalOutputTokens']).toInt();
     }
 
-    final windows = <LimitWindow>[];
-    final cycleEnd = _num(period['billingCycleEnd']).toInt();
-
-    // The plan's own percentages are authoritative (same numbers Cursor's UI shows):
-    // autoPercentUsed = % of included usage consumed by auto (default) models,
-    // apiPercentUsed = % of included usage consumed by named/API models.
+    // Auto / API / total percentages are slices of ONE included pool.
+    // Bonus spend sits outside that pool and is not a third $70 bar.
     final includedDollars = included / 100;
     final autoPct = (_num(plan['autoPercentUsed']) / 100).clamp(0.0, 1.0);
     final apiPct = (_num(plan['apiPercentUsed']) / 100).clamp(0.0, 1.0);
     final totalPct = (_num(plan['totalPercentUsed']) / 100).clamp(0.0, 1.0);
+    final hitLimit = (period['displayMessage'] as String? ?? '')
+        .toLowerCase()
+        .contains('usage limit');
+    final windows = <LimitWindow>[];
 
     if (includedDollars > 0) {
-      if (autoPct > 0) {
-        windows.add(LimitWindow(
+      windows.add(
+        LimitWindow(
+          id: 'cursor:included',
+          label: 'Included',
+          used: includedDollars * totalPct,
+          cap: includedDollars,
+          resetAt: cycleEnd,
+          exceeded: totalPct >= 1.0 || hitLimit,
+          kind: LimitKind.budget,
+        ),
+      );
+      windows.add(
+        LimitWindow(
           id: 'cursor:auto',
-          label: 'Auto models (included)',
+          label: 'Auto models',
           used: includedDollars * autoPct,
           cap: includedDollars,
           resetAt: cycleEnd,
           exceeded: autoPct >= 1.0,
-        ));
-      }
-      if (apiPct > 0) {
-        windows.add(LimitWindow(
+          kind: LimitKind.share,
+        ),
+      );
+      windows.add(
+        LimitWindow(
           id: 'cursor:api',
-          label: 'API models (named)',
+          label: 'API models',
           used: includedDollars * apiPct,
           cap: includedDollars,
           resetAt: cycleEnd,
           exceeded: apiPct >= 1.0,
-        ));
-      }
-      if (totalPct > 0 && totalPct != autoPct) {
-        windows.add(LimitWindow(
-          id: 'cursor:included',
-          label: 'Included total usage',
-          used: includedDollars * totalPct,
-          cap: includedDollars,
-          resetAt: cycleEnd,
-          exceeded: totalPct >= 1.0,
-        ));
-      }
+          kind: LimitKind.share,
+        ),
+      );
+    }
+    if (bonus > 0) {
+      windows.add(
+        LimitWindow(
+          id: 'cursor:extra',
+          label: 'Extra usage',
+          used: bonus / 100,
+          cap: 0,
+          kind: LimitKind.extra,
+        ),
+      );
     }
 
     return ProviderUsage(
       totals: UsageTotals(
-        requests: agg['totalRequests'] as int? ?? 0,
+        requests: _num(agg['totalRequests']).toInt(),
         inputTokens: inputTokens,
         outputTokens: outputTokens,
         costUsd: spent / 100,
@@ -150,5 +180,12 @@ class CursorProvider implements AiProvider {
     if (v is num) return v;
     if (v is String) return num.tryParse(v) ?? 0;
     return 0;
+  }
+
+  static int _ms(num v) {
+    final n = v.toInt();
+    if (n <= 0) return 0;
+    if (n < 100000000000) return n * 1000;
+    return n;
   }
 }

@@ -19,7 +19,8 @@ class _HistoryEntry {
   final double cost;
   final int requests;
   final int tokens;
-  final String limits; // one-line summary
+  final String limits;
+
   _HistoryEntry({
     required this.day,
     required this.accountLabel,
@@ -38,31 +39,49 @@ class _HistoryScreenState extends State<HistoryScreen> {
   Future<void> _load() async {
     final accounts = await listAccounts();
     final entries = <_HistoryEntry>[];
-    for (final a in accounts) {
-      final snap = await latestSnapshot(a.key);
-      if (snap == null) continue;
-      final day = DateTime.fromMillisecondsSinceEpoch(snap.capturedAt).toLocal();
-      final dayLabel = '${_wd(day.weekday)} ${_mo(day.month)} ${day.day}';
-      final limits = snap.windows
-          .map((w) => '${w.label}: ${fmtCost(w.used)} / ${fmtCost(w.cap)}')
-          .join(' · ');
-      entries.add(_HistoryEntry(
-        day: dayLabel,
-        accountLabel: a.label,
-        platform: a.platform,
-        cost: snap.costUsd,
-        requests: snap.requests,
-        tokens: snap.inputTokens + snap.outputTokens,
-        limits: limits,
-      ));
+    for (final account in accounts) {
+      final snapshot = await latestSnapshot(account.key);
+      if (snapshot == null) continue;
+      final date = DateTime.fromMillisecondsSinceEpoch(
+        snapshot.capturedAt,
+      ).toLocal();
+      final dayLabel = '${_wd(date.weekday)} ${_mo(date.month)} ${date.day}';
+      entries.add(
+        _HistoryEntry(
+          day: dayLabel,
+          accountLabel: account.label,
+          platform: account.platform,
+          cost: snapshot.costUsd,
+          requests: snapshot.requests,
+          tokens: snapshot.inputTokens + snapshot.outputTokens,
+          limits: snapshot.windows
+              .map((w) => '${w.label}: ${fmtCost(w.used)} / ${fmtCost(w.cap)}')
+              .join(' · '),
+        ),
+      );
     }
-    entries.sort((x, y) => y.day.compareTo(x.day));
+    entries.sort((a, b) => b.day.compareTo(a.day));
     if (!mounted) return;
     setState(() => _entries = entries);
   }
 
-  String _wd(int w) => const ['', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][w];
-  String _mo(int m) => const ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][m];
+  String _wd(int weekday) =>
+      const ['', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][weekday];
+  String _mo(int month) => const [
+    '',
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ][month];
 
   @override
   void initState() {
@@ -73,75 +92,135 @@ class _HistoryScreenState extends State<HistoryScreen> {
   @override
   Widget build(BuildContext context) {
     final byDay = <String, List<_HistoryEntry>>{};
-    for (final e in _entries) {
-      byDay.putIfAbsent(e.day, () => []).add(e);
+    for (final entry in _entries) {
+      byDay.putIfAbsent(entry.day, () => []).add(entry);
     }
     final days = byDay.keys.toList()..sort((a, b) => b.compareTo(a));
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('History'),
-        actions: [
-          TextButton(
-            onPressed: () => setState(() => _showLimits = !_showLimits),
-            child: Text(_showLimits ? 'Hide limits' : 'Show limits',
-                style: const TextStyle(color: AppColors.accentBlue)),
-          ),
-        ],
-      ),
-      body: RefreshIndicator(
-        onRefresh: _load,
-        child: _entries.isEmpty
-            ? ListView(children: [
-                const SizedBox(height: 120),
-                const EmptyState(
-                  icon: '🕘',
-                  title: 'No snapshots yet',
-                  hint: 'Snapshots are recorded each time you refresh, building a history over time.',
+      body: SafeArea(
+        child: RefreshIndicator(
+          color: AppColors.accent,
+          onRefresh: _load,
+          child: ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(16, 22, 16, 34),
+            children: [
+              const Text(
+                'UsageLedger',
+                style: TextStyle(
+                  fontSize: 19,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -1,
                 ),
-              ])
-            : ListView(
-                padding: const EdgeInsets.all(16),
+              ),
+              const SizedBox(height: 28),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  for (final day in days) ...[
-                    Padding(
-                      padding: const EdgeInsets.only(top: 12, bottom: 6),
-                      child: Text(day,
-                          style: const TextStyle(color: AppColors.text, fontWeight: FontWeight.w600)),
+                  const Text(
+                    'History',
+                    style: TextStyle(
+                      fontSize: 31,
+                      fontWeight: FontWeight.w500,
+                      letterSpacing: -1.5,
                     ),
-                    for (final e in byDay[day]!) _entryCard(e),
-                  ],
+                  ),
+                  FilterChip(
+                    selected: _showLimits,
+                    label: Text(_showLimits ? 'Limits on' : 'Show limits'),
+                    onSelected: (value) => setState(() => _showLimits = value),
+                    selectedColor: AppColors.accentSoft,
+                    checkmarkColor: AppColors.accent,
+                    labelStyle: const TextStyle(
+                      fontSize: 10,
+                      color: AppColors.accent,
+                    ),
+                    side: const BorderSide(color: AppColors.border),
+                  ),
                 ],
               ),
+              const SizedBox(height: 6),
+              const Text(
+                'Snapshots captured when your accounts refresh.',
+                style: TextStyle(color: AppColors.textDim, fontSize: 12),
+              ),
+              const SizedBox(height: 15),
+              if (_entries.isEmpty)
+                const EmptyState(
+                  icon: '◷',
+                  title: 'No snapshots yet',
+                  hint:
+                      'Refresh an account to start building your usage history.',
+                )
+              else
+                for (final day in days) ...[
+                  SectionHeader(
+                    title: day,
+                    trailing:
+                        '${byDay[day]!.length} account${byDay[day]!.length == 1 ? '' : 's'}',
+                  ),
+                  for (final entry in byDay[day]!) _entryCard(entry),
+                ],
+            ],
+          ),
+        ),
       ),
     );
   }
 
-  Widget _entryCard(_HistoryEntry e) {
-    final color = hexColor(providerColor(e.platform));
+  Widget _entryCard(_HistoryEntry entry) {
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Row(children: [
-            Container(width: 8, height: 8, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(e.accountLabel, maxLines: 1, overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(color: AppColors.text)),
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                ProviderAvatar(platform: entry.platform, size: 28),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    entry.accountLabel,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                Text(
+                  fmtCost(entry.cost),
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
             ),
-            Text(fmtCost(e.cost), style: const TextStyle(color: AppColors.text, fontWeight: FontWeight.w600)),
-          ]),
-          const SizedBox(height: 4),
-          Text('${providerName(e.platform)} · ${fmtTokens(e.tokens)} tok · ${e.requests} req',
-              style: const TextStyle(fontSize: 11, color: AppColors.textDim)),
-          if (_showLimits && e.limits.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(top: 6),
-              child: Text(e.limits, style: const TextStyle(fontSize: 11, color: AppColors.textDim)),
+            const SizedBox(height: 9),
+            Text(
+              '${providerName(entry.platform)} · ${fmtTokens(entry.tokens)} tokens · ${entry.requests} requests',
+              style: const TextStyle(fontSize: 10, color: AppColors.textDim),
             ),
-        ]),
+            if (_showLimits && entry.limits.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 7),
+                child: Text(
+                  entry.limits,
+                  style: const TextStyle(
+                    fontSize: 10,
+                    color: AppColors.textDim,
+                    height: 1.4,
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }

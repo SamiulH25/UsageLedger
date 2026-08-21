@@ -26,7 +26,9 @@ class CommandCodeProvider implements AiProvider {
       },
     );
     if (res.statusCode != 200) {
-      throw Exception('Command Code API ${res.statusCode}: ${res.body.length > 200 ? res.body.substring(0, 200) : res.body}');
+      throw Exception(
+        'Command Code API ${res.statusCode}: ${res.body.length > 200 ? res.body.substring(0, 200) : res.body}',
+      );
     }
     return jsonDecode(res.body) as Map<String, dynamic>;
   }
@@ -47,48 +49,80 @@ class CommandCodeProvider implements AiProvider {
 
   @override
   Future<ProviderUsage> fetchUsage(String token) async {
-    final since = DateTime.now().subtract(const Duration(days: 40)).toUtc().toIso8601String();
-    final results = await Future.wait([
-      _api('/alpha/usage/summary?since=${Uri.encodeQueryComponent(since)}', token),
-      _api('/alpha/billing/credits', token),
-    ]);
-    final summary = results[0];
-    final credits = results[1];
+    final credits = await _api('/alpha/billing/credits', token);
+    Map<String, dynamic>? sub;
+    try {
+      final raw = await _api('/alpha/billing/subscriptions', token);
+      final data = raw['data'];
+      if (data is Map<String, dynamic>) sub = data;
+    } catch (_) {
+      sub = null;
+    }
+
+    final periodStart = sub?['currentPeriodStart'] as String?;
+    final since =
+        periodStart ??
+        DateTime.now()
+            .toUtc()
+            .subtract(const Duration(days: 40))
+            .toIso8601String();
+    final summary = await _api(
+      '/alpha/usage/summary?since=${Uri.encodeQueryComponent(since)}',
+      token,
+    );
 
     final windows = <LimitWindow>[];
     final wl = credits['windowLimits'] as Map<String, dynamic>?;
     final fiveHour = wl?['fiveHour'] as Map<String, dynamic>?;
     if (fiveHour != null) {
-      windows.add(LimitWindow(
-        id: 'commandcode:5h',
-        label: '5-hour window',
-        used: (fiveHour['used'] as num).toDouble(),
-        cap: (fiveHour['cap'] as num).toDouble(),
-        resetAt: (fiveHour['resetAt'] as num?)?.toInt() ?? 0,
-        exceeded: fiveHour['exceeded'] == true,
-      ));
+      windows.add(
+        LimitWindow(
+          id: 'commandcode:5h',
+          label: '5-hour burst',
+          used: _n(fiveHour['used']),
+          cap: _n(fiveHour['cap']),
+          resetAt: _ms(fiveHour['resetAt']),
+          exceeded: fiveHour['exceeded'] == true,
+          kind: LimitKind.burst,
+        ),
+      );
     }
     final weekly = wl?['weekly'] as Map<String, dynamic>?;
-    if (weekly != null) {
-      windows.add(LimitWindow(
-        id: 'commandcode:weekly',
-        label: 'Weekly',
-        used: (weekly['used'] as num).toDouble(),
-        cap: (weekly['cap'] as num).toDouble(),
-        resetAt: (weekly['resetAt'] as num?)?.toInt() ?? 0,
-        exceeded: weekly['exceeded'] == true,
-      ));
+    if (weekly != null && _n(weekly['cap']) > 0) {
+      windows.add(
+        LimitWindow(
+          id: 'commandcode:weekly',
+          label: 'This week',
+          used: _n(weekly['used']),
+          cap: _n(weekly['cap']),
+          resetAt: _ms(weekly['resetAt']),
+          exceeded: weekly['exceeded'] == true,
+          kind: LimitKind.budget,
+        ),
+      );
     }
-    final monthly = (credits['credits'] as Map<String, dynamic>?)?['monthlyCredits'];
-    final totalCost = (summary['totalCost'] as num?)?.toDouble() ?? 0;
-    if (monthly is num && monthly > 0) {
-      windows.add(LimitWindow(
-        id: 'commandcode:monthly',
-        label: 'Monthly credits',
-        used: totalCost,
-        cap: monthly.toDouble(),
-        exceeded: totalCost > monthly.toDouble(),
-      ));
+
+    // monthlyCredits is remaining, not a cap. Pair it with this billing period's spend.
+    final remaining = _n(
+      (credits['credits'] as Map<String, dynamic>?)?['monthlyCredits'],
+    );
+    final monthlyUsed = _n(summary['totalMonthlyCredits']);
+    final usedThisPeriod = monthlyUsed > 0
+        ? monthlyUsed
+        : _n(summary['totalCost']);
+    final periodEnd = _isoMs(sub?['currentPeriodEnd']);
+    if (remaining > 0 || usedThisPeriod > 0) {
+      windows.add(
+        LimitWindow(
+          id: 'commandcode:monthly',
+          label: 'This month',
+          used: usedThisPeriod,
+          cap: usedThisPeriod + remaining,
+          resetAt: periodEnd,
+          exceeded: remaining <= 0 && usedThisPeriod > 0,
+          kind: LimitKind.budget,
+        ),
+      );
     }
 
     return ProviderUsage(
@@ -96,9 +130,24 @@ class CommandCodeProvider implements AiProvider {
         requests: (summary['totalCount'] as num?)?.toInt() ?? 0,
         inputTokens: (summary['totalTokensIn'] as num?)?.toInt() ?? 0,
         outputTokens: (summary['totalTokensOut'] as num?)?.toInt() ?? 0,
-        costUsd: totalCost,
+        costUsd: usedThisPeriod,
       ),
       windows: windows,
     );
+  }
+
+  static double _n(Object? v) => v is num ? v.toDouble() : 0;
+
+  static int _ms(Object? v) {
+    final n = v is num ? v.toInt() : 0;
+    if (n <= 0) return 0;
+    if (n < 100000000000) return n * 1000;
+    return n;
+  }
+
+  static int _isoMs(Object? v) {
+    if (v is! String || v.isEmpty) return 0;
+    final parsed = DateTime.tryParse(v);
+    return parsed?.millisecondsSinceEpoch ?? 0;
   }
 }

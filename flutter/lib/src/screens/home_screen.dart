@@ -1,71 +1,97 @@
 import 'package:flutter/material.dart';
 
 import '../db/db.dart';
-import '../providers/registry.dart';
 import '../providers/types.dart';
 import '../services/usage_service.dart';
 import '../ui/cost_chart.dart';
 import '../ui/theme.dart';
 import '../ui/widgets.dart';
+
 class HomeScreen extends StatefulWidget {
   final VoidCallback onOpenAdd;
+
   const HomeScreen({super.key, required this.onOpenAdd});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
+class _AccountView {
+  final AccountTotalsRow totals;
+  final SnapshotRow? snap;
+  const _AccountView({required this.totals, this.snap});
+
+  List<LimitWindow> get windows => snap?.windows ?? const [];
+}
+
 class _HomeScreenState extends State<HomeScreen> {
-  bool _hasAccounts = false;
-  String? _error;
-  ({double costUsd, int requests, int inputTokens, int outputTokens}) _agg =
-      (costUsd: 0, requests: 0, inputTokens: 0, outputTokens: 0);
+  List<_AccountView> _accounts = [];
   List<({String day, double costUsd})> _series = [];
-  List<({String platform, double cost})> _perProvider = [];
-  List<({String account, LimitWindow w})> _windows = [];
-  List<({String account, ModelUsage m})> _models = [];
+  ({double costUsd, int requests, int inputTokens, int outputTokens}) _agg = (
+    costUsd: 0,
+    requests: 0,
+    inputTokens: 0,
+    outputTokens: 0,
+  );
+  String? _error;
+
+  String _todayLabel() {
+    final now = DateTime.now();
+    const weekdays = [
+      '',
+      'Monday',
+      'Tuesday',
+      'Wednesday',
+      'Thursday',
+      'Friday',
+      'Saturday',
+      'Sunday',
+    ];
+    const months = [
+      '',
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December',
+    ];
+    return '${weekdays[now.weekday]}, ${months[now.month]} ${now.day}';
+  }
 
   Future<void> _load() async {
     final agg = await aggregated();
     final series = await snapshotSeries();
-    final accts = await listAccounts();
-    final totals = await accountTotals();
-
-    final byPlatform = <String, double>{};
-    for (final t in totals) {
-      byPlatform[t.account.platform] = (byPlatform[t.account.platform] ?? 0) + t.costUsd;
-    }
-
-    final ws = <({String account, LimitWindow w})>[];
-    final ms = <({String account, ModelUsage m})>[];
-    for (final a in accts) {
-      final snap = await latestSnapshot(a.key);
-      if (snap != null) {
-        for (final w in snap.windows) {
-          ws.add((account: a.label, w: w));
-        }
-        for (final m in snap.models) {
-          ms.add((account: a.label, m: m));
-        }
-      }
+    final accounts = await accountTotals();
+    final views = <_AccountView>[];
+    for (final account in accounts) {
+      views.add(
+        _AccountView(
+          totals: account,
+          snap: await latestSnapshot(account.account.key),
+        ),
+      );
     }
 
     if (!mounted) return;
     setState(() {
       _agg = agg;
       _series = series;
-      _hasAccounts = accts.isNotEmpty;
-      _perProvider = byPlatform.entries.map((e) => (platform: e.key, cost: e.value)).toList();
-      _windows = ws;
-      _models = ms;
+      _accounts = views;
       _error = null;
     });
   }
 
   Future<void> _refresh() async {
-    final res = await refreshAll();
-    if (res.failed.isNotEmpty) {
-      setState(() => _error = 'Sync issue: ${res.failed.first.error}');
+    final result = await refreshAll();
+    if (result.failed.isNotEmpty && mounted) {
+      setState(() => _error = 'Sync issue: ${result.failed.first.error}');
     }
     await _load();
   }
@@ -79,164 +105,248 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Usage'),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 12),
-            child: FilledButton(onPressed: widget.onOpenAdd, child: const Text('+ Add')),
-          ),
-        ],
-      ),
-      body: RefreshIndicator(
-        onRefresh: _refresh,
-        child: _hasAccounts ? _content() : ListView(children: [
-          const SizedBox(height: 120),
-          const EmptyState(
-            icon: '🔑',
-            title: 'Add an account to start',
-            hint: 'Paste your Command Code or Cursor token, and this app pulls your usage directly from the platform APIs.',
-          ),
-        ]),
+      body: SafeArea(
+        child: RefreshIndicator(
+          color: AppColors.accent,
+          onRefresh: _refresh,
+          child: _accounts.isEmpty ? _empty() : _content(),
+        ),
       ),
     );
   }
 
-  Widget _content() {
+  Widget _empty() {
     return ListView(
-      padding: const EdgeInsets.all(16),
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(20, 26, 20, 40),
       children: [
-        if (_error != null)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: Text(_error!, style: const TextStyle(color: AppColors.danger, fontSize: 13)),
+        _topBar(),
+        const SizedBox(height: 34),
+        const Text(
+          'Keep every account\nin view.',
+          style: TextStyle(
+            fontSize: 34,
+            height: .98,
+            letterSpacing: -1.7,
+            fontWeight: FontWeight.w500,
           ),
+        ),
+        const SizedBox(height: 10),
+        const Text(
+          'Connect a provider once, then see spend, limits, and resets in one calm place.',
+          style: TextStyle(
+            color: AppColors.textDim,
+            fontSize: 13,
+            height: 1.45,
+          ),
+        ),
+        const SizedBox(height: 28),
         Card(
+          color: AppColors.accent,
           child: Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(20),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                StatRow(children: [
-                  StatCard(label: 'Cost', value: fmtCost(_agg.costUsd), valueColor: AppColors.accent),
-                  StatCard(label: 'Tokens', value: fmtTokens(_agg.inputTokens + _agg.outputTokens)),
-                  StatCard(label: 'Requests', value: '${_agg.requests}'),
-                ]),
-                const SizedBox(height: 12),
-                for (final p in _perProvider)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 3),
-                    child: Row(children: [
-                      Container(
-                        width: 10,
-                        height: 10,
-                        decoration: BoxDecoration(color: hexColor(providerColor(p.platform)), shape: BoxShape.circle),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(child: Text(providerName(p.platform), style: const TextStyle(color: AppColors.text))),
-                      Text(fmtCost(p.cost), style: const TextStyle(color: AppColors.textDim, fontSize: 13)),
-                    ]),
+                const Text(
+                  'Start with your first account',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w700,
                   ),
+                ),
+                const SizedBox(height: 7),
+                const Text(
+                  'Command Code and Cursor are supported.',
+                  style: TextStyle(color: Colors.white70, fontSize: 12),
+                ),
+                const SizedBox(height: 18),
+                FilledButton.icon(
+                  onPressed: widget.onOpenAdd,
+                  icon: const Icon(Icons.add, size: 18),
+                  label: const Text('Add an account'),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: AppColors.accent,
+                  ),
+                ),
               ],
             ),
           ),
         ),
+      ],
+    );
+  }
+
+  Widget _content() {
+    final tokenCount = _agg.inputTokens + _agg.outputTokens;
+    final hot = <(String, LimitWindow)>[];
+    for (final account in _accounts) {
+      for (final window in account.windows) {
+        if (window.kind == LimitKind.extra) continue;
+        if (window.hot) hot.add((account.totals.account.label, window));
+      }
+    }
+    hot.sort((a, b) => b.$2.fraction.compareTo(a.$2.fraction));
+
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(16, 18, 16, 34),
+      children: [
+        _topBar(),
+        const SizedBox(height: 23),
+        Text(
+          _todayLabel(),
+          style: TextStyle(
+            color: AppColors.accent,
+            fontSize: 10,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 1,
+          ),
+        ),
+        const SizedBox(height: 7),
+        const Text(
+          'Keep every account\nin view.',
+          style: TextStyle(
+            fontSize: 31,
+            height: .98,
+            letterSpacing: -1.5,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        const SizedBox(height: 7),
+        const Text(
+          'A simple place to see spend, limits, and resets.',
+          style: TextStyle(color: AppColors.textDim, fontSize: 12),
+        ),
+        const SizedBox(height: 22),
+        AttentionBanner(items: hot),
+        _summaryCard(tokenCount),
+        SectionHeader(
+          title: 'Connected accounts',
+          trailing: '${_accounts.length} active',
+        ),
+        for (final account in _accounts) _accountCard(account),
+        const SizedBox(height: 4),
+        AddAccountCard(onPressed: widget.onOpenAdd),
+        if (_error != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 12),
+            child: Text(
+              _error!,
+              style: const TextStyle(color: AppColors.danger, fontSize: 11),
+            ),
+          ),
         if (_series.length >= 2) ...[
-          const SizedBox(height: 12),
+          const SectionHeader(title: 'Spend over time'),
           Card(
             child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('Cost over time',
-                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.text)),
-                  const SizedBox(height: 12),
-                  CostChart(series: _series),
-                ],
-              ),
+              padding: const EdgeInsets.fromLTRB(14, 14, 14, 10),
+              child: SizedBox(height: 150, child: CostChart(series: _series)),
             ),
           ),
         ],
-        if (_models.isNotEmpty) ...[
-          const SizedBox(height: 12),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('Top models',
-                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.text)),
-                  const SizedBox(height: 12),
-                  for (final e in _models.take(6)) ...[
-                    Row(children: [
-                      Expanded(
-                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          Text(e.m.model,
-                              maxLines: 1, overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(color: AppColors.text, fontSize: 13)),
-                          Text(
-                            '${e.account} · ${fmtTokens(e.m.inputTokens + e.m.outputTokens)} tok · '
-                            '${fmtTokens(e.m.cacheReadTokens)} cache',
-                            maxLines: 1, overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(fontSize: 10, color: AppColors.textDim),
-                          ),
-                        ]),
-                      ),
-                      Text(fmtCost(e.m.costUsd),
-                          style: const TextStyle(color: AppColors.textDim, fontSize: 13)),
-                    ]),
-                    const SizedBox(height: 10),
-                  ],
-                ],
-              ),
+      ],
+    );
+  }
+
+  Widget _topBar() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        const Text(
+          'UsageLedger',
+          style: TextStyle(
+            fontSize: 19,
+            fontWeight: FontWeight.w800,
+            letterSpacing: -1,
+          ),
+        ),
+        Container(
+          width: 31,
+          height: 31,
+          decoration: const BoxDecoration(
+            color: AppColors.text,
+            shape: BoxShape.circle,
+          ),
+          alignment: Alignment.center,
+          child: const Text(
+            'SM',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
             ),
           ),
-        ],
-        if (_windows.isNotEmpty) ...[
-          const SizedBox(height: 12),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('Plan limits',
-                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.text)),
-                  const SizedBox(height: 12),
-                  for (final e in _windows) ...[
-                    Row(children: [
-                      Expanded(
-                        child: Text('${e.account} · ${e.w.label}',
-                            maxLines: 1, overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(color: AppColors.text, fontSize: 13)),
-                      ),
-                      Text('${fmtCost(e.w.used)} / ${fmtCost(e.w.cap)}',
-                          style: const TextStyle(color: AppColors.textDim, fontSize: 13)),
-                    ]),
-                    const SizedBox(height: 4),
-                    LimitBar(fraction: e.w.fraction),
-                    if (e.w.resetAt > 0)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 4),
-                        child: Text(
-                          'Resets ${DateTime.fromMillisecondsSinceEpoch(e.w.resetAt).toLocal().toString().substring(0, 16)}',
-                          style: const TextStyle(fontSize: 10, color: AppColors.textDim),
-                        ),
-                      ),
-                    const SizedBox(height: 12),
-                  ],
-                ],
-              ),
-            ),
-          ),
-        ],
-        const SizedBox(height: 8),
-        const Center(
-          child: Text('Pull to refresh', style: TextStyle(fontSize: 11, color: AppColors.textDim)),
         ),
       ],
+    );
+  }
+
+  Widget _summaryCard(int tokenCount) {
+    return Card(
+      color: AppColors.accent,
+      child: Padding(
+        padding: const EdgeInsets.all(17),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'ALL ACCOUNTS',
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1,
+                  ),
+                ),
+                Text(
+                  'Latest snapshot',
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: .75),
+                    fontSize: 10,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 13),
+            Text(
+              fmtCost(_agg.costUsd),
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 40,
+                fontWeight: FontWeight.w500,
+                letterSpacing: -2,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '${fmtTokens(tokenCount)} tokens · ${_agg.requests} requests',
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: .8),
+                fontSize: 11,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _accountCard(_AccountView view) {
+    final row = view.totals;
+    return AccountUsageCard(
+      account: row.account,
+      costUsd: row.costUsd,
+      requests: row.requests,
+      inputTokens: row.inputTokens,
+      outputTokens: row.outputTokens,
+      windows: view.windows,
+      lastRefreshAt: row.account.lastRefreshAt,
     );
   }
 }

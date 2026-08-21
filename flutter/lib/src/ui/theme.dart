@@ -1,15 +1,17 @@
 import 'package:flutter/material.dart';
 
 class AppColors {
-  static const bg = Color(0xFF0B0E14);
-  static const bgElevated = Color(0xFF12161F);
-  static const bgCard = Color(0xFF171C27);
-  static const border = Color(0xFF232A38);
-  static const text = Color(0xFFE8ECF4);
-  static const textDim = Color(0xFF8B93A7);
-  static const accent = Color(0xFF22C55E);
-  static const accentBlue = Color(0xFF3B82F6);
-  static const danger = Color(0xFFEF4444);
+  static const bg = Color(0xFFF4F2EA);
+  static const bgElevated = Color(0xFFEAE8DF);
+  static const bgCard = Color(0xFFFFFEFA);
+  static const border = Color(0xFFDEDAD0);
+  static const text = Color(0xFF25251F);
+  static const textDim = Color(0xFF77766D);
+  static const accent = Color(0xFF3A5F7D);
+  static const accentSoft = Color(0xFFE1EDF3);
+  static const accentBlue = Color(0xFF3A5F7D);
+  static const danger = Color(0xFFBD654C);
+  static const warning = Color(0xFFC47A4D);
 }
 
 /// Parse a `#RRGGBB` hex string into a [Color].
@@ -19,7 +21,7 @@ Color hexColor(String hex) {
 }
 
 ThemeData buildTheme() {
-  final base = ThemeData.dark(useMaterial3: true);
+  final base = ThemeData.light(useMaterial3: true);
   return base.copyWith(
     scaffoldBackgroundColor: AppColors.bg,
     colorScheme: base.colorScheme.copyWith(
@@ -27,37 +29,59 @@ ThemeData buildTheme() {
       surface: AppColors.bgCard,
       onSurface: AppColors.text,
       outline: AppColors.border,
+      error: AppColors.danger,
     ),
     appBarTheme: const AppBarTheme(
       backgroundColor: AppColors.bg,
       foregroundColor: AppColors.text,
       elevation: 0,
+      centerTitle: false,
     ),
     cardTheme: CardThemeData(
       color: AppColors.bgCard,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(8),
         side: const BorderSide(color: AppColors.border),
       ),
+      elevation: 0,
     ),
     dividerTheme: const DividerThemeData(color: AppColors.border),
     textTheme: base.textTheme.apply(
       bodyColor: AppColors.text,
       displayColor: AppColors.text,
     ),
+    navigationBarTheme: NavigationBarThemeData(
+      backgroundColor: AppColors.bg,
+      indicatorColor: AppColors.accentSoft,
+      surfaceTintColor: Colors.transparent,
+      labelTextStyle: WidgetStateProperty.resolveWith((states) {
+        final selected = states.contains(WidgetState.selected);
+        return TextStyle(
+          color: selected ? AppColors.accent : AppColors.textDim,
+          fontSize: 11,
+          fontWeight: selected ? FontWeight.w700 : FontWeight.w400,
+        );
+      }),
+      iconTheme: WidgetStateProperty.resolveWith((states) {
+        final selected = states.contains(WidgetState.selected);
+        return IconThemeData(
+          color: selected ? AppColors.accent : AppColors.textDim,
+        );
+      }),
+    ),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
       fillColor: AppColors.bgCard,
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(6),
         borderSide: const BorderSide(color: AppColors.border),
       ),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(6),
         borderSide: const BorderSide(color: AppColors.border),
       ),
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(6),
         borderSide: const BorderSide(color: AppColors.accent),
       ),
     ),
@@ -73,5 +97,64 @@ String fmtTokens(int n) {
 String fmtCost(double n) {
   if (n >= 100) return '\$${n.toStringAsFixed(0)}';
   if (n >= 1) return '\$${n.toStringAsFixed(2)}';
-  return '\$${n.toStringAsFixed(4)}';
+  if (n <= 0) return '\$0';
+  return '\$${n.toStringAsFixed(2)}';
+}
+
+String fmtPct(double fraction) =>
+    '${(fraction.clamp(0.0, 1.0) * 100).round()}%';
+
+String fmtResetAt(int resetAt, {DateTime? now}) {
+  if (resetAt <= 0) return '';
+  now ??= DateTime.now();
+  final when = DateTime.fromMillisecondsSinceEpoch(resetAt).toLocal();
+  final diff = when.difference(now);
+  if (diff.isNegative) {
+    return diff.inHours.abs() < 2 ? 'resetting now' : 'reset overdue';
+  }
+  if (diff.inMinutes < 1) return 'resets now';
+  if (diff.inMinutes < 60) return 'resets in ${diff.inMinutes}m';
+  if (diff.inHours < 24) {
+    final minutes = diff.inMinutes % 60;
+    return minutes == 0
+        ? 'resets in ${diff.inHours}h'
+        : 'resets in ${diff.inHours}h ${minutes}m';
+  }
+  if (diff.inDays == 1) return 'resets tomorrow';
+  if (diff.inDays < 7) {
+    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    return 'resets ${days[when.weekday - 1]}';
+  }
+  const months = [
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ];
+  return 'resets ${months[when.month - 1]} ${when.day}';
+}
+
+Color limitColor(double fraction, {bool exceeded = false}) {
+  if (exceeded || fraction >= 0.9) return AppColors.danger;
+  if (fraction >= 0.7) return AppColors.warning;
+  return AppColors.accent;
+}
+
+String fmtAgo(int epochMs, {DateTime? now}) {
+  if (epochMs <= 0) return '';
+  now ??= DateTime.now();
+  final diff = now.difference(DateTime.fromMillisecondsSinceEpoch(epochMs));
+  if (diff.inMinutes < 1) return 'just now';
+  if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+  if (diff.inHours < 24) return '${diff.inHours}h ago';
+  if (diff.inDays == 1) return 'yesterday';
+  return '${diff.inDays}d ago';
 }

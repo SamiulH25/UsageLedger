@@ -16,11 +16,11 @@ String providerName(String id) => providerById(id)?.name ?? id;
 String providerColor(String id) {
   switch (id) {
     case 'commandcode':
-      return '#22C55E';
+      return '#F2C39E';
     case 'cursor':
-      return '#7C3AED';
+      return '#C3D5E0';
     default:
-      return '#64748B';
+      return '#D8D8D1';
   }
 }
 
