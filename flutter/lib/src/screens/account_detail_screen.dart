@@ -233,7 +233,28 @@ class _AccountDetailScreenState extends State<AccountDetailScreen> {
                   ),
                 ),
                 if (latest != null)
-                  Text(fmtCost(latest.costUsd), style: AppText.heroNumber()),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        fmtCost(latest.costUsd),
+                        style: AppText.heroNumber(),
+                      ),
+                      if (latest.inputTokens + latest.outputTokens > 0 ||
+                          latest.requests > 0)
+                        Text(
+                          [
+                            if (latest.inputTokens + latest.outputTokens > 0)
+                              '${fmtTokens(latest.inputTokens + latest.outputTokens)} tok',
+                            if (latest.requests > 0) '${latest.requests} req',
+                          ].join(' · '),
+                          style: AppText.data(
+                            size: 10,
+                            color: AppColors.textDim,
+                          ),
+                        ),
+                    ],
+                  ),
               ],
             ),
             const SizedBox(height: 10),

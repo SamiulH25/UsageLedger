@@ -111,8 +111,15 @@ class OpenRouterProvider implements AiProvider {
     }
 
     // Per-model history: last 30 UTC days, one row per (date, model, endpoint).
-    final activity = await _get('/activity', token);
-    final rows = activity['data'] as List? ?? const [];
+    // Management keys only — regular keys get 403 and keep key-quota-only
+    // data; the API exposes no token history to them.
+    List<dynamic> rows = const [];
+    try {
+      final activity = await _get('/activity', token);
+      rows = activity['data'] as List? ?? const [];
+    } on Exception catch (e) {
+      if (!e.toString().contains('403')) rethrow;
+    }
     final byModel = <String, ModelUsage>{};
     for (final row in rows.cast<Map<String, dynamic>>()) {
       final model = row['model'] as String? ?? 'unknown';

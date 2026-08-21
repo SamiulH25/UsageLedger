@@ -14,52 +14,26 @@ Updated: 2026-08-21
 - [2026-08-20] **Android packaging**: installed Android SDK (platform 36, build-tools, cmdline-tools) at /opt/android-sdk + JDK 17 (/usr/lib/jvm/java-17-openjdk). DB layer now uses native `sqflite` on Android (FFI only on Linux); added INTERNET permission; generated `upload-keystore.jks` + `key.properties` (both gitignored) wired into build.gradle.kts release signing. Built signed `app-release.apk` (21.9MB), copied to repo root as `ai-usage-monitor.apk`.
 - [2026-08-20] **GitHub publish**: repo **SamiulH25/UsageLedger** (public). Landing page in `docs/` → GitHub Pages at https://samiulh25.github.io/UsageLedger/. Release **v0.1.0** with `ai-usage-monitor.apk` attached. Name: **UsageLedger**.
 - [2026-08-20] **v0.2.0**: Accounts First light mobile UI overhaul — bottom-sheet add account; Cursor shows one included $70 pool with Auto/API shares plus extra/bonus spend; Command Code billing-period totals (weekly pool, monthly period+credits, 5-hour burst ready state, relative reset times). Signed APK built and attached to GitHub Release **v0.2.0**.
-- [2026-08-21] **v0.4.0**: Trust & reliability. Account health — migration v4
-  adds `account.sync_error`; refresh failures persist per account and render
-  as a red "SYNC FAILED" state + inline banner with an "Update key" re-auth
-  dialog (verifies new key before saving). Settings screen (gear in brand
-  bar): sync-interval chips now actually wired to `SyncController.setInterval`
-  (was unreachable), limit-alert toggle (`notificationsEnabled`), about card.
-  Real background sync on Android via workmanager 0.9.2 — periodic refresh +
-  limit notifications fire with the app closed; minSdk bumped to 23;
-  workmanager subpackages pinned (0.9.x ships mutually incompatible
-  apple/android/interface versions). Providers refactored to accept an
-  injected `http.Client`; 9 new fixture tests (int64-as-string, window
-  math, error paths) + v3→v4 db migration test — 21 total. CI: analyze +
-  hermetic tests on push, signed APK on version tags.
-- [2026-08-21] **v0.3.0**: MVVM refactor — `AppScope` DI + `SyncController`
-  (configurable auto-refresh interval, persisted in settings) + per-tab
-  ViewModels; new Account Detail screen (pools, trend, token split,
-  expandable snapshots); burn-rate `PoolOutlook` projections on the hero
-  gauge ("runs out ~Nd before reset"); Space Grotesk + JetBrains Mono fonts.
-  **Fixed daily-spend series**: was plotting per-day MAX(account period
-  total) as if cumulative — now per-account day-over-day delta of period
-  totals, clamped at resets, zero-filled, summed across accounts; pace =
-  trailing 3-day mean blended with today's partial (capped 3x, skipped
-  before 6am). Pull-to-refresh now responds to mouse drag on desktop
-  (custom ScrollBehavior). Limit-exceeded Android local notifications
-  (flutter_local_notifications 19.5, desugaring enabled, POST_NOTIFICATIONS;
-  deduped per account+window+reset in settings; desktop no-op). Verified on
-  desktop with screenshots; 10/10 tests; Pages site confirmed live.
+- [2026-08-21] **v0.3.0**: MVVM refactor — `AppScope` DI + `SyncController` (configurable auto-refresh interval, persisted in settings) + per-tab ViewModels; new Account Detail screen (pools, trend, token split, expandable snapshots); burn-rate `PoolOutlook` projections on the hero gauge ("runs out ~Nd before reset"); Space Grotesk + JetBrains Mono fonts. **Fixed daily-spend series**: was plotting per-day MAX(account period total) as if cumulative — now per-account day-over-day delta of period totals, clamped at resets, zero-filled, summed across accounts; pace = trailing 3-day mean blended with today's partial (capped 3x, skipped before 6am). Pull-to-refresh now responds to mouse drag on desktop (custom ScrollBehavior). Limit-exceeded Android local notifications (flutter_local_notifications 19.5, desugaring enabled, POST_NOTIFICATIONS; deduped per account+window+reset in settings; desktop no-op). Verified on desktop with screenshots; Pages site confirmed live.
+- [2026-08-21] **v0.4.0**: Trust & reliability. Account health — migration v4 adds `account.sync_error`; refresh failures persist per account and render as a red "SYNC FAILED" state + inline banner with an "Update key" re-auth dialog (verifies new key before saving). Settings screen (gear in brand bar): sync-interval chips wired to `SyncController.setInterval` (was unreachable), limit-alert toggle (`notificationsEnabled`), about card. Real background sync on Android via workmanager 0.9.2 — periodic refresh + limit notifications fire with the app closed; minSdk bumped to 23; workmanager subpackages pinned (0.9.x ships mutually incompatible apple/android/interface versions); legacy packaging kept so the APK stays ~25MB. Providers refactored to accept an injected `http.Client`; provider fixture tests + v3→v4 db migration test. CI: analyze + hermetic tests on push, signed APK on version tags.
+- [2026-08-21] **v0.5.0**: OpenRouter + OpenAI providers (API shapes verified against official docs/specs via research agents). OpenRouter: /credits balance → "Credits" budget window, /key quota → "Key quota" window, /activity → per-model aggregation with reasoning tokens folded into output; management-key 403 on /credits degrades gracefully to key-quota-only. OpenAI: admin key required (sk-admin-) — /organization/costs grouped by line_item + /organization/usage/completions grouped by model, cursor pagination, month rendered as uncapped window; line_item↔model fuzzy cost matching. Registry grew to 4 providers; AiProvider gained advisory `keyHint`/`keyPattern` (+ extension `keyLooksValid` — `implements` needs full reimplementation, hence extension) surfaced as live placeholder + non-blocking warning in the add-account sheet. Icons pulled from official sites.
+- [2026-08-21] **v0.6.0**: Insights & retention. History: 7D/30D/All range chips (view-model filters by capturedAt cutoff). Overview: LAST 7/30 DAYS spend readout computed from the daily series + cross-account "Top models" table (latest snapshots merged by model, top 6 by cost, share bars). CSV export (Settings → Data): snapshots + per-model rows, share sheet via share_plus. Android home-screen widget (home_widget): "NEXT WALL" gauge (pool, %, used/cap, reset, updated-at), fed after every successful sync — foreground and Workmanager background; Kotlin provider reads HomeWidgetPreferences.
+- [2026-08-21] **OpenRouter token fix**: v0.5 called `/activity` unguarded, but it is management-key-only — regular keys got 403 and the whole sync crashed (the "graceful degradation" test mocked `/activity` as 200, contradicting the documented API). `/activity` now degrades like `/credits`: regular keys keep the key-quota window; management keys get per-model token history (prompt/completion/reasoning folded into IN/OUT). Token usage surfaced next to dollars: detail header shows `tok · req` under the hero cost; model rows show `in · out` split instead of a bare total. Tests updated to the real 403 shape.
 
 ## Next
 
-- Roadmap to v1.0 lives in `ROADMAP.md` (v0.4.0 reliability → v0.5.0
-  OpenRouter/OpenAI → v0.6.0 insights → v1.0.0 hardening). Items below are
-  folded into it.
-- Verify limit notifications fire on a real device after sideloading v0.3.0.
+- Roadmap to v1.0 lives in `ROADMAP.md` (v0.4.0–v0.6.0 shipped; v1.0.0 hardening remains).
+- Verify limit notifications fire on a real device after sideloading; same for the home-screen widget.
 - Android: app icon polish (low priority; sideload only, no Play Store).
+
 ## Notes
 
-- Running as root here; all real data under `/home/bob2142`. Always run the app as bob (`sudo -u bob2142`), DISPLAY=:0 (Hyprland + Xwayland). Screenshots: `sudo -u bob2142 DISPLAY=:0 import -window <id> /tmp/x.png`.
+- Running as root here; all real data under `/home/bob2142`. Always run the app as bob (`sudo -u bob2142`), DISPLAY=:0 (Hyprland + Xwayland).
 - gh auth is under **bob's keyring** (SamiulH25) — run all `gh`/git push as bob, not root.
 - Android build env: `JAVA_HOME=/usr/lib/jvm/java-17-openjdk ANDROID_HOME=/opt/android-sdk ANDROID_SDK_ROOT=/opt/android-sdk` (system java is 1.8). `android/local.properties` points at /opt/android-sdk.
-- Screenshots: ImageMagick 7.1.2.29 update broke `import` ("missing an image
-  filename"); use `grim /tmp/full.png` (needs XDG_RUNTIME_DIR +
-  WAYLAND_DISPLAY=wayland-1) then `magick -crop WxH+X+Y`. Window geometry:
-  query `hyprctl clients -j` (Xdotool geometry lies under Hyprland); the app
-  lands on ws 8, monitor 2.
+- Screenshots: ImageMagick 7.1.2.29 update broke `import` ("missing an image filename"); use `grim /tmp/full.png` (needs XDG_RUNTIME_DIR + WAYLAND_DISPLAY=wayland-1) then `magick -crop WxH+X+Y`. Window geometry: query `hyprctl clients -j` (needs HYPRLAND_INSTANCE_SIGNATURE from /run/user/1000/hypr/); Xdotool geometry lies under Hyprland. Note: another agent session may be using the desktop — expect focus contention.
 - Cursor API: tokens in JSON come as **strings** for int64 fields (inputTokens, billingCycleEnd) — must coerce. Plan percentages are authoritative for limit bars. aggregation `totalCents` includes bonus spend, so don't derive splits from it.
+- OpenRouter: /credits + /activity need a Management key; regular keys only serve /key. Analytics count metrics arrive as JSON strings. OpenAI usage/costs need sk-admin- keys; no reasoning tokens in the Usage API; costs are daily-bucket only.
 - Flutter: `databaseFactory = databaseFactoryFfi` only on Linux desktop (Android uses native sqflite). `path_provider` needs platform channels — tests override the data dir via `setOverrideDir`.
-- Seed/refresh headless: `flutter test test/seed_test.dart --dart-define=CC_TOKEN=... --dart-define=CUR_TOKEN=...` (writes to the real app data dir).
-- Release APK: `flutter build apk --release` → `build/app/outputs/flutter-apk/app-release.apk`; copies to repo root. Signing keystore `android/upload-keystore.jks` (passwords in `android/key.properties`) — both gitignored, don't lose them.
+- Seed/refresh headless: `flutter test test/seed_test.dart --dart-define=CC_TOKEN=... --dart-define=CUR_TOKEN=...` (writes to the real app data dir). CI runs only the hermetic suites.
+- Release APK: `flutter build apk --release` → `build/app/outputs/flutter-apk/app-release.apk`; copies to repo root. Signing keystore `android/upload-keystore.jks` (passwords in `android/key.properties`) — both gitignored, don't lose them. minSdk 23 flipped AGP to stored (uncompressed) native libs — `useLegacyPackaging = true` keeps the APK ~25MB.

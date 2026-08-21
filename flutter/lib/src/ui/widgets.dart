@@ -991,7 +991,9 @@ class ModelBreakdownPanel extends StatelessWidget {
                 ),
                 if (model.totalTokens > 0)
                   Text(
-                    '${fmtTokens(model.totalTokens)} tok',
+                    model.inputTokens > 0 && model.outputTokens > 0
+                        ? '${fmtTokens(model.inputTokens)} in · ${fmtTokens(model.outputTokens)} out'
+                        : '${fmtTokens(model.totalTokens)} tok',
                     style: AppText.data(size: 10, color: AppColors.textDim),
                   ),
               ],

@@ -125,6 +125,27 @@ class HomeScreen extends StatelessWidget {
         ],
         const SizedBox(height: 14),
         _StatStrip(state: state, tokenCount: tokenCount),
+        const SizedBox(height: 8),
+        _SpendWindows(state: state),
+        if (state.topModels.isNotEmpty) ...[
+          const SectionHeader(title: 'Top models', trailing: 'all accounts'),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(14),
+              child: Column(
+                children: [
+                  for (final m in state.topModels) ...[
+                    _ModelCostRow(
+                      model: m,
+                      maxCost: state.topModels.first.costUsd,
+                    ),
+                    if (m != state.topModels.last) const SizedBox(height: 10),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ],
         if (state.series.length >= 2) ...[
           const SectionHeader(title: 'Tracked spend by day'),
           Card(
@@ -343,6 +364,102 @@ class _StatStrip extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// 7-day / 30-day spend readout from the daily series.
+class _SpendWindows extends StatelessWidget {
+  final OverviewState state;
+
+  const _SpendWindows({required this.state});
+
+  @override
+  Widget build(BuildContext context) {
+    if (state.spend7 == 0 && state.spend30 == 0) return const SizedBox.shrink();
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('LAST 7 DAYS', style: AppText.sectionLabel),
+                  const SizedBox(height: 4),
+                  Text(
+                    fmtCost(state.spend7),
+                    style: AppText.data(size: 16, weight: FontWeight.w700),
+                  ),
+                ],
+              ),
+            ),
+            Container(width: 1, height: 34, color: AppColors.border),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.only(left: 14),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('LAST 30 DAYS', style: AppText.sectionLabel),
+                    const SizedBox(height: 4),
+                    Text(
+                      fmtCost(state.spend30),
+                      style: AppText.data(size: 16, weight: FontWeight.w700),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// One row in the cross-account top-models table.
+class _ModelCostRow extends StatelessWidget {
+  final ModelUsage model;
+  final double maxCost;
+
+  const _ModelCostRow({required this.model, required this.maxCost});
+
+  @override
+  Widget build(BuildContext context) {
+    final share = maxCost > 0 ? (model.costUsd / maxCost).clamp(0.0, 1.0) : 0.0;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                model.model,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: AppText.data(size: 11.5, weight: FontWeight.w600),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Text(
+              fmtCost(model.costUsd),
+              style: AppText.data(size: 11.5, weight: FontWeight.w700),
+            ),
+          ],
+        ),
+        const SizedBox(height: 5),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(3),
+          child: LinearProgressIndicator(
+            value: share,
+            minHeight: 4,
+            backgroundColor: AppColors.border.withValues(alpha: .4),
+            color: AppColors.accent,
+          ),
+        ),
+      ],
     );
   }
 }

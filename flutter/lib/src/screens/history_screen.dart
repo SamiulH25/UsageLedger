@@ -105,6 +105,39 @@ class _HistoryScreenState extends State<HistoryScreen> {
                         ),
                     ],
                   ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    children: [
+                      for (final option in const [
+                        (7, '7D'),
+                        (30, '30D'),
+                        (0, 'All'),
+                      ])
+                        ChoiceChip(
+                          label: Text(option.$2),
+                          selected: vm.rangeDays == option.$1,
+                          onSelected: (_) => vm.setRange(option.$1),
+                          labelStyle: TextStyle(
+                            fontSize: 12,
+                            fontFamily: monoFamily,
+                            fontWeight: FontWeight.w500,
+                            color: vm.rangeDays == option.$1
+                                ? AppColors.bg
+                                : AppColors.textDim,
+                          ),
+                          selectedColor: AppColors.accent,
+                          backgroundColor: Colors.transparent,
+                          side: BorderSide(
+                            color: vm.rangeDays == option.$1
+                                ? AppColors.accent
+                                : AppColors.border,
+                          ),
+                          showCheckmark: false,
+                          visualDensity: VisualDensity.compact,
+                        ),
+                    ],
+                  ),
                   if (vm.loading || filtered.isEmpty)
                     Padding(
                       padding: const EdgeInsets.only(top: 24),

@@ -9,6 +9,7 @@ import 'package:flutter/foundation.dart';
 
 import '../background.dart';
 import '../data/usage_repository.dart';
+import '../data/widget_feed.dart';
 import '../services/limit_notifier.dart';
 
 class SyncController extends ChangeNotifier {
@@ -77,11 +78,12 @@ class SyncController extends ChangeNotifier {
       if (result.failed.isNotEmpty) {
         _lastError = result.failed.first.error;
       } else {
-        // Notify for pools that ran out; never block the sync on this.
+        // Notifications + widget; never block the sync on these.
         try {
           await _notifier?.evaluate(await _repo.overviews());
+          await feedWidget(_repo);
         } catch (e) {
-          debugPrint('limit notify failed: $e');
+          debugPrint('post-sync extras failed: $e');
         }
       }
       return result.failed.isEmpty;

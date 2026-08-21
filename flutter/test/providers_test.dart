@@ -318,26 +318,32 @@ void main() {
       expect(usage.totals.costUsd, 25.75);
     });
 
-    test('regular keys degrade to key-quota only on 403 credits', () async {
+    test('regular keys degrade to key-quota only (403 on credits + activity)',
+        () async {
       final limited = OpenRouterProvider(
         client: MockClient((req) async {
-          if (req.url.path == '/api/v1/credits') {
+          if (req.url.path == '/api/v1/credits' ||
+              req.url.path == '/api/v1/activity') {
             return _json({
               'error': {'code': 403, 'message': 'Only management keys'},
             }, status: 403);
           }
           if (req.url.path == '/api/v1/key') {
-            return _json({'data': {'label': 'k', 'limit': null, 'usage': 2.0}});
-          }
-          if (req.url.path == '/api/v1/activity') {
-            return _json({'data': []});
+            return _json(
+              {'data': {'label': 'k', 'limit': 20.0, 'usage': 2.0}},
+            );
           }
           return http.Response('not found', 404);
         }),
       );
       final usage = await limited.fetchUsage('sk-or-v1-abc');
       expect(usage.windows.where((w) => w.id == 'openrouter:credits'), isEmpty);
+      expect(usage.windows.where((w) => w.id == 'openrouter:key'), isNotEmpty);
       expect(usage.totals.costUsd, 2.0);
+      // No token history exists for regular keys — must not crash the sync.
+      expect(usage.models, isEmpty);
+      expect(usage.totals.inputTokens, 0);
+      expect(usage.totals.outputTokens, 0);
     });
   });
 

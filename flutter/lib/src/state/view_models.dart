@@ -20,6 +20,13 @@ class OverviewState {
   totals;
   final double perDay;
 
+  /// Trailing-window spend from the daily series.
+  final double spend7;
+  final double spend30;
+
+  /// Cross-account top models by cost, merged from latest snapshots.
+  final List<ModelUsage> topModels;
+
   /// The most urgent budget pool across all accounts (hero gauge).
   final LimitWindow? heroWindow;
   final String? heroAccountLabel;
@@ -31,6 +38,9 @@ class OverviewState {
     required this.series,
     required this.totals,
     required this.perDay,
+    this.spend7 = 0,
+    this.spend30 = 0,
+    this.topModels = const [],
     this.heroWindow,
     this.heroAccountLabel,
     this.heroOutlook,
@@ -87,12 +97,46 @@ class OverviewViewModel extends ChangeNotifier {
         }
       }
 
+      // Trailing-window spend from the daily series.
+      final today = DateTime.now().toLocal();
+      double sumDays(int days) {
+        var sum = 0.0;
+        for (final point in series) {
+          final d = DateTime.tryParse(point.day)?.toLocal();
+          if (d == null) continue;
+          if (today.difference(d).inDays < days) sum += point.costUsd;
+        }
+        return sum;
+      }
+
+      // Cross-account model aggregation from latest snapshots.
+      final byModel = <String, ModelUsage>{};
+      for (final account in accounts) {
+        for (final m in account.latest?.models ?? const <ModelUsage>[]) {
+          final prev = byModel[m.model];
+          byModel[m.model] = ModelUsage(
+            model: m.model,
+            inputTokens: (prev?.inputTokens ?? 0) + m.inputTokens,
+            outputTokens: (prev?.outputTokens ?? 0) + m.outputTokens,
+            cacheReadTokens: (prev?.cacheReadTokens ?? 0) + m.cacheReadTokens,
+            cacheWriteTokens:
+                (prev?.cacheWriteTokens ?? 0) + m.cacheWriteTokens,
+            costUsd: (prev?.costUsd ?? 0) + m.costUsd,
+          );
+        }
+      }
+      final topModels = byModel.values.toList()
+        ..sort((a, b) => b.costUsd.compareTo(a.costUsd));
+
       _state = OverviewState(
         loading: false,
         accounts: accounts,
         series: series,
         totals: totals,
         perDay: pace.perDay,
+        spend7: sumDays(7),
+        spend30: sumDays(30),
+        topModels: topModels.take(6).toList(),
         heroWindow: hero,
         heroAccountLabel: heroLabel,
         heroOutlook: hero == null
@@ -186,12 +230,28 @@ class HistoryViewModel extends ChangeNotifier {
   bool _loading = true;
   bool get loading => _loading;
 
+  /// Trailing window in days; 0 shows everything.
+  int _rangeDays = 30;
+  int get rangeDays => _rangeDays;
+
+  Future<void> setRange(int days) async {
+    _rangeDays = days;
+    await load();
+  }
+
   Future<void> load() async {
     final accounts = await _repo.accounts();
     _labels = {for (final a in accounts) a.key: a.label};
     final snapshots = await _repo.recentHistory();
+    final cutoff = _rangeDays <= 0
+        ? null
+        : DateTime.now()
+              .toLocal()
+              .subtract(Duration(days: _rangeDays))
+              .millisecondsSinceEpoch;
     final byDay = <DateTime, List<SnapshotRow>>{};
     for (final s in snapshots) {
+      if (cutoff != null && s.capturedAt < cutoff) continue;
       final d = DateTime.fromMillisecondsSinceEpoch(s.capturedAt).toLocal();
       final dayKey = DateTime(d.year, d.month, d.day);
       byDay.putIfAbsent(dayKey, () => []).add(s);

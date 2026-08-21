@@ -1,5 +1,6 @@
 /// Android background refresh: a Workmanager periodic task that pulls every
-/// account and fires limit notifications — even when the app is closed.
+/// account, fires limit notifications, and feeds the home-screen widget —
+/// even when the app is closed.
 ///
 /// Desktop is unaffected (no Workmanager there; SyncController's Timer is
 /// enough for a dev window).
@@ -8,6 +9,7 @@ library;
 import 'package:workmanager/workmanager.dart';
 
 import 'data/usage_repository.dart';
+import 'data/widget_feed.dart';
 import 'services/limit_notifier.dart';
 
 const _taskName = 'com.usageledger.periodicSync';
@@ -26,7 +28,7 @@ void callbackDispatcher() {
   });
 }
 
-/// One background pass: refresh everything, then evaluate notifications.
+/// One background pass: refresh everything, then notifications + widget.
 Future<void> runBackgroundSync() async {
   final repo = UsageRepository.instance;
   final result = await repo.refreshAll();
@@ -34,6 +36,7 @@ Future<void> runBackgroundSync() async {
   final notifier = LimitNotifier(repo: repo);
   await notifier.init();
   await notifier.evaluate(await repo.overviews());
+  await feedWidget(repo);
 }
 
 /// Register (or re-register with [intervalMinutes], minimum 15 on Android) the

@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 
+import '../data/csv_export.dart';
 import '../state/app_scope.dart';
 import '../state/sync_controller.dart';
 import '../ui/theme.dart';
 import '../ui/widgets.dart';
 
 /// Shown in Settings; bump per release.
-const appVersion = '0.5.0';
+const appVersion = '0.6.0';
 
 /// Sync interval, notification, and about settings.
 class SettingsScreen extends StatefulWidget {
@@ -113,6 +114,37 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
                     ],
                   ),
+                ),
+              ),
+              const SectionHeader(title: 'Data'),
+              Card(
+                color: AppColors.surface,
+                child: ListTile(
+                  title: const Text(
+                    'Export history (CSV)',
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                  ),
+                  subtitle: Text(
+                    'Snapshots and per-model usage, shared as a file.',
+                    style: AppText.data(size: 11.5, color: AppColors.textDim),
+                  ),
+                  trailing: const Icon(Icons.ios_share, size: 18),
+                  onTap: () async {
+                    final messenger = ScaffoldMessenger.of(context);
+                    try {
+                      final repo = context
+                          .getInheritedWidgetOfExactType<AppScope>()!
+                          .repository;
+                      final path = await exportCsv(repo);
+                      messenger.showSnackBar(
+                        SnackBar(content: Text('Exported to $path')),
+                      );
+                    } catch (e) {
+                      messenger.showSnackBar(
+                        SnackBar(content: Text('Export failed: $e')),
+                      );
+                    }
+                  },
                 ),
               ),
               const SectionHeader(title: 'Notifications'),
