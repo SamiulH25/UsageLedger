@@ -15,7 +15,7 @@ import '../ui/theme.dart';
 import '../ui/widgets.dart';
 
 /// Shown in Settings; bump per release.
-const appVersion = '1.0.0';
+const appVersion = '1.1.0';
 
 /// Sync, alerts, budget, backup and about.
 class SettingsScreen extends StatefulWidget {
@@ -131,15 +131,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     onChanged: _setNotifications,
                     contentPadding: const EdgeInsets.fromLTRB(14, 4, 8, 4),
                   ),
-                  const Divider(height: 1),
-                  _SettingTile(
-                    title: 'Battery permissions',
-                    subtitle:
-                        'Android stops background refresh unless UsageLedger '
-                        'is exempt from battery optimisation.',
-                    icon: Icons.battery_saver_outlined,
-                    onTap: () => _openBatterySettings(context),
-                  ),
+                  if (Platform.isAndroid) ...[
+                    const Divider(height: 1),
+                    _SettingTile(
+                      title: 'Battery permissions',
+                      subtitle:
+                          'Android stops background refresh unless UsageLedger '
+                          'is exempt from battery optimisation.',
+                      icon: Icons.battery_saver_outlined,
+                      onTap: () => _openBatterySettings(context),
+                    ),
+                  ],
                 ],
               ),
             ),

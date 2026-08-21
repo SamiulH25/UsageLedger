@@ -76,5 +76,14 @@ The remaining app work is now in tree:
 * The Sync now launcher shortcut performs an immediate refresh.
 * Anthropic and DeepSeek use their own provider logos.
 
+### Addendum — Apple packaging (v1.1.0, 2026-08-21)
+
+User request overrode the "no iOS" line above: v1.1.0 adds iOS + macOS
+targets, built on GitHub's macOS runners (no local Mac). Distribution stays
+sideload-only: ad-hoc-signed macOS zip (Gatekeeper right-click Open) and an
+unsigned ipa re-signed by AltStore/Sideloadly with the user's own Apple ID.
+See `INSTALL-APPLE.md`. Background sync / notifications / widget remain
+Android-only until Darwin equivalents are wired.
+
 Explicitly out of scope for v1.0: Play Store, iOS, crash reporting
 (conflicts with the "nothing leaves your phone" pitch), cloud sync.

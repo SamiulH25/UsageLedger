@@ -457,8 +457,12 @@ Future<File> _tokenFile(String accountKey) async {
   return File(p.join(dir, 'tokens', '$accountKey.token'));
 }
 
+/// Mobile platforms keep API keys in the OS keystore/keychain; desktop keeps
+/// them in a chmod-600 file under the app support dir.
+bool get usesSecureStore => !Platform.isLinux && !Platform.isMacOS;
+
 Future<void> saveToken(String accountKey, String token) async {
-  if (Platform.isAndroid) {
+  if (usesSecureStore) {
     await _secure.write(key: accountKey, value: token);
     final leftover = await _tokenFile(accountKey);
     if (await leftover.exists()) await leftover.delete();
@@ -467,11 +471,14 @@ Future<void> saveToken(String accountKey, String token) async {
   final f = await _tokenFile(accountKey);
   await f.parent.create(recursive: true);
   await f.writeAsString(token, flush: true);
-  await Process.run('chmod', ['600', f.path]);
+  try {
+    // iOS forbids process spawns entirely; macOS sandbox may refuse them.
+    if (Platform.isLinux) await Process.run('chmod', ['600', f.path]);
+  } catch (_) {}
 }
 
 Future<String?> getToken(String accountKey) async {
-  if (Platform.isAndroid) {
+  if (usesSecureStore) {
     final stored = await _secure.read(key: accountKey);
     if (stored != null && stored.isNotEmpty) return stored;
   }
@@ -481,7 +488,7 @@ Future<String?> getToken(String accountKey) async {
 }
 
 Future<void> deleteToken(String accountKey) async {
-  if (Platform.isAndroid) {
+  if (usesSecureStore) {
     await _secure.delete(key: accountKey);
   }
   final f = await _tokenFile(accountKey);

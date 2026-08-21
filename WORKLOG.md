@@ -22,6 +22,20 @@ Updated: 2026-08-21
 - [2026-08-21] **v0.6.0 published**: GitHub Release v0.6.0 with the locally-signed APK (CI builds are debug-signed — attaching the upload-keystore APK keeps sideload updates installable). **CI fixed**: every run since v0.4.0 failed — the workflow ran Flutter commands at repo root instead of `flutter/`; both jobs now scope `working-directory: flutter`, the release step got `contents: write` and the correct asset path. Test + build jobs green.
 - [2026-08-21] **v1.0.0 in tree**: night-ledger remaining-first UI; tiered alerts + sync health; all six providers; Keystore tokens; onboarding; update checker; monthly envelope; hottest pools; sync deltas; encrypted backup import/export; medium three-pool widget; battery settings coach; working Sync now shortcut; real Anthropic + DeepSeek logos. Analyze and hermetic tests green. Pages `docs/index.html` is root-owned so the landing refresh is drafted but not applied.
 - [2026-08-21] **v1.0.0 published**: front-end overhaul (runway-first reframe, Archivo variable type) landed on top of the release commit; analyze + all 69 hermetic tests green on the final tree; signed APK rebuilt (upload keystore) and attached to GitHub Release **v1.0.0** as `usageledger-v1.0.0.apk` (CI's debug-signed draft asset replaced). Store thumbnail + app-icon v2 committed at repo root.
+- [2026-08-21] **v1.1.0 — Apple packaging** (user request, overrides the roadmap's
+  "no iOS" scope): scaffolded `flutter/ios` + `flutter/macos` (bundle id
+  `dev.bob2142.usageledger`, iOS min 15.6 for flutter_local_notifications 19,
+  macOS 10.15), brand icon generated into both asset catalogs (ImageMagick),
+  macOS sandbox entitlements gained `network.client` + user-selected file
+  access (API calls + backup import). Token storage now Keychain/keystore on
+  iOS too (`usesSecureStore`) and no longer shells out to `chmod` on Apple
+  platforms (Process.run is forbidden on iOS). Battery coach tile hidden off
+  Android. New CI job `build-apple` on macos-latest: `flutter build macos
+  --release` → ad-hoc-signed zip, `flutter build ios --release --no-codesign`
+  → unsigned ipa; both attach to the release draft next to the APK.
+  Distribution docs in `INSTALL-APPLE.md` (macOS Gatekeeper bypass, AltStore/
+  Sideloadly re-signing). Analyze + 69 hermetic tests green locally; Apple
+  builds verified by CI (no Mac on this box).
 
 ## Next
 
