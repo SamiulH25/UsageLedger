@@ -120,38 +120,58 @@ class OpenAiProvider implements AiProvider {
       }
     }
 
-    // Token usage per model.
-    final usageBuckets = await _pageAll('/organization/usage/completions', {
-      'start_time': start,
-      'bucket_width': '1d',
-      'limit': '31',
-      'group_by': byModel,
-    }, token);
+    // Token usage per model (completions + embeddings).
     final tokensByModel = <String, (int, int, int)>{};
     var requests = 0, inputTokens = 0, outputTokens = 0;
-    for (final bucket in usageBuckets) {
-      for (final r in (bucket['results'] as List? ?? const [])) {
-        final result = r as Map<String, dynamic>;
-        final model = result['model'] as String? ?? 'unknown';
-        final input = _n(result['input_tokens']).toInt();
-        final output = _n(result['output_tokens']).toInt();
-        final reqs = _n(result['num_model_requests']).toInt();
-        requests += reqs;
-        inputTokens += input;
-        outputTokens += output;
-        final prev = tokensByModel[model] ?? (0, 0, 0);
-        tokensByModel[model] = (
-          prev.$1 + input,
-          prev.$2 + output,
-          prev.$3 + reqs,
-        );
+
+    void mergeUsageBuckets(List<Map<String, dynamic>> buckets) {
+      for (final bucket in buckets) {
+        for (final r in (bucket['results'] as List? ?? const [])) {
+          final result = r as Map<String, dynamic>;
+          final model = result['model'] as String? ?? 'unknown';
+          final input = _n(result['input_tokens']).toInt();
+          final output = _n(result['output_tokens']).toInt();
+          final reqs = _n(result['num_model_requests']).toInt();
+          requests += reqs;
+          inputTokens += input;
+          outputTokens += output;
+          final prev = tokensByModel[model] ?? (0, 0, 0);
+          tokensByModel[model] = (
+            prev.$1 + input,
+            prev.$2 + output,
+            prev.$3 + reqs,
+          );
+        }
       }
     }
 
-    // Attach costs to models by fuzzy line_item match, else list costs as-is.
+    mergeUsageBuckets(
+      await _pageAll('/organization/usage/completions', {
+        'start_time': start,
+        'bucket_width': '1d',
+        'limit': '31',
+        'group_by': byModel,
+      }, token),
+    );
+    try {
+      mergeUsageBuckets(
+        await _pageAll('/organization/usage/embeddings', {
+          'start_time': start,
+          'bucket_width': '1d',
+          'limit': '31',
+          'group_by': byModel,
+        }, token),
+      );
+    } on Exception catch (e) {
+      if (!e.toString().contains('404')) rethrow;
+    }
+
+    // Attach costs to models by fuzzy line_item match; leftover SKUs stand alone.
+    final matchedItems = <String>{};
     final models = <ModelUsage>[];
     for (final entry in tokensByModel.entries) {
-      final cost = _matchCost(costByItem, entry.key);
+      final match = _matchCostItems(costByItem, entry.key);
+      matchedItems.addAll(match.$2);
       models.add(
         ModelUsage(
           model: entry.key,
@@ -159,7 +179,20 @@ class OpenAiProvider implements AiProvider {
           outputTokens: entry.value.$2,
           cacheReadTokens: 0,
           cacheWriteTokens: 0,
-          costUsd: cost,
+          costUsd: match.$1,
+        ),
+      );
+    }
+    for (final entry in costByItem.entries) {
+      if (matchedItems.contains(entry.key)) continue;
+      models.add(
+        ModelUsage(
+          model: entry.key,
+          inputTokens: 0,
+          outputTokens: 0,
+          cacheReadTokens: 0,
+          cacheWriteTokens: 0,
+          costUsd: entry.value,
         ),
       );
     }
@@ -190,16 +223,21 @@ class OpenAiProvider implements AiProvider {
 
   /// line_item names don't equal model slugs ("GPT-4o" vs "gpt-4o…") —
   /// normalize and substring-match, else 0.
-  static double _matchCost(Map<String, double> costs, String model) {
+  static (double, Set<String>) _matchCostItems(
+    Map<String, double> costs,
+    String model,
+  ) {
     var best = 0.0;
+    final matched = <String>{};
     final m = model.toLowerCase().replaceAll(RegExp('[^a-z0-9]'), '');
     for (final entry in costs.entries) {
       final item = entry.key.toLowerCase().replaceAll(RegExp('[^a-z0-9]'), '');
       if (item.contains(m) || m.contains(item)) {
         best += entry.value;
+        matched.add(entry.key);
       }
     }
-    return best;
+    return (best, matched);
   }
 
   static double _n(Object? v) =>

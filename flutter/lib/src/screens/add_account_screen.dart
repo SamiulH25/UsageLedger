@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../providers/registry.dart';
 import '../providers/types.dart';
 import '../state/app_scope.dart';
+import '../state/sync_controller.dart';
 import '../ui/theme.dart';
 import '../ui/widgets.dart';
 
@@ -17,6 +18,7 @@ class _AddAccountScreenState extends State<AddAccountScreen> {
   String _providerId = providers.first.id;
   final _tokenController = TextEditingController();
   bool _busy = false;
+  bool _showToken = false;
   String? _error;
 
   @override
@@ -48,9 +50,7 @@ class _AddAccountScreenState extends State<AddAccountScreen> {
       if (mounted) Navigator.pop(context, true);
     } catch (error) {
       if (mounted) {
-        setState(
-          () => _error = error.toString().replaceFirst('Exception: ', ''),
-        );
+        setState(() => _error = conciseError(error.toString()));
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -120,7 +120,10 @@ class _AddAccountScreenState extends State<AddAccountScreen> {
                 const SizedBox(height: 10),
                 TextField(
                   controller: _tokenController,
-                  maxLines: 3,
+                  maxLines: 1,
+                  obscureText: !_showToken,
+                  autocorrect: false,
+                  enableSuggestions: false,
                   textInputAction: TextInputAction.done,
                   onSubmitted: (_) => _busy ? null : _add(),
                   decoration: InputDecoration(
@@ -132,6 +135,15 @@ class _AddAccountScreenState extends State<AddAccountScreen> {
                     hintText: provider?.keyHint ?? '…',
                     helperText: provider?.howToGetToken ?? '',
                     helperMaxLines: 4,
+                    suffixIcon: IconButton(
+                      onPressed: () => setState(() => _showToken = !_showToken),
+                      icon: Icon(
+                        _showToken
+                            ? Icons.visibility_off_outlined
+                            : Icons.visibility_outlined,
+                      ),
+                      tooltip: _showToken ? 'Hide API key' : 'Show API key',
+                    ),
                   ),
                 ),
                 if (_error != null) ...[
@@ -202,9 +214,7 @@ class _AddAccountScreenState extends State<AddAccountScreen> {
                     ),
                   ),
                   Text(
-                    option.id == 'commandcode'
-                        ? 'user_… API key'
-                        : 'crsr_… User API key',
+                    option.keyHint,
                     style: AppText.data(size: 11, color: AppColors.textDim),
                   ),
                 ],

@@ -53,17 +53,14 @@ class _AccountDetailScreenState extends State<AccountDetailScreen> {
               ),
             ),
           ),
-          body: state.loading || account == null
+          body: state.loading
               ? const Center(child: CircularProgressIndicator())
+              : account == null
+              ? _missingState(context, state.error)
               : RefreshIndicator(
                   color: AppColors.accent,
                   backgroundColor: AppColors.surface,
-                  onRefresh: () async {
-                    final scope = AppScope.of(context);
-                    await _vm.refresh();
-                    await scope.accountsVm.load();
-                    await scope.overviewVm.load();
-                  },
+                  onRefresh: () => _refreshAccount(context),
                   child: ListView(
                     physics: const AlwaysScrollableScrollPhysics(),
                     padding: const EdgeInsets.fromLTRB(
@@ -74,6 +71,16 @@ class _AccountDetailScreenState extends State<AccountDetailScreen> {
                     ),
                     children: [
                       _header(state),
+                      if (state.error != null) ...[
+                        const SizedBox(height: 12),
+                        InlineMessage.error(
+                          state.error!,
+                          action: TextButton(
+                            onPressed: () => _refreshAccount(context),
+                            child: const Text('Retry'),
+                          ),
+                        ),
+                      ],
                       if (state.latest != null) ...[
                         const SectionHeader(title: 'Pools'),
                         for (final window in _orderedWindows(
@@ -182,6 +189,45 @@ class _AccountDetailScreenState extends State<AccountDetailScreen> {
     );
   }
 
+  Widget _missingState(BuildContext context, String? error) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: EmptyState(
+          icon: error == null
+              ? Icons.account_circle_outlined
+              : Icons.error_outline,
+          title: error == null
+              ? 'This account was removed'
+              : 'Could not load account',
+          hint: error ?? 'Return to Accounts and choose another account.',
+          action: Column(
+            children: [
+              FilledButton(
+                onPressed: error == null
+                    ? () => Navigator.pop(context)
+                    : () => _vm.load(widget.accountKey),
+                child: Text(error == null ? 'Back to accounts' : 'Retry'),
+              ),
+              if (error != null)
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Back'),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _refreshAccount(BuildContext context) async {
+    final scope = AppScope.of(context);
+    await _vm.refresh();
+    await scope.accountsVm.load();
+    await scope.overviewVm.load();
+  }
+
   List<LimitWindow> _orderedWindows(List<LimitWindow> windows) {
     int rank(LimitKind k) => switch (k) {
       LimitKind.budget => 0,
@@ -189,7 +235,7 @@ class _AccountDetailScreenState extends State<AccountDetailScreen> {
       LimitKind.share => 2,
       LimitKind.extra => 3,
     };
-    final sorted = [...windows]
+    final sorted = windows.where((window) => !window.idle).toList()
       ..sort((a, b) {
         final c = rank(a.kind).compareTo(rank(b.kind));
         if (c != 0) return c;
@@ -225,6 +271,8 @@ class _AccountDetailScreenState extends State<AccountDetailScreen> {
                     children: [
                       Text(
                         account.label,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                         style: AppText.pageTitle.copyWith(fontSize: 20),
                       ),
                       if (account.email.isNotEmpty)
@@ -233,33 +281,41 @@ class _AccountDetailScreenState extends State<AccountDetailScreen> {
                   ),
                 ),
                 if (latest != null)
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Text(
-                        fmtCost(latest.costUsd),
-                        style: AppText.heroNumber(),
-                      ),
-                      if (latest.inputTokens + latest.outputTokens > 0 ||
-                          latest.requests > 0)
+                  Flexible(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
                         Text(
-                          [
-                            if (latest.inputTokens + latest.outputTokens > 0)
-                              '${fmtTokens(latest.inputTokens + latest.outputTokens)} tok',
-                            if (latest.requests > 0) '${latest.requests} req',
-                          ].join(' · '),
-                          style: AppText.data(
-                            size: 10,
-                            color: AppColors.textDim,
-                          ),
+                          fmtCost(latest.costUsd),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppText.heroNumber(),
                         ),
-                    ],
+                        if (latest.inputTokens + latest.outputTokens > 0 ||
+                            latest.requests > 0)
+                          Text(
+                            [
+                              if (latest.inputTokens + latest.outputTokens > 0)
+                                '${fmtTokens(latest.inputTokens + latest.outputTokens)} tok',
+                              if (latest.requests > 0) '${latest.requests} req',
+                            ].join(' · '),
+                            maxLines: 2,
+                            textAlign: TextAlign.end,
+                            style: AppText.data(
+                              size: 10,
+                              color: AppColors.textDim,
+                            ),
+                          ),
+                      ],
+                    ),
                   ),
               ],
             ),
             const SizedBox(height: 10),
             Text(
-              'synced ${fmtAgo(account.lastRefreshAt)}',
+              account.lastRefreshAt > 0
+                  ? 'synced ${fmtAgo(account.lastRefreshAt)}'
+                  : 'not synced yet',
               style: AppText.data(size: 10, color: AppColors.textDim),
             ),
           ],

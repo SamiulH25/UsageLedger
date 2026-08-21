@@ -97,6 +97,20 @@ class PoolOutlook {
 
   double get fraction => cap > 0 ? (used / cap).clamp(0.0, 1.0) : 0.0;
 
+  /// Dollars still in the pool.
+  double get remaining {
+    if (cap <= 0) return 0;
+    final left = cap - used;
+    return left < 0 ? 0 : left;
+  }
+
+  /// Daily spend that would land exactly on the cap at reset.
+  double? get safePerDay {
+    if (cap <= 0 || daysToReset == null || daysToReset! <= 0) return null;
+    if (remaining <= 0) return 0;
+    return remaining / daysToReset!;
+  }
+
   /// Short human verdict, e.g. "on pace" / "runs out ~2d before reset".
   String verdict() {
     if (cap <= 0) return 'uncapped';

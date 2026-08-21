@@ -20,63 +20,80 @@ class CostChart extends StatelessWidget {
     final maxV = data.map((e) => e.costUsd).reduce((a, b) => a > b ? a : b);
     final denom = maxV <= 0 ? 1.0 : maxV;
     final chartH = 110.0;
+    final total = data.fold<double>(0, (sum, point) => sum + point.costUsd);
+    final peak = data.reduce((a, b) => a.costUsd >= b.costUsd ? a : b);
+    final summary =
+        'Tracked spend chart for ${data.length} days. '
+        'Total ${fmtCost(total)}. '
+        'Peak ${fmtCost(peak.costUsd)} on ${peak.day}.';
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SizedBox(
-          height: chartH,
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              for (var i = 0; i < data.length; i++)
-                Expanded(
-                  child: Center(
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 26),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: [
-                          Container(
-                            width: double.infinity,
-                            height: ((data[i].costUsd / denom) * chartH).clamp(
-                              3.0,
-                              chartH,
-                            ),
-                            decoration: BoxDecoration(
-                              color: i == data.length - 1
-                                  ? AppColors.accent
-                                  : AppColors.accent.withValues(alpha: .45),
-                              borderRadius: const BorderRadius.vertical(
-                                top: Radius.circular(3),
+    return Semantics(
+      container: true,
+      label: summary,
+      child: ExcludeSemantics(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              height: chartH,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  for (var i = 0; i < data.length; i++)
+                    Expanded(
+                      child: Center(
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 26),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              Container(
+                                width: double.infinity,
+                                height: ((data[i].costUsd / denom) * chartH)
+                                    .clamp(3.0, chartH),
+                                decoration: BoxDecoration(
+                                  color: i == data.length - 1
+                                      ? AppColors.accent
+                                      : AppColors.accent.withValues(alpha: .45),
+                                  borderRadius: const BorderRadius.vertical(
+                                    top: Radius.circular(3),
+                                  ),
+                                ),
                               ),
-                            ),
+                            ],
                           ),
-                        ],
+                        ),
                       ),
                     ),
-                  ),
-                ),
-            ],
-          ),
-        ),
-        Container(height: 1, color: AppColors.border),
-        const SizedBox(height: 5),
-        Row(
-          children: [
-            for (var i = 0; i < data.length; i++)
-              Expanded(
-                child: Text(
-                  data[i].day.substring(5),
-                  textAlign: TextAlign.center,
-                  maxLines: 1,
-                  overflow: TextOverflow.clip,
-                  style: AppText.data(size: 8.5, color: AppColors.textDim),
-                ),
+                ],
               ),
+            ),
+            Container(height: 1, color: AppColors.border),
+            const SizedBox(height: 5),
+            Row(
+              children: [
+                for (var i = 0; i < data.length; i++)
+                  Expanded(
+                    child:
+                        (i == 0 ||
+                            i == data.length ~/ 2 ||
+                            i == data.length - 1)
+                        ? Text(
+                            data[i].day.substring(5),
+                            textAlign: TextAlign.center,
+                            maxLines: 1,
+                            style: AppText.data(
+                              size: 8.5,
+                              color: AppColors.textDim,
+                            ),
+                          )
+                        : const SizedBox.shrink(),
+                  ),
+              ],
+            ),
           ],
         ),
-      ],
+      ),
     );
   }
 }
@@ -96,12 +113,23 @@ class Sparkline extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return CustomPaint(
-      size: const Size(double.infinity, 36),
-      painter: _SparklinePainter(
-        values: values,
-        color: color,
-        strokeWidth: strokeWidth,
+    if (values.isEmpty) return const SizedBox.shrink();
+    final min = values.reduce(math.min);
+    final max = values.reduce(math.max);
+    return Semantics(
+      container: true,
+      label:
+          'Spend trend. Lowest ${fmtCost(min)}, highest ${fmtCost(max)}, '
+          'latest ${fmtCost(values.last)}.',
+      child: ExcludeSemantics(
+        child: CustomPaint(
+          size: const Size(double.infinity, 36),
+          painter: _SparklinePainter(
+            values: values,
+            color: color,
+            strokeWidth: strokeWidth,
+          ),
+        ),
       ),
     );
   }

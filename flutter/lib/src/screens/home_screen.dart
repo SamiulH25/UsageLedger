@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../data/burn_rate.dart';
+import '../data/usage_repository.dart';
 import '../providers/types.dart';
 import '../state/app_scope.dart';
 import '../state/view_models.dart';
@@ -19,7 +20,7 @@ class HomeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final scope = AppScope.of(context);
     return ListenableBuilder(
-      listenable: scope.overviewVm,
+      listenable: Listenable.merge([scope.overviewVm, scope.sync]),
       builder: (context, _) {
         final state = scope.overviewVm.state;
         return Scaffold(
@@ -28,13 +29,61 @@ class HomeScreen extends StatelessWidget {
               color: AppColors.accent,
               backgroundColor: AppColors.surface,
               onRefresh: () => scope.sync.sync(),
-              child: state.accounts.isEmpty && !state.loading
+              child: state.loading && state.accounts.isEmpty
+                  ? _loading()
+                  : state.accounts.isEmpty && state.error == null
                   ? _empty(context)
-                  : _content(context, state),
+                  : state.accounts.isEmpty
+                  ? _errorEmpty(context, state.error!)
+                  : _content(context, state, scope.sync.lastError),
             ),
           ),
         );
       },
+    );
+  }
+
+  Widget _loading() {
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.pageHorizontal + 4,
+        20,
+        AppSpacing.pageHorizontal + 4,
+        AppSpacing.pageBottom,
+      ),
+      children: const [
+        _BrandRow(),
+        SizedBox(height: 24),
+        EmptyState(
+          icon: Icons.sync,
+          title: 'Loading usage',
+          hint: 'Reading saved accounts and latest snapshots.',
+        ),
+      ],
+    );
+  }
+
+  Widget _errorEmpty(BuildContext context, String error) {
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.pageHorizontal + 4,
+        20,
+        AppSpacing.pageHorizontal + 4,
+        AppSpacing.pageBottom,
+      ),
+      children: [
+        const _BrandRow(),
+        const SizedBox(height: 24),
+        InlineMessage.error(
+          error,
+          action: TextButton(
+            onPressed: () => AppScope.of(context).overviewVm.load(),
+            child: const Text('Retry'),
+          ),
+        ),
+      ],
     );
   }
 
@@ -59,8 +108,7 @@ class HomeScreen extends StatelessWidget {
         EmptyState(
           icon: Icons.speed_outlined,
           title: 'No accounts yet',
-          hint:
-              'Add Command Code or Cursor to start tracking usage on this device.',
+          hint: 'Connect a provider to start tracking usage on this device.',
           action: FilledButton.icon(
             onPressed: onOpenAdd,
             icon: const Icon(Icons.add, size: 18),
@@ -71,7 +119,11 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _content(BuildContext context, OverviewState state) {
+  Widget _content(
+    BuildContext context,
+    OverviewState state,
+    String? syncError,
+  ) {
     final tokenCount = state.totals.inputTokens + state.totals.outputTokens;
     final accounts = state.accounts;
 
@@ -90,8 +142,24 @@ class HomeScreen extends StatelessWidget {
         const SizedBox(height: 6),
         const PageHeading(
           title: 'Overview',
-          subtitle: 'Pull down to sync usage from every connected account.',
+          subtitle: 'What is left in each pool, and when it resets.',
         ),
+        if (syncError != null || state.error != null) ...[
+          const SizedBox(height: 14),
+          InlineMessage.error(
+            syncError ?? state.error!,
+            action: TextButton(
+              onPressed: syncError != null
+                  ? () => AppScope.of(context).sync.sync()
+                  : () => AppScope.of(context).overviewVm.load(),
+              child: const Text('Retry'),
+            ),
+          ),
+        ],
+        if (!state.delta.isEmpty) ...[
+          const SizedBox(height: 10),
+          _SyncDeltaCard(delta: state.delta),
+        ],
         const SizedBox(height: 18),
         if (state.heroWindow != null)
           _HeroWallCard(
@@ -127,6 +195,24 @@ class HomeScreen extends StatelessWidget {
         _StatStrip(state: state, tokenCount: tokenCount),
         const SizedBox(height: 8),
         _SpendWindows(state: state),
+        if (state.monthlyBudget > 0) ...[
+          const SizedBox(height: 8),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+              child: PoolGauge(
+                window: LimitWindow(
+                  id: 'user:month',
+                  label: 'Your monthly budget',
+                  used: state.spend30,
+                  cap: state.monthlyBudget,
+                  kind: LimitKind.budget,
+                ),
+              ),
+            ),
+          ),
+        ],
+        _UrgencyList(accounts: accounts),
         if (state.topModels.isNotEmpty) ...[
           const SectionHeader(title: 'Top models', trailing: 'all accounts'),
           Card(
@@ -244,21 +330,22 @@ class _HeroWallCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final f = window.fraction.clamp(0.0, 1.0);
     final color = limitColor(f, exceeded: window.exceeded);
-    final urgent = f >= 0.7 || window.exceeded;
-
-    // Caret: where the level lands at reset if the pace holds.
+    final urgent = f >= 0.8 || window.exceeded;
+    final reset = fmtResetAt(window.resetAt);
+    final safe = outlook.safePerDay;
     double? caret;
     if (outlook.perDay > 0 &&
         outlook.daysToReset != null &&
-        outlook.daysToReset! > 0) {
+        outlook.daysToReset! > 0 &&
+        window.cap > 0) {
       caret =
-          ((window.used + outlook.perDay * outlook.daysToReset!) / window.cap);
+          (window.used + outlook.perDay * outlook.daysToReset!) / window.cap;
     }
 
     return DecoratedBox(
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(10),
         border: Border.all(
           color: urgent ? color.withValues(alpha: .55) : AppColors.border,
         ),
@@ -277,61 +364,46 @@ class _HeroWallCard extends StatelessWidget {
                   style: AppText.sectionLabel.copyWith(color: color),
                 ),
                 const Spacer(),
-                Text(
-                  fmtCost(window.used),
-                  style: AppText.data(
-                    size: 13,
-                    weight: FontWeight.w700,
-                    color: color,
+                if (reset.isNotEmpty)
+                  Text(
+                    reset,
+                    style: AppText.data(size: 11, color: AppColors.textDim),
                   ),
-                ),
-                Text(
-                  ' / ${fmtCost(window.cap)}',
-                  style: AppText.data(size: 12, color: AppColors.textDim),
-                ),
               ],
             ),
             const SizedBox(height: 10),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.baseline,
-              textBaseline: TextBaseline.alphabetic,
-              children: [
-                Text(fmtPct(f), style: AppText.heroNumber(color: color)),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    [
-                      window.label.toUpperCase(),
-                      accountLabel.toUpperCase(),
-                    ].join(' · '),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppText.data(
-                      size: 10,
-                      color: AppColors.textDim,
-                      spacing: 0.8,
-                    ),
-                  ),
-                ),
-              ],
+            Text(
+              window.cap > 0
+                  ? fmtCost(windowRemaining(window))
+                  : fmtCost(window.used),
+              style: AppText.heroNumber(color: color),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              window.cap > 0
+                  ? 'LEFT · ${window.label.toUpperCase()} · ${accountLabel.toUpperCase()}'
+                  : 'SPENT · ${window.label.toUpperCase()} · ${accountLabel.toUpperCase()}',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppText.data(
+                size: 10,
+                color: AppColors.textDim,
+                spacing: 0.8,
+              ),
             ),
             const SizedBox(height: 12),
             PoolGauge(window: window, paceCaretFraction: caret),
-            if (outlook.perDay > 0) ...[
+            if (outlook.perDay > 0 || (safe != null && f >= 0.5)) ...[
               const SizedBox(height: 10),
-              Row(
-                children: [
-                  Icon(Icons.trending_up, size: 13, color: AppColors.textDim),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      'pace ${fmtCost(outlook.perDay)}/day · ${outlook.verdict()}',
-                      style: AppText.data(size: 10.5, color: AppColors.textDim),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ],
+              Text(
+                [
+                  if (outlook.perDay > 0)
+                    'pace ${fmtCost(outlook.perDay)}/day · ${outlook.verdict()}',
+                  if (safe != null && safe > 0 && f >= 0.5)
+                    '~${fmtCost(safe)}/day to stay under cap',
+                ].join(' · '),
+                style: AppText.data(size: 10.5, color: AppColors.textDim),
+                maxLines: 2,
               ),
             ],
           ],
@@ -415,6 +487,110 @@ class _SpendWindows extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _SyncDeltaCard extends StatelessWidget {
+  final UsageDelta delta;
+
+  const _SyncDeltaCard({required this.delta});
+
+  @override
+  Widget build(BuildContext context) {
+    final parts = <String>[
+      if (delta.costUsd > 0) fmtCost(delta.costUsd),
+      if (delta.tokens > 0) '${fmtTokens(delta.tokens)} tokens',
+      if (delta.requests > 0) '${delta.requests} requests',
+    ];
+    return Card(
+      color: AppColors.accentSoft,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(14, 11, 14, 11),
+        child: Row(
+          children: [
+            const Icon(Icons.trending_up, size: 17, color: AppColors.accent),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'SINCE LAST SYNC\n${parts.join(' · ')}',
+                style: AppText.data(
+                  size: 11,
+                  color: AppColors.accent,
+                  weight: FontWeight.w600,
+                  height: 1.5,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Hottest capped pools across accounts, remaining-first.
+class _UrgencyList extends StatelessWidget {
+  final List<AccountOverview> accounts;
+
+  const _UrgencyList({required this.accounts});
+
+  @override
+  Widget build(BuildContext context) {
+    final rows = <({String label, LimitWindow window})>[];
+    for (final account in accounts) {
+      for (final window in account.windows) {
+        if (window.cap <= 0) continue;
+        if (window.kind == LimitKind.share) continue;
+        rows.add((label: account.account.label, window: window));
+      }
+    }
+    rows.sort((a, b) => b.window.fraction.compareTo(a.window.fraction));
+    final top = rows.take(4).toList();
+    if (top.length < 2) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SectionHeader(title: 'Hottest pools', trailing: 'by % used'),
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+            child: Column(
+              children: [
+                for (var i = 0; i < top.length; i++) ...[
+                  if (i > 0) const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          '${top[i].label} · ${top[i].window.label}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppText.data(
+                            size: 11.5,
+                            weight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      Text(
+                        fmtLeft(top[i].window),
+                        style: AppText.data(
+                          size: 11.5,
+                          weight: FontWeight.w700,
+                          color: limitColor(top[i].window.fraction),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  PoolGauge(window: top[i].window, compact: true),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

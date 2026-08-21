@@ -1,4 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="widget_description">Your most urgent budget pool at a glance</string>
+    <string name="widget_description">Dollars left in your most urgent pool</string>
+    <string name="widget_content_description">UsageLedger usage summary. Tap to open the app.</string>
+    <string name="sync_now">Sync now</string>
+    <string name="sync_now_long">Refresh every account</string>
 </resources>

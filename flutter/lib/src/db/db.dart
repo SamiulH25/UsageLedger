@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart'
@@ -143,6 +144,7 @@ Future<Database> getDb() async {
           platform TEXT NOT NULL,
           label TEXT NOT NULL DEFAULT '',
           email TEXT NOT NULL DEFAULT '',
+          added_at INTEGER NOT NULL DEFAULT 0,
           last_refresh_at INTEGER NOT NULL DEFAULT 0,
           sync_error TEXT NOT NULL DEFAULT ''
         )''');
@@ -288,6 +290,7 @@ Future<List<AccountTotalsRow>> accountTotals() async {
             'email': r['email'],
             'added_at': r['added_at'],
             'last_refresh_at': r['last_refresh_at'],
+            'sync_error': r['sync_error'],
           }),
           costUsd: (r['cost_usd'] as num?)?.toDouble() ?? 0,
           requests: (r['requests'] as num?)?.toInt() ?? 0,
@@ -443,7 +446,11 @@ Future<void> setSetting(String key, String value) async {
   }, conflictAlgorithm: ConflictAlgorithm.replace);
 }
 
-// --- secure token storage (plain file on desktop, chmod 600) ---
+// --- token storage: Android Keystore, chmod 600 files on desktop ---
+
+const _secure = FlutterSecureStorage(
+  aOptions: AndroidOptions(encryptedSharedPreferences: true),
+);
 
 Future<File> _tokenFile(String accountKey) async {
   final dir = await _supportDir();
@@ -451,6 +458,12 @@ Future<File> _tokenFile(String accountKey) async {
 }
 
 Future<void> saveToken(String accountKey, String token) async {
+  if (Platform.isAndroid) {
+    await _secure.write(key: accountKey, value: token);
+    final leftover = await _tokenFile(accountKey);
+    if (await leftover.exists()) await leftover.delete();
+    return;
+  }
   final f = await _tokenFile(accountKey);
   await f.parent.create(recursive: true);
   await f.writeAsString(token, flush: true);
@@ -458,12 +471,19 @@ Future<void> saveToken(String accountKey, String token) async {
 }
 
 Future<String?> getToken(String accountKey) async {
+  if (Platform.isAndroid) {
+    final stored = await _secure.read(key: accountKey);
+    if (stored != null && stored.isNotEmpty) return stored;
+  }
   final f = await _tokenFile(accountKey);
   if (!await f.exists()) return null;
   return f.readAsString();
 }
 
 Future<void> deleteToken(String accountKey) async {
+  if (Platform.isAndroid) {
+    await _secure.delete(key: accountKey);
+  }
   final f = await _tokenFile(accountKey);
   if (await f.exists()) await f.delete();
 }

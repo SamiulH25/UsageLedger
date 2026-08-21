@@ -1,24 +1,27 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-/// Instrument-cluster design tokens.
+import '../providers/types.dart';
+
+/// Night-ledger design tokens.
 ///
-/// The app reads like a cockpit: dark blue-slate panels, hairline separators,
-/// monospaced numerals, and a warm amber signal color that is *semantic* —
-/// amber means "approaching a limit", red means "gone", green means "fine".
+/// Inverted paper ledger: warm ink-well ground, remaining funds in banker's
+/// green, brass when a pool is getting thin, carmine when it is gone.
 class AppColors {
-  static const bg = Color(0xFF0C1117);
-  static const surface = Color(0xFF131A23);
-  static const surfaceHi = Color(0xFF1A232E);
-  static const border = Color(0xFF263241);
-  static const text = Color(0xFFE6EDF5);
-  static const textDim = Color(0xFF8494A7);
-  static const accent = Color(0xFFF0A63C); // instrument amber
-  static const accentSoft = Color(0xFF2A2318); // amber-tinted panel
-  static const ok = Color(0xFF58B380);
-  static const okSoft = Color(0xFF16241C);
-  static const danger = Color(0xFFE06452);
-  static const dangerSoft = Color(0xFF2A1B18);
+  static const bg = Color(0xFF161410);
+  static const surface = Color(0xFF1F1B16);
+  static const surfaceHi = Color(0xFF2A241C);
+  static const border = Color(0xFF3A342C);
+  static const text = Color(0xFFF2EDE4);
+  static const textDim = Color(0xFFA39888);
+  static const accent = Color(0xFFC4A35A); // brass
+  static const accentSoft = Color(0xFF2A2518);
+  static const ok = Color(0xFF3D8F6A); // remaining
+  static const okText = Color(0xFF6FC69B);
+  static const okSoft = Color(0xFF1A241C);
+  static const danger = Color(0xFFC44536);
+  static const dangerText = Color(0xFFF07A6A);
+  static const dangerSoft = Color(0xFF2A1816);
 }
 
 class AppSpacing {
@@ -124,7 +127,7 @@ ThemeData buildTheme() {
     cardTheme: CardThemeData(
       color: AppColors.surface,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(10),
         side: const BorderSide(color: AppColors.border),
       ),
       elevation: 0,
@@ -269,6 +272,18 @@ String fmtCost(double n) {
   return '\$${n.toStringAsFixed(2)}';
 }
 
+/// Dollars still in a capped pool. Uncapped windows return spent.
+double windowRemaining(LimitWindow w) {
+  if (w.cap <= 0) return 0;
+  final left = w.cap - w.used;
+  return left < 0 ? 0 : left;
+}
+
+String fmtLeft(LimitWindow w) {
+  if (w.cap <= 0) return '${fmtCost(w.used)} spent';
+  return '${fmtCost(windowRemaining(w))} left';
+}
+
 String fmtPct(double fraction) =>
     '${(fraction.clamp(0.0, 1.0) * 100).round()}%';
 
@@ -288,10 +303,16 @@ String fmtResetAt(int resetAt, {DateTime? now}) {
         ? 'resets in ${diff.inHours}h'
         : 'resets in ${diff.inHours}h ${minutes}m';
   }
-  if (diff.inDays == 1) return 'resets tomorrow';
+  if (diff.inDays == 1) {
+    final hours = diff.inHours % 24;
+    return hours == 0 ? 'resets tomorrow' : 'resets tomorrow · ${hours}h';
+  }
   if (diff.inDays < 7) {
     const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    return 'resets ${days[when.weekday - 1]}';
+    final hours = diff.inHours % 24;
+    return hours == 0
+        ? 'resets ${days[when.weekday - 1]} · ${diff.inDays}d'
+        : 'resets ${days[when.weekday - 1]} · ${diff.inDays}d ${hours}h';
   }
   const months = [
     'Jan',
@@ -312,8 +333,14 @@ String fmtResetAt(int resetAt, {DateTime? now}) {
 
 Color limitColor(double fraction, {bool exceeded = false}) {
   if (exceeded || fraction >= 0.9) return AppColors.danger;
-  if (fraction >= 0.7) return AppColors.accent;
+  if (fraction >= 0.8) return AppColors.accent;
   return AppColors.ok;
+}
+
+Color limitTextColor(double fraction, {bool exceeded = false}) {
+  if (exceeded || fraction >= 0.9) return AppColors.dangerText;
+  if (fraction >= 0.8) return AppColors.accent;
+  return AppColors.okText;
 }
 
 String fmtAgo(int epochMs, {DateTime? now}) {

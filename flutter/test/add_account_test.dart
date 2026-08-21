@@ -14,7 +14,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(providers, hasLength(4));
+    expect(providers, hasLength(6));
     for (final p in providers) {
       expect(find.text(p.name), findsOneWidget, reason: '${p.id} missing');
     }
@@ -24,7 +24,9 @@ void main() {
     expect(find.widgetWithText(TextField, 'Paste API key'), findsOneWidget);
   });
 
-  testWidgets('mismatched keys show an advisory, not a blocker', (tester) async {
+  testWidgets('mismatched keys show an advisory, not a blocker', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       const MaterialApp(home: Scaffold(body: AddAccountScreen())),
     );
@@ -44,5 +46,25 @@ void main() {
       find.widgetWithText(FilledButton, 'Verify & add account'),
     );
     expect(button.onPressed, isNotNull);
+  });
+
+  testWidgets('API key entry is obscured and can be revealed', (tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(home: Scaffold(body: AddAccountScreen())),
+    );
+    await tester.pumpAndSettle();
+
+    final field = tester.widget<TextField>(find.byType(TextField));
+    expect(field.obscureText, isTrue);
+    expect(field.maxLines, 1);
+
+    await tester.tap(find.byTooltip('Show API key'));
+    await tester.pump();
+
+    expect(
+      tester.widget<TextField>(find.byType(TextField)).obscureText,
+      isFalse,
+    );
+    expect(find.byTooltip('Hide API key'), findsOneWidget);
   });
 }

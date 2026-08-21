@@ -31,6 +31,9 @@ class OverviewState {
   final LimitWindow? heroWindow;
   final String? heroAccountLabel;
   final PoolOutlook? heroOutlook;
+  final double monthlyBudget;
+  final UsageDelta delta;
+  final String? error;
 
   const OverviewState({
     required this.loading,
@@ -44,6 +47,9 @@ class OverviewState {
     this.heroWindow,
     this.heroAccountLabel,
     this.heroOutlook,
+    this.monthlyBudget = 0,
+    this.delta = const UsageDelta(),
+    this.error,
   });
 
   static const empty = OverviewState(
@@ -52,6 +58,39 @@ class OverviewState {
     series: [],
     totals: (costUsd: 0, requests: 0, inputTokens: 0, outputTokens: 0),
     perDay: 0,
+  );
+
+  OverviewState copyWith({
+    bool? loading,
+    List<AccountOverview>? accounts,
+    List<({String day, double costUsd})>? series,
+    ({double costUsd, int requests, int inputTokens, int outputTokens})? totals,
+    double? perDay,
+    double? spend7,
+    double? spend30,
+    List<ModelUsage>? topModels,
+    LimitWindow? heroWindow,
+    String? heroAccountLabel,
+    PoolOutlook? heroOutlook,
+    double? monthlyBudget,
+    UsageDelta? delta,
+    String? error,
+    bool clearError = false,
+  }) => OverviewState(
+    loading: loading ?? this.loading,
+    accounts: accounts ?? this.accounts,
+    series: series ?? this.series,
+    totals: totals ?? this.totals,
+    perDay: perDay ?? this.perDay,
+    spend7: spend7 ?? this.spend7,
+    spend30: spend30 ?? this.spend30,
+    topModels: topModels ?? this.topModels,
+    heroWindow: heroWindow ?? this.heroWindow,
+    heroAccountLabel: heroAccountLabel ?? this.heroAccountLabel,
+    heroOutlook: heroOutlook ?? this.heroOutlook,
+    monthlyBudget: monthlyBudget ?? this.monthlyBudget,
+    delta: delta ?? this.delta,
+    error: clearError ? null : error ?? this.error,
   );
 }
 
@@ -79,6 +118,7 @@ class OverviewViewModel extends ChangeNotifier {
       final accounts = await _repo.overviews();
       final series = await _repo.dailySpend();
       final totals = await _repo.totals();
+      final delta = await _repo.deltaSincePrevious();
       final pace = dailyPace(series);
 
       // Hero = highest-fraction non-extra budget window.
@@ -128,6 +168,9 @@ class OverviewViewModel extends ChangeNotifier {
       final topModels = byModel.values.toList()
         ..sort((a, b) => b.costUsd.compareTo(a.costUsd));
 
+      final budgetRaw = await _repo.setting('userMonthlyBudget');
+      final monthlyBudget = double.tryParse(budgetRaw ?? '') ?? 0;
+
       _state = OverviewState(
         loading: false,
         accounts: accounts,
@@ -142,9 +185,15 @@ class OverviewViewModel extends ChangeNotifier {
         heroOutlook: hero == null
             ? null
             : PoolOutlook.forWindow(hero, pace.perDay),
+        monthlyBudget: monthlyBudget,
+        delta: delta,
+        error: null,
       );
     } catch (e) {
-      // Keep last good data on failure.
+      _state = _state.copyWith(
+        loading: false,
+        error: conciseError(e.toString()),
+      );
       debugPrint('overview load failed: $e');
     }
     notifyListeners();
@@ -172,18 +221,31 @@ class AccountsViewModel extends ChangeNotifier {
   List<AccountRowView> get rows => _rows;
   bool _loading = true;
   bool get loading => _loading;
+  String? _error;
+  String? get error => _error;
 
   Future<void> load() async {
-    _loading = false;
-    final overviews = await _repo.overviews();
-    final rows = <AccountRowView>[];
-    for (final o in overviews) {
-      final token = await _repo.tokenFor(o.account.key);
-      rows.add(
-        AccountRowView(data: o, hasToken: token != null && token.isNotEmpty),
-      );
+    if (_rows.isEmpty) {
+      _loading = true;
+      notifyListeners();
     }
-    _rows = rows;
+    try {
+      final overviews = await _repo.overviews();
+      final rows = <AccountRowView>[];
+      for (final o in overviews) {
+        final token = await _repo.tokenFor(o.account.key);
+        rows.add(
+          AccountRowView(data: o, hasToken: token != null && token.isNotEmpty),
+        );
+      }
+      _rows = rows;
+      _error = null;
+    } catch (e) {
+      _error = conciseError(e.toString());
+      debugPrint('accounts load failed: $e');
+    } finally {
+      _loading = false;
+    }
     notifyListeners();
   }
 
@@ -229,6 +291,10 @@ class HistoryViewModel extends ChangeNotifier {
   Map<String, String> get labels => _labels;
   bool _loading = true;
   bool get loading => _loading;
+  bool _hasSnapshots = false;
+  bool get hasSnapshots => _hasSnapshots;
+  String? _error;
+  String? get error => _error;
 
   /// Trailing window in days; 0 shows everything.
   int _rangeDays = 30;
@@ -240,27 +306,39 @@ class HistoryViewModel extends ChangeNotifier {
   }
 
   Future<void> load() async {
-    final accounts = await _repo.accounts();
-    _labels = {for (final a in accounts) a.key: a.label};
-    final snapshots = await _repo.recentHistory();
-    final cutoff = _rangeDays <= 0
-        ? null
-        : DateTime.now()
-              .toLocal()
-              .subtract(Duration(days: _rangeDays))
-              .millisecondsSinceEpoch;
-    final byDay = <DateTime, List<SnapshotRow>>{};
-    for (final s in snapshots) {
-      if (cutoff != null && s.capturedAt < cutoff) continue;
-      final d = DateTime.fromMillisecondsSinceEpoch(s.capturedAt).toLocal();
-      final dayKey = DateTime(d.year, d.month, d.day);
-      byDay.putIfAbsent(dayKey, () => []).add(s);
+    if (_days.isEmpty) {
+      _loading = true;
+      notifyListeners();
     }
-    final days = [
-      for (final e in byDay.entries) HistoryDay(day: e.key, entries: e.value),
-    ]..sort((a, b) => b.day.compareTo(a.day));
-    _days = days;
-    _loading = false;
+    try {
+      final accounts = await _repo.accounts();
+      _labels = {for (final a in accounts) a.key: a.label};
+      final snapshots = await _repo.recentHistory();
+      _hasSnapshots = snapshots.isNotEmpty;
+      final cutoff = _rangeDays <= 0
+          ? null
+          : DateTime.now()
+                .toLocal()
+                .subtract(Duration(days: _rangeDays))
+                .millisecondsSinceEpoch;
+      final byDay = <DateTime, List<SnapshotRow>>{};
+      for (final s in snapshots) {
+        if (cutoff != null && s.capturedAt < cutoff) continue;
+        final d = DateTime.fromMillisecondsSinceEpoch(s.capturedAt).toLocal();
+        final dayKey = DateTime(d.year, d.month, d.day);
+        byDay.putIfAbsent(dayKey, () => []).add(s);
+      }
+      final days = [
+        for (final e in byDay.entries) HistoryDay(day: e.key, entries: e.value),
+      ]..sort((a, b) => b.day.compareTo(a.day));
+      _days = days;
+      _error = null;
+    } catch (e) {
+      _error = conciseError(e.toString());
+      debugPrint('history load failed: $e');
+    } finally {
+      _loading = false;
+    }
     notifyListeners();
   }
 }
@@ -273,6 +351,7 @@ class AccountDetailState {
   final List<({String day, double costUsd})> series;
   final double perDay;
   final String? token;
+  final String? error;
 
   const AccountDetailState({
     required this.loading,
@@ -282,7 +361,29 @@ class AccountDetailState {
     this.series = const [],
     this.perDay = 0,
     this.token,
+    this.error,
   });
+
+  AccountDetailState copyWith({
+    bool? loading,
+    AccountRow? account,
+    SnapshotRow? latest,
+    List<SnapshotRow>? history,
+    List<({String day, double costUsd})>? series,
+    double? perDay,
+    String? token,
+    String? error,
+    bool clearError = false,
+  }) => AccountDetailState(
+    loading: loading ?? this.loading,
+    account: account ?? this.account,
+    latest: latest ?? this.latest,
+    history: history ?? this.history,
+    series: series ?? this.series,
+    perDay: perDay ?? this.perDay,
+    token: token ?? this.token,
+    error: clearError ? null : error ?? this.error,
+  );
 }
 
 class AccountDetailViewModel extends ChangeNotifier {
@@ -293,36 +394,48 @@ class AccountDetailViewModel extends ChangeNotifier {
   AccountDetailState get state => _state;
 
   Future<void> load(String key) async {
-    final accounts = await _repo.accounts();
-    final matches = accounts.where((a) => a.key == key).toList();
-    if (matches.isEmpty) {
-      _state = const AccountDetailState(loading: false);
-      notifyListeners();
-      return;
+    try {
+      final accounts = await _repo.accounts();
+      final matches = accounts.where((a) => a.key == key).toList();
+      if (matches.isEmpty) {
+        _state = const AccountDetailState(loading: false);
+        notifyListeners();
+        return;
+      }
+      final account = matches.first;
+      final latest = await _repo.snapshotFor(key);
+      final history = await _repo.historyFor(key, limit: 30);
+      final series = await _repo.dailySpendFor(key);
+      final pace = dailyPace(series);
+      final token = await _repo.tokenFor(key);
+      _state = AccountDetailState(
+        loading: false,
+        account: account,
+        latest: latest,
+        history: history,
+        series: series,
+        perDay: pace.perDay,
+        token: token,
+      );
+    } catch (e) {
+      _state = _state.copyWith(
+        loading: false,
+        error: conciseError(e.toString()),
+      );
+      debugPrint('account detail load failed: $e');
     }
-    final account = matches.first;
-    final latest = await _repo.snapshotFor(key);
-    final history = await _repo.historyFor(key, limit: 30);
-    final series = await _repo.dailySpendFor(key);
-    final pace = dailyPace(series);
-    final token = await _repo.tokenFor(key);
-    _state = AccountDetailState(
-      loading: false,
-      account: account,
-      latest: latest,
-      history: history,
-      series: series,
-      perDay: pace.perDay,
-      token: token,
-    );
     notifyListeners();
   }
 
   Future<bool> refresh() async {
     final account = _state.account;
     if (account == null) return false;
-    final ok = (await _repo.refreshAccount(account)).ok;
+    final result = await _repo.refreshAccount(account);
     await load(account.key);
-    return ok;
+    if (!result.ok) {
+      _state = _state.copyWith(error: conciseError(result.error));
+      notifyListeners();
+    }
+    return result.ok;
   }
 }

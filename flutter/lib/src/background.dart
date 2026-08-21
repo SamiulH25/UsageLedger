@@ -31,8 +31,7 @@ void callbackDispatcher() {
 /// One background pass: refresh everything, then notifications + widget.
 Future<void> runBackgroundSync() async {
   final repo = UsageRepository.instance;
-  final result = await repo.refreshAll();
-  if (result.failed.isNotEmpty) return;
+  await repo.refreshAll();
   final notifier = LimitNotifier(repo: repo);
   await notifier.init();
   await notifier.evaluate(await repo.overviews());

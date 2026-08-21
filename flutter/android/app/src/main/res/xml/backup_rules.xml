@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<full-backup-content>
+    <exclude domain="file" path="tokens"/>
+    <exclude domain="database" path="usage.db"/>
+    <exclude domain="sharedpref" path="FlutterSecureStorage"/>
+</full-backup-content>

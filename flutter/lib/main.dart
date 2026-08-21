@@ -9,11 +9,13 @@ import 'src/screens/accounts_screen.dart';
 import 'src/screens/add_account_screen.dart';
 import 'src/screens/history_screen.dart';
 import 'src/screens/home_screen.dart';
+import 'src/screens/onboarding_screen.dart';
 import 'src/state/app_scope.dart';
 import 'src/state/sync_controller.dart';
 import 'src/state/view_models.dart';
 import 'src/background.dart';
 import 'src/services/limit_notifier.dart';
+import 'src/services/device_actions.dart';
 import 'src/ui/theme.dart';
 
 Future<void> main() async {
@@ -43,6 +45,9 @@ class _UsageLedgerAppState extends State<UsageLedgerApp> {
   late final OverviewViewModel _overviewVm;
   late final AccountsViewModel _accountsVm;
   late final HistoryViewModel _historyVm;
+  bool? _onboarded;
+  bool _notificationsInitialized = false;
+  bool _openAddAfterOnboarding = false;
 
   @override
   void initState() {
@@ -52,12 +57,42 @@ class _UsageLedgerAppState extends State<UsageLedgerApp> {
     _overviewVm = OverviewViewModel(repo: _repo, sync: _sync);
     _accountsVm = AccountsViewModel(repo: _repo);
     _historyVm = HistoryViewModel(repo: _repo);
-    // Kick off initial loads; sync.start() also runs the first refresh.
     _overviewVm.load();
     _accountsVm.load();
     _historyVm.load();
+    deviceActionsChannel.setMethodCallHandler((call) async {
+      if (call.method == 'syncNow') {
+        await _sync.sync();
+      }
+    });
     _sync.start();
-    _notifier.init();
+    _consumeSyncShortcut();
+    _repo.setting('onboarded').then((value) {
+      if (!mounted) return;
+      setState(() => _onboarded = value == '1');
+      if (value == '1') _initNotifications();
+    });
+  }
+
+  Future<void> _initNotifications() async {
+    if (_notificationsInitialized) return;
+    _notificationsInitialized = true;
+    await _notifier.init();
+  }
+
+  Future<void> _completeOnboarding(bool openAddAccount) async {
+    if (!mounted) return;
+    setState(() {
+      _onboarded = true;
+      _openAddAfterOnboarding = openAddAccount;
+    });
+    await _initNotifications();
+  }
+
+  Future<void> _consumeSyncShortcut() async {
+    if (await consumeSyncShortcut() && mounted) {
+      await _sync.sync();
+    }
   }
 
   @override
@@ -90,7 +125,14 @@ class _UsageLedgerAppState extends State<UsageLedgerApp> {
             PointerDeviceKind.trackpad,
           },
         ),
-        home: MainShell(onDataChanged: _reloadAll),
+        home: _onboarded == null
+            ? const Scaffold(body: Center(child: CircularProgressIndicator()))
+            : _onboarded!
+            ? MainShell(
+                onDataChanged: _reloadAll,
+                openAddAccount: _openAddAfterOnboarding,
+              )
+            : OnboardingScreen(onDone: _completeOnboarding),
       ),
     );
   }
@@ -106,8 +148,13 @@ class _UsageLedgerAppState extends State<UsageLedgerApp> {
 
 class MainShell extends StatefulWidget {
   final Future<void> Function() onDataChanged;
+  final bool openAddAccount;
 
-  const MainShell({super.key, required this.onDataChanged});
+  const MainShell({
+    super.key,
+    required this.onDataChanged,
+    this.openAddAccount = false,
+  });
 
   @override
   State<MainShell> createState() => _MainShellState();
@@ -115,6 +162,19 @@ class MainShell extends StatefulWidget {
 
 class _MainShellState extends State<MainShell> {
   int _tab = 0;
+  bool _openedInitialAddAccount = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.openAddAccount) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || _openedInitialAddAccount) return;
+        _openedInitialAddAccount = true;
+        _openAdd();
+      });
+    }
+  }
 
   Future<void> _openAdd() async {
     await showModalBottomSheet<bool>(

@@ -179,6 +179,17 @@ class CursorProvider implements AiProvider {
     final period = results[0];
     final agg = results[1];
 
+    Map<String, dynamic>? planInfo;
+    try {
+      final planResponse = await _rpc(
+        'aiserver.v1.DashboardService',
+        'GetPlanInfo',
+        {},
+        token,
+      );
+      planInfo = planResponse['planInfo'] as Map<String, dynamic>?;
+    } catch (_) {}
+
     final plan = period['planUsage'] as Map<String, dynamic>? ?? {};
     final spent = _num(plan['totalSpend']).toDouble();
     final included = _num(plan['includedSpend']).toDouble();
@@ -222,7 +233,15 @@ class CursorProvider implements AiProvider {
 
     // Auto / API / total percentages are slices of ONE included pool.
     // Bonus spend sits outside that pool and is not a third $70 bar.
-    final includedDollars = included / 100;
+    var includedDollars = included / 100;
+    if (includedDollars <= 0) {
+      final fallbackCents = _num(planInfo?['includedAmountCents']);
+      if (fallbackCents > 0) includedDollars = fallbackCents / 100;
+    }
+    final planName = (planInfo?['planName'] as String?)?.trim() ?? '';
+    final includedLabel = planName.isNotEmpty
+        ? '$planName included'
+        : 'Included';
     final autoPct = (_num(plan['autoPercentUsed']) / 100).clamp(0.0, 1.0);
     final apiPct = (_num(plan['apiPercentUsed']) / 100).clamp(0.0, 1.0);
     final totalPct = (_num(plan['totalPercentUsed']) / 100).clamp(0.0, 1.0);
@@ -235,7 +254,7 @@ class CursorProvider implements AiProvider {
       windows.add(
         LimitWindow(
           id: 'cursor:included',
-          label: 'Included',
+          label: includedLabel,
           used: includedDollars * totalPct,
           cap: includedDollars,
           resetAt: cycleEnd,
@@ -276,6 +295,32 @@ class CursorProvider implements AiProvider {
           kind: LimitKind.extra,
         ),
       );
+    }
+
+    final spendLimit = period['spendLimitUsage'] as Map<String, dynamic>?;
+    if (spendLimit != null) {
+      final limitType = (spendLimit['limitType'] as String? ?? 'individual')
+          .toLowerCase();
+      final usePooled = limitType.contains('pool');
+      final limitCents = usePooled
+          ? _num(spendLimit['pooledLimit'])
+          : _num(spendLimit['individualLimit']);
+      final usedCents = usePooled
+          ? _num(spendLimit['pooledUsed'])
+          : _num(spendLimit['individualUsed']);
+      if (limitCents > 0) {
+        windows.add(
+          LimitWindow(
+            id: 'cursor:ondemand',
+            label: 'On-demand',
+            used: usedCents / 100,
+            cap: limitCents / 100,
+            resetAt: cycleEnd,
+            exceeded: usedCents >= limitCents,
+            kind: LimitKind.budget,
+          ),
+        );
+      }
     }
 
     return ProviderUsage(

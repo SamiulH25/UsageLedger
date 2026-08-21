@@ -33,61 +33,75 @@ class PoolGauge extends StatelessWidget {
   Widget build(BuildContext context) {
     final f = window.fraction.clamp(0.0, 1.0);
     final color = limitColor(f, exceeded: window.exceeded);
+    final textColor = limitTextColor(f, exceeded: window.exceeded);
     final reset = fmtResetAt(window.resetAt);
     final caret = paceCaretFraction?.clamp(0.0, 1.0);
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.baseline,
-          textBaseline: TextBaseline.alphabetic,
+    final semanticStatus = window.cap > 0
+        ? '${fmtPct(f)} used, ${fmtLeft(window)}'
+        : '${fmtCost(window.used)} spent, uncapped';
+    final semanticReset = reset.isEmpty ? '' : ', $reset';
+
+    return Semantics(
+      container: true,
+      label: '${window.label}: $semanticStatus$semanticReset.',
+      child: ExcludeSemantics(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(
-              child: Text(
-                window.label.toUpperCase(),
-                style: AppText.sectionLabel.copyWith(color: AppColors.text),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.baseline,
+              textBaseline: TextBaseline.alphabetic,
+              children: [
+                Expanded(
+                  child: Text(
+                    window.label.toUpperCase(),
+                    style: AppText.sectionLabel.copyWith(color: AppColors.text),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  window.cap > 0 ? fmtLeft(window) : fmtCost(window.used),
+                  style: AppText.data(size: 11, color: AppColors.textDim),
+                ),
+              ],
             ),
-            const SizedBox(width: 8),
-            Text(
-              window.cap > 0
-                  ? '${fmtCost(window.used)} / ${fmtCost(window.cap)}'
-                  : fmtCost(window.used),
-              style: AppText.data(size: 11, color: AppColors.textDim),
+            const SizedBox(height: 6),
+            _GaugeTrack(
+              fraction: f,
+              color: color,
+              caretFraction: caret,
+              height: compact ? 8 : 12,
+            ),
+            const SizedBox(height: 5),
+            Row(
+              children: [
+                Text(
+                  window.exceeded
+                      ? 'EMPTY'
+                      : window.cap > 0
+                      ? '${fmtPct(f)} used'
+                      : 'UNCAPPED',
+                  style: AppText.data(
+                    size: 10,
+                    weight: FontWeight.w700,
+                    color: textColor,
+                    spacing: 0.6,
+                  ),
+                ),
+                const Spacer(),
+                if (reset.isNotEmpty)
+                  Text(
+                    reset,
+                    style: AppText.data(size: 10, color: AppColors.textDim),
+                  ),
+              ],
             ),
           ],
         ),
-        const SizedBox(height: 6),
-        _GaugeTrack(
-          fraction: f,
-          color: color,
-          caretFraction: caret,
-          height: compact ? 8 : 12,
-        ),
-        const SizedBox(height: 5),
-        Row(
-          children: [
-            Text(
-              window.exceeded ? 'LIMIT REACHED' : fmtPct(f),
-              style: AppText.data(
-                size: 10,
-                weight: FontWeight.w700,
-                color: color,
-                spacing: 0.6,
-              ),
-            ),
-            const Spacer(),
-            if (reset.isNotEmpty)
-              Text(
-                reset,
-                style: AppText.data(size: 10, color: AppColors.textDim),
-              ),
-          ],
-        ),
-      ],
+      ),
     );
   }
 }
@@ -194,6 +208,7 @@ class ShareBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final f = fraction.clamp(0.0, 1.0);
     final color = limitColor(f, exceeded: exceeded);
+    final textColor = limitTextColor(f, exceeded: exceeded);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -212,7 +227,7 @@ class ShareBar extends StatelessWidget {
               style: AppText.data(
                 size: 10,
                 weight: FontWeight.w700,
-                color: color,
+                color: textColor,
               ),
             ),
           ],
@@ -273,14 +288,24 @@ class StatRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        for (var i = 0; i < children.length; i++) ...[
-          if (i > 0) const SizedBox(width: 24),
-          children[i],
-        ],
-      ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth < 330) {
+          final width = (constraints.maxWidth - 16) / 2;
+          return Wrap(
+            spacing: 16,
+            runSpacing: 12,
+            children: [
+              for (final child in children)
+                SizedBox(width: width, child: child),
+            ],
+          );
+        }
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [for (final child in children) Expanded(child: child)],
+        );
+      },
     );
   }
 }
@@ -357,8 +382,10 @@ class BrandBarWithSync extends StatelessWidget {
       builder: (context, _) => AppBrandBar(
         actions: [
           SyncChip(
-            lastSyncAt: scope.sync.lastSyncAt,
+            lastAttemptAt: scope.sync.lastAttemptAt,
+            lastSuccessAt: scope.sync.lastSuccessAt,
             syncing: scope.sync.syncing,
+            failed: scope.sync.syncFailed,
             onTap: () => scope.sync.sync(),
           ),
           if (onOpenSettings != null)
@@ -376,14 +403,18 @@ class BrandBarWithSync extends StatelessWidget {
 
 /// Mono status chip: SYNCED 2M AGO / SYNCING… / AUTO OFF.
 class SyncChip extends StatelessWidget {
-  final DateTime? lastSyncAt;
+  final DateTime? lastAttemptAt;
+  final DateTime? lastSuccessAt;
   final bool syncing;
+  final bool failed;
   final VoidCallback onTap;
 
   const SyncChip({
     super.key,
-    required this.lastSyncAt,
+    required this.lastAttemptAt,
+    required this.lastSuccessAt,
     required this.syncing,
+    required this.failed,
     required this.onTap,
   });
 
@@ -391,30 +422,43 @@ class SyncChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final label = syncing
         ? 'SYNCING…'
-        : lastSyncAt == null
+        : failed
+        ? 'SYNC FAILED'
+        : lastSuccessAt == null
         ? 'NOT SYNCED'
-        : 'SYNCED ${_ago(lastSyncAt!).toUpperCase()}';
-    final color = syncing ? AppColors.accent : AppColors.textDim;
-    return ActionChip(
-      onPressed: syncing ? null : onTap,
-      backgroundColor: Colors.transparent,
-      side: BorderSide(color: AppColors.border),
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
-      visualDensity: VisualDensity.compact,
-      avatar: syncing
-          ? SizedBox(
-              width: 12,
-              height: 12,
-              child: CircularProgressIndicator(strokeWidth: 1.6, color: color),
-            )
-          : Icon(Icons.satellite_alt_outlined, size: 13, color: color),
-      label: Text(
-        label,
-        style: AppText.data(
-          size: 9.5,
-          weight: FontWeight.w600,
-          color: color,
-          spacing: 0.8,
+        : 'SYNCED ${_ago(lastSuccessAt!).toUpperCase()}';
+    final color = syncing
+        ? AppColors.accent
+        : failed
+        ? AppColors.dangerText
+        : AppColors.textDim;
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: 48),
+      child: ActionChip(
+        onPressed: syncing ? null : onTap,
+        backgroundColor: Colors.transparent,
+        side: BorderSide(color: AppColors.border),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
+        visualDensity: VisualDensity.standard,
+        tooltip: failed ? 'Retry sync' : 'Sync now',
+        avatar: syncing
+            ? SizedBox(
+                width: 12,
+                height: 12,
+                child: CircularProgressIndicator(
+                  strokeWidth: 1.6,
+                  color: color,
+                ),
+              )
+            : Icon(Icons.satellite_alt_outlined, size: 13, color: color),
+        label: Text(
+          label,
+          style: AppText.data(
+            size: 9.5,
+            weight: FontWeight.w600,
+            color: color,
+            spacing: 0.8,
+          ),
         ),
       ),
     );
@@ -490,7 +534,7 @@ class InlineMessage extends StatelessWidget {
         icon: Icons.error_outline,
         background: AppColors.dangerSoft,
         border: AppColors.danger.withValues(alpha: .4),
-        foreground: AppColors.danger,
+        foreground: AppColors.dangerText,
         action: action,
       );
 
@@ -610,7 +654,7 @@ class AddAccountCard extends StatelessWidget {
                   ),
                   SizedBox(height: 2),
                   Text(
-                    'Command Code or Cursor · key stays on device',
+                    'Any connected provider · key stays on device',
                     style: TextStyle(fontSize: 11, color: AppColors.textDim),
                   ),
                 ],
@@ -752,7 +796,7 @@ class AccountUsageCard extends StatelessWidget {
                     style: AppText.data(
                       size: 9.5,
                       color: account.syncError.isNotEmpty
-                          ? AppColors.danger
+                          ? AppColors.dangerText
                           : AppColors.textDim,
                       spacing: 0.6,
                     ),
@@ -760,9 +804,14 @@ class AccountUsageCard extends StatelessWidget {
                 ],
               ),
             ),
-            Text(
-              fmtCost(costUsd),
-              style: AppText.data(size: 17, weight: FontWeight.w700),
+            Flexible(
+              child: Text(
+                fmtCost(costUsd),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.end,
+                style: AppText.data(size: 17, weight: FontWeight.w700),
+              ),
             ),
             if (onOpen != null) ...[
               const SizedBox(width: 4),
@@ -774,6 +823,13 @@ class AccountUsageCard extends StatelessWidget {
             ],
           ],
         ),
+        if (account.platform == 'cursor' && costUsd <= 0 && tokenCount > 0) ...[
+          const SizedBox(height: 10),
+          Text(
+            'Tokens only — Cursor no longer reports per-request dollars on self-serve plans.',
+            style: AppText.data(size: 10.5, color: AppColors.accent),
+          ),
+        ],
         if (banner != null) ...[const SizedBox(height: 10), banner!],
         if (bursts.isNotEmpty ||
             budgets.isNotEmpty ||
@@ -972,6 +1028,20 @@ class ModelBreakdownPanel extends StatelessWidget {
     );
   }
 
+  String _tokenSplit(ModelUsage model) {
+    final parts = <String>[
+      if (model.inputTokens > 0) '${fmtTokens(model.inputTokens)} in',
+      if (model.outputTokens > 0) '${fmtTokens(model.outputTokens)} out',
+      if (model.cacheReadTokens > 0)
+        '${fmtTokens(model.cacheReadTokens)} cache r',
+      if (model.cacheWriteTokens > 0)
+        '${fmtTokens(model.cacheWriteTokens)} cache w',
+    ];
+    return parts.isEmpty
+        ? '${fmtTokens(model.totalTokens)} tok'
+        : parts.join(' · ');
+  }
+
   Widget _modelRow(ModelUsage model, double totalCost) {
     final share = totalCost > 0 ? model.costUsd / totalCost : 0.0;
     return Padding(
@@ -991,9 +1061,7 @@ class ModelBreakdownPanel extends StatelessWidget {
                 ),
                 if (model.totalTokens > 0)
                   Text(
-                    model.inputTokens > 0 && model.outputTokens > 0
-                        ? '${fmtTokens(model.inputTokens)} in · ${fmtTokens(model.outputTokens)} out'
-                        : '${fmtTokens(model.totalTokens)} tok',
+                    _tokenSplit(model),
                     style: AppText.data(size: 10, color: AppColors.textDim),
                   ),
               ],
@@ -1019,14 +1087,27 @@ class ModelBreakdownPanel extends StatelessWidget {
   }
 }
 
-class ApiKeyPanel extends StatelessWidget {
+class ApiKeyPanel extends StatefulWidget {
   final String apiKey;
 
   const ApiKeyPanel({super.key, required this.apiKey});
 
-  Future<void> _copy(BuildContext context) async {
-    await Clipboard.setData(ClipboardData(text: apiKey));
-    if (!context.mounted) return;
+  @override
+  State<ApiKeyPanel> createState() => _ApiKeyPanelState();
+}
+
+class _ApiKeyPanelState extends State<ApiKeyPanel> {
+  bool _revealed = false;
+
+  String get _masked {
+    final key = widget.apiKey;
+    if (key.length <= 4) return '••••';
+    return '•••• ${key.substring(key.length - 4)}';
+  }
+
+  Future<void> _copy() async {
+    await Clipboard.setData(ClipboardData(text: widget.apiKey));
+    if (!mounted) return;
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(const SnackBar(content: Text('API key copied')));
@@ -1048,13 +1129,12 @@ class ApiKeyPanel extends StatelessWidget {
               border: Border.all(color: AppColors.border),
             ),
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
+              padding: const EdgeInsets.fromLTRB(12, 4, 4, 4),
               child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Expanded(
-                    child: SelectableText(
-                      apiKey,
+                    child: Text(
+                      _revealed ? widget.apiKey : _masked,
                       style: AppText.data(
                         size: 11,
                         color: AppColors.textDim,
@@ -1063,7 +1143,18 @@ class ApiKeyPanel extends StatelessWidget {
                     ),
                   ),
                   IconButton(
-                    onPressed: () => _copy(context),
+                    onPressed: () => setState(() => _revealed = !_revealed),
+                    icon: Icon(
+                      _revealed
+                          ? Icons.visibility_off_outlined
+                          : Icons.visibility_outlined,
+                      size: 18,
+                    ),
+                    tooltip: _revealed ? 'Hide key' : 'Show key',
+                    visualDensity: VisualDensity.compact,
+                  ),
+                  IconButton(
+                    onPressed: _copy,
                     icon: const Icon(Icons.copy, size: 18),
                     tooltip: 'Copy API key',
                     visualDensity: VisualDensity.compact,

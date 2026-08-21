@@ -8,6 +8,8 @@ import '../ui/widgets.dart';
 import 'account_detail_screen.dart';
 import 'settings_screen.dart';
 
+enum _AccountAction { rename, remove }
+
 class AccountsScreen extends StatelessWidget {
   final VoidCallback onOpenAdd;
 
@@ -49,12 +51,36 @@ class AccountsScreen extends StatelessWidget {
                         : '${rows.length} connected · keys stay on this device',
                   ),
                   const SizedBox(height: 18),
-                  if (rows.isEmpty)
+                  if (scope.accountsVm.error != null && rows.isNotEmpty) ...[
+                    InlineMessage.error(
+                      scope.accountsVm.error!,
+                      action: TextButton(
+                        onPressed: () => scope.accountsVm.load(),
+                        child: const Text('Retry'),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+                  if (scope.accountsVm.loading && rows.isEmpty)
+                    const EmptyState(
+                      icon: Icons.sync,
+                      title: 'Loading accounts',
+                      hint: 'Reading accounts stored on this device.',
+                    )
+                  else if (scope.accountsVm.error != null && rows.isEmpty)
+                    InlineMessage.error(
+                      scope.accountsVm.error!,
+                      action: TextButton(
+                        onPressed: () => scope.accountsVm.load(),
+                        child: const Text('Retry'),
+                      ),
+                    )
+                  else if (rows.isEmpty)
                     EmptyState(
                       icon: Icons.account_circle_outlined,
                       title: 'No accounts yet',
                       hint:
-                          'Add Command Code or Cursor to see spend, limits, and reset times here.',
+                          'Add a provider to see spend, limits, and reset times here.',
                       action: FilledButton.icon(
                         onPressed: onOpenAdd,
                         icon: const Icon(Icons.add, size: 18),
@@ -122,16 +148,21 @@ class AccountsScreen extends StatelessWidget {
           icon: const Icon(Icons.refresh, size: 18),
           label: const Text('Sync'),
         ),
-        TextButton(
-          onPressed: () => _rename(context, scope, row),
-          child: const Text('Rename', style: TextStyle(fontSize: 13)),
-        ),
-        TextButton(
-          onPressed: () => _removeOne(context, scope, row),
-          child: const Text(
-            'Remove',
-            style: TextStyle(color: AppColors.danger, fontSize: 13),
-          ),
+        const Spacer(),
+        PopupMenuButton<_AccountAction>(
+          tooltip: 'More account actions',
+          onSelected: (action) {
+            switch (action) {
+              case _AccountAction.rename:
+                _rename(context, scope, row);
+              case _AccountAction.remove:
+                _removeOne(context, scope, row);
+            }
+          },
+          itemBuilder: (context) => const [
+            PopupMenuItem(value: _AccountAction.rename, child: Text('Rename')),
+            PopupMenuItem(value: _AccountAction.remove, child: Text('Remove')),
+          ],
         ),
       ],
     );

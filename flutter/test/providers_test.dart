@@ -144,6 +144,17 @@ void main() {
               'autoBucketModels': ['auto-mode'],
               'billingCycleEnd': '1756100000',
               'displayMessage': '',
+              'spendLimitUsage': {
+                'limitType': 'individual',
+                'individualLimit': '5000',
+                'individualUsed': '1200',
+                'pooledLimit': '0',
+                'pooledUsed': '0',
+              },
+            });
+          case '/aiserver.v1.DashboardService/GetPlanInfo':
+            return _json({
+              'planInfo': {'planName': 'Pro', 'includedAmountCents': 7000},
             });
           case '/aiserver.v1.DashboardService/GetAggregatedUsageEvents':
             return _json({
@@ -217,6 +228,24 @@ void main() {
       expect(usage.models.first.costUsd, closeTo(1.2, 0.001));
     });
 
+    test(
+      'GetPlanInfo prefixes included label and adds on-demand window',
+      () async {
+        final usage = await provider.fetchUsage('crsr_${'x' * 24}');
+        final included = usage.windows.firstWhere(
+          (w) => w.id == 'cursor:included',
+        );
+        expect(included.label, 'Pro included');
+        final ondemand = usage.windows.firstWhere(
+          (w) => w.id == 'cursor:ondemand',
+        );
+        expect(ondemand.label, 'On-demand');
+        expect(ondemand.used, closeTo(12, 0.001));
+        expect(ondemand.cap, closeTo(50, 0.001));
+        expect(ondemand.kind, LimitKind.budget);
+      },
+    );
+
     test('rejected key surfaces a clear error', () async {
       final rejecting = CursorProvider(
         client: MockClient(
@@ -245,6 +274,7 @@ void main() {
                 'limit': 20,
                 'usage': 4.5,
                 'limit_remaining': 15.5,
+                'usage_daily': 1.2,
               },
             });
           case '/api/v1/credits':
@@ -298,7 +328,9 @@ void main() {
 
     test('credits and key quota become budget windows', () async {
       final usage = await provider.fetchUsage('sk-or-v1-abc');
-      final credits = usage.windows.firstWhere((w) => w.id == 'openrouter:credits');
+      final credits = usage.windows.firstWhere(
+        (w) => w.id == 'openrouter:credits',
+      );
       expect(credits.used, 25.75);
       expect(credits.cap, 100.5);
       final quota = usage.windows.firstWhere((w) => w.id == 'openrouter:key');
@@ -318,33 +350,50 @@ void main() {
       expect(usage.totals.costUsd, 25.75);
     });
 
-    test('regular keys degrade to key-quota only (403 on credits + activity)',
-        () async {
-      final limited = OpenRouterProvider(
-        client: MockClient((req) async {
-          if (req.url.path == '/api/v1/credits' ||
-              req.url.path == '/api/v1/activity') {
-            return _json({
-              'error': {'code': 403, 'message': 'Only management keys'},
-            }, status: 403);
-          }
-          if (req.url.path == '/api/v1/key') {
-            return _json(
-              {'data': {'label': 'k', 'limit': 20.0, 'usage': 2.0}},
-            );
-          }
-          return http.Response('not found', 404);
-        }),
-      );
-      final usage = await limited.fetchUsage('sk-or-v1-abc');
-      expect(usage.windows.where((w) => w.id == 'openrouter:credits'), isEmpty);
-      expect(usage.windows.where((w) => w.id == 'openrouter:key'), isNotEmpty);
-      expect(usage.totals.costUsd, 2.0);
-      // No token history exists for regular keys — must not crash the sync.
-      expect(usage.models, isEmpty);
-      expect(usage.totals.inputTokens, 0);
-      expect(usage.totals.outputTokens, 0);
+    test('usage_daily from /key becomes a Today window', () async {
+      final usage = await provider.fetchUsage('sk-or-v1-abc');
+      final today = usage.windows.firstWhere((w) => w.id == 'openrouter:day');
+      expect(today.label, 'Today');
+      expect(today.used, closeTo(1.2, 0.001));
+      expect(today.cap, 0);
+      expect(today.kind, LimitKind.extra);
     });
+
+    test(
+      'regular keys degrade to key-quota only (403 on credits + activity)',
+      () async {
+        final limited = OpenRouterProvider(
+          client: MockClient((req) async {
+            if (req.url.path == '/api/v1/credits' ||
+                req.url.path == '/api/v1/activity') {
+              return _json({
+                'error': {'code': 403, 'message': 'Only management keys'},
+              }, status: 403);
+            }
+            if (req.url.path == '/api/v1/key') {
+              return _json({
+                'data': {'label': 'k', 'limit': 20.0, 'usage': 2.0},
+              });
+            }
+            return http.Response('not found', 404);
+          }),
+        );
+        final usage = await limited.fetchUsage('sk-or-v1-abc');
+        expect(
+          usage.windows.where((w) => w.id == 'openrouter:credits'),
+          isEmpty,
+        );
+        expect(
+          usage.windows.where((w) => w.id == 'openrouter:key'),
+          isNotEmpty,
+        );
+        expect(usage.totals.costUsd, 2.0);
+        // No token history exists for regular keys — must not crash the sync.
+        expect(usage.models, isEmpty);
+        expect(usage.totals.inputTokens, 0);
+        expect(usage.totals.outputTokens, 0);
+      },
+    );
   });
 
   group('OpenAiProvider', () {
@@ -412,8 +461,23 @@ void main() {
                     'num_model_requests': 9,
                     'model': 'gpt-5.2',
                   },
+                ],
+              },
+            ],
+            'has_more': false,
+            'next_page': null,
+          });
+        }
+        if (path == '/v1/organization/usage/embeddings') {
+          return _json({
+            'object': 'page',
+            'data': [
+              {
+                'object': 'bucket',
+                'start_time': 1755561600,
+                'results': [
                   {
-                    'object': 'organization.usage.completions.result',
+                    'object': 'organization.usage.embeddings.result',
                     'input_tokens': 200,
                     'output_tokens': 60,
                     'num_model_requests': 3,
@@ -450,16 +514,29 @@ void main() {
       final gpt = usage.models.firstWhere((m) => m.model == 'gpt-5.2');
       expect(gpt.inputTokens, 1200);
       expect(gpt.outputTokens, 340);
+      final embed = usage.models.firstWhere(
+        (m) => m.model == 'text-embedding-4',
+      );
+      expect(embed.inputTokens, 200);
+      expect(embed.outputTokens, 60);
       expect(usage.totals.requests, 12);
+    });
+
+    test('unmatched cost line items become model rows', () async {
+      final usage = await provider.fetchUsage('sk-admin-x');
+      final embeddings = usage.models.firstWhere(
+        (m) => m.model == 'Embeddings',
+      );
+      expect(embeddings.costUsd, closeTo(0.25, 0.001));
+      expect(embeddings.inputTokens, 0);
+      expect(embeddings.outputTokens, 0);
     });
 
     test('project keys get an admin-key error', () async {
       final rejecting = OpenAiProvider(
         client: MockClient(
           (req) async => _json({
-            'error': {
-              'message': 'Missing scopes: api.usage.read.',
-            },
+            'error': {'message': 'Missing scopes: api.usage.read.'},
           }, status: 403),
         ),
       );

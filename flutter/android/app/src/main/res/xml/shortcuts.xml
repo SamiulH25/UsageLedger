@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="sync_now"
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutShortLabel="@string/sync_now"
+        android:shortcutLongLabel="@string/sync_now_long">
+        <intent
+            android:action="dev.bob2142.ai_usage_monitor.SYNC"
+            android:targetPackage="dev.bob2142.ai_usage_monitor"
+            android:targetClass="dev.bob2142.ai_usage_monitor.MainActivity" />
+    </shortcut>
+</shortcuts>

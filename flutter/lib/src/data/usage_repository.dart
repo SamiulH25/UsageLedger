@@ -24,6 +24,23 @@ class RefreshResult {
   const RefreshResult({required this.ok, required this.account, this.error});
 }
 
+class UsageDelta {
+  final double costUsd;
+  final int requests;
+  final int inputTokens;
+  final int outputTokens;
+
+  const UsageDelta({
+    this.costUsd = 0,
+    this.requests = 0,
+    this.inputTokens = 0,
+    this.outputTokens = 0,
+  });
+
+  int get tokens => inputTokens + outputTokens;
+  bool get isEmpty => costUsd <= 0 && requests <= 0 && tokens <= 0;
+}
+
 /// One account joined with its latest snapshot.
 class AccountOverview {
   final AccountRow account;
@@ -73,6 +90,41 @@ class UsageRepository {
 
   Future<({double costUsd, int requests, int inputTokens, int outputTokens})>
   totals() => db.aggregated();
+
+  /// Difference between each account's two newest snapshots.
+  ///
+  /// Provider totals are usually period-to-date values. When a provider
+  /// resets a period, the newest value is treated as the new delta instead of
+  /// producing a negative number.
+  Future<UsageDelta> deltaSincePrevious() async {
+    final accounts = await db.listAccounts();
+    var cost = 0.0;
+    var requests = 0;
+    var input = 0;
+    var output = 0;
+
+    int deltaInt(int current, int previous) =>
+        current >= previous ? current - previous : current;
+    double deltaCost(double current, double previous) =>
+        current >= previous ? current - previous : current;
+
+    for (final account in accounts) {
+      final snapshots = await db.snapshotHistory(account.key, limit: 2);
+      if (snapshots.length < 2) continue;
+      final current = snapshots[0];
+      final previous = snapshots[1];
+      cost += deltaCost(current.costUsd, previous.costUsd);
+      requests += deltaInt(current.requests, previous.requests);
+      input += deltaInt(current.inputTokens, previous.inputTokens);
+      output += deltaInt(current.outputTokens, previous.outputTokens);
+    }
+    return UsageDelta(
+      costUsd: cost,
+      requests: requests,
+      inputTokens: input,
+      outputTokens: output,
+    );
+  }
 
   // --- writes ---
 
@@ -169,6 +221,13 @@ class UsageRepository {
     await db.upsertAccount(account);
     await refreshAccount(account);
     return account;
+  }
+
+  Future<void> restoreAccount(AccountRow account, {String? token}) async {
+    if (token != null && token.trim().isNotEmpty) {
+      await db.saveToken(account.key, token.trim());
+    }
+    await db.upsertAccount(account);
   }
 
   Future<void> removeAccount(String key) async {

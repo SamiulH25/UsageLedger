@@ -11,3 +11,7 @@ flutter/.dart_tool/
 flutter/android/key.properties
 flutter/android/upload-keystore.jks
 flutter/android/local.properties
+
+# Release artifacts built locally
+*.apk
+*.aab

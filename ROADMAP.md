@@ -42,19 +42,39 @@ checker; no Play Store, no iOS). Command Code, Cursor, **OpenRouter**, and
 4. **Home-screen widget** ✅ — NEXT WALL gauge fed by foreground + background
    syncs (on-device layout check pending).
 
-## v1.0.0 — Release hardening
+## v0.7.0 — Remaining-first + early warning — IN TREE 2026-08-21
 
-1. **In-app update checker** — GitHub Releases API, compare `versionCode`,
-   banner + deep-link to the APK asset. The distribution channel *is* the
-   app.
-2. **Onboarding** — first-run screen: what the app does, privacy pitch
-   (keys stay on device), add first account.
-3. **State audit** — offline behavior, empty states per tab, error
-   recovery paths.
-4. **Landing page refresh** — real screenshots, provider list, changelog
-   highlights per release.
-5. **Version policy** — semver discipline, per-release changelog in the
-   release notes.
+1. **Night-ledger visuals** ✅ — remaining-first hero and gauges, banker's
+   green / brass / carmine.
+2. **Tiered alerts** ✅ — 80 / 90 / empty channels; partial sync still
+   notifies.
+3. **Leftover APIs** ✅ — OpenRouter day/week/month, Cursor plan + on-demand,
+   OpenAI leftover line items, cache token split.
+4. **Anthropic + DeepSeek** ✅ — admin usage/cost and prepaid balance.
+5. **Trust** ✅ — Android Keystore tokens, `allowBackup=false`, masked keys,
+   JSON backup, onboarding, GitHub update checker, widget tap, Sync now
+   shortcut, launcher name UsageLedger.
+6. **On-device checks** ⏳ — still need a sideload on the S23.
+
+## v1.0.0 — Remaining
+
+1. **Landing page refresh** — the night-ledger rewrite is drafted, but
+   `docs/index.html` is root-owned in this checkout and needs a one-time
+   ownership fix before it can be written.
+2. **On-device verification** — notifications + widget on a real phone.
+3. **Publish** — signed APK + GitHub Release v1.0.0.
+
+### v1.0.0 implementation pass
+
+The remaining app work is now in tree:
+
+* Sync deltas show what changed since the previous capture.
+* The medium widget lists the three hottest pools.
+* Backups can be imported and API-key backups can be PBKDF2/AES-GCM
+  passphrase protected.
+* Settings includes an Android battery-optimization coach.
+* The Sync now launcher shortcut performs an immediate refresh.
+* Anthropic and DeepSeek use their own provider logos.
 
 Explicitly out of scope for v1.0: Play Store, iOS, crash reporting
 (conflicts with the "nothing leaves your phone" pitch), cloud sync.

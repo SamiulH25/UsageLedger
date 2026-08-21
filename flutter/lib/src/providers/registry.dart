@@ -1,12 +1,16 @@
+import 'anthropic.dart';
 import 'commandcode.dart';
 import 'cursor.dart';
+import 'deepseek.dart';
 import 'openai.dart';
 import 'openrouter.dart';
 import 'types.dart';
 
 final List<AiProvider> providers = [
+  AnthropicProvider(),
   CommandCodeProvider(),
   CursorProvider(),
+  DeepSeekProvider(),
   OpenRouterProvider(),
   OpenAiProvider(),
 ];
@@ -22,8 +26,12 @@ String providerName(String id) => providerById(id)?.name ?? id;
 
 String? providerIconAsset(String id) {
   switch (id) {
+    case 'anthropic':
+      return 'assets/providers/anthropic.png';
     case 'commandcode':
       return 'assets/providers/commandcode.png';
+    case 'deepseek':
+      return 'assets/providers/deepseek.png';
     case 'cursor':
       return 'assets/providers/cursor.png';
     case 'openrouter':

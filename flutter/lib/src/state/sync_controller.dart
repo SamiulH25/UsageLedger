@@ -24,7 +24,8 @@ class SyncController extends ChangeNotifier {
 
   Timer? _timer;
   bool _syncing = false;
-  DateTime? _lastSyncAt;
+  DateTime? _lastAttemptAt;
+  DateTime? _lastSuccessAt;
   int _intervalMinutes = _defaultInterval;
   String? _lastError;
 
@@ -33,15 +34,30 @@ class SyncController extends ChangeNotifier {
       _notifier = notifier;
 
   bool get syncing => _syncing;
-  DateTime? get lastSyncAt => _lastSyncAt;
+  DateTime? get lastAttemptAt => _lastAttemptAt;
+  DateTime? get lastSuccessAt => _lastSuccessAt;
+  DateTime? get lastSyncAt => _lastSuccessAt;
   int get intervalMinutes => _intervalMinutes;
   String? get lastError => _lastError;
+  bool get syncFailed => _lastError != null && _lastAttemptAt != null;
 
   /// Load persisted interval and start the auto-sync timer.
   Future<void> start() async {
     final stored = await _repo.setting(_intervalKey);
     final parsed = stored == null ? null : int.tryParse(stored);
     _intervalMinutes = parsed ?? _defaultInterval;
+    try {
+      final accounts = await _repo.accounts();
+      final latest = accounts
+          .map((account) => account.lastRefreshAt)
+          .where((value) => value > 0)
+          .fold<int>(0, (max, value) => value > max ? value : max);
+      if (latest > 0) {
+        _lastSuccessAt = DateTime.fromMillisecondsSinceEpoch(latest);
+      }
+    } catch (e) {
+      debugPrint('sync status load failed: $e');
+    }
     _applyTimer();
     // Initial sync when data is stale or missing.
     if (_intervalMinutes > 0) await sync();
@@ -70,23 +86,27 @@ class SyncController extends ChangeNotifier {
   Future<bool> sync() async {
     if (_syncing) return false;
     _syncing = true;
+    _lastAttemptAt = DateTime.now();
     _lastError = null;
     notifyListeners();
     try {
       final result = await _repo.refreshAll();
-      _lastSyncAt = DateTime.now();
       if (result.failed.isNotEmpty) {
-        _lastError = result.failed.first.error;
+        _lastError = conciseError(result.failed.first.error);
       } else {
-        // Notifications + widget; never block the sync on these.
-        try {
-          await _notifier?.evaluate(await _repo.overviews());
-          await feedWidget(_repo);
-        } catch (e) {
-          debugPrint('post-sync extras failed: $e');
-        }
+        _lastSuccessAt = _lastAttemptAt;
+      }
+      // Notifications + widget; never block the sync on these.
+      try {
+        await _notifier?.evaluate(await _repo.overviews());
+        await feedWidget(_repo);
+      } catch (e) {
+        debugPrint('post-sync extras failed: $e');
       }
       return result.failed.isEmpty;
+    } catch (e) {
+      _lastError = conciseError(e.toString());
+      return false;
     } finally {
       _syncing = false;
       notifyListeners();
@@ -98,4 +118,16 @@ class SyncController extends ChangeNotifier {
     _timer?.cancel();
     super.dispose();
   }
+}
+
+String conciseError(String? error) {
+  final cleaned = (error ?? '')
+      .replaceFirst(
+        RegExp(r'^(Exception|ClientException|FormatException):\s*'),
+        '',
+      )
+      .trim();
+  if (cleaned.isEmpty) return 'Sync failed. Check the connection and API key.';
+  if (cleaned.length <= 180) return cleaned;
+  return '${cleaned.substring(0, 177)}…';
 }

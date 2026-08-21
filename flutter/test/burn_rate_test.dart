@@ -104,6 +104,18 @@ void main() {
       expect(outlook.verdict(), 'on pace');
     });
 
+    test('safePerDay is remaining divided by days to reset', () {
+      final now = DateTime(2026, 8, 21, 12);
+      final reset = now.add(const Duration(days: 5)).millisecondsSinceEpoch;
+      final outlook = PoolOutlook.forWindow(
+        _window(used: 50, cap: 100, resetAt: reset),
+        1,
+        now: now,
+      );
+      expect(outlook.remaining, closeTo(50, 0.01));
+      expect(outlook.safePerDay, closeTo(10, 0.01));
+    });
+
     test('exceeded window reports empty regardless of pace', () {
       final outlook = PoolOutlook.forWindow(
         _window(used: 70, cap: 60, exceeded: true),

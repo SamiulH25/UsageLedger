@@ -20,12 +20,13 @@ Updated: 2026-08-21
 - [2026-08-21] **v0.6.0**: Insights & retention. History: 7D/30D/All range chips (view-model filters by capturedAt cutoff). Overview: LAST 7/30 DAYS spend readout computed from the daily series + cross-account "Top models" table (latest snapshots merged by model, top 6 by cost, share bars). CSV export (Settings → Data): snapshots + per-model rows, share sheet via share_plus. Android home-screen widget (home_widget): "NEXT WALL" gauge (pool, %, used/cap, reset, updated-at), fed after every successful sync — foreground and Workmanager background; Kotlin provider reads HomeWidgetPreferences.
 - [2026-08-21] **OpenRouter token fix**: v0.5 called `/activity` unguarded, but it is management-key-only — regular keys got 403 and the whole sync crashed (the "graceful degradation" test mocked `/activity` as 200, contradicting the documented API). `/activity` now degrades like `/credits`: regular keys keep the key-quota window; management keys get per-model token history (prompt/completion/reasoning folded into IN/OUT). Token usage surfaced next to dollars: detail header shows `tok · req` under the hero cost; model rows show `in · out` split instead of a bare total. Tests updated to the real 403 shape.
 - [2026-08-21] **v0.6.0 published**: GitHub Release v0.6.0 with the locally-signed APK (CI builds are debug-signed — attaching the upload-keystore APK keeps sideload updates installable). **CI fixed**: every run since v0.4.0 failed — the workflow ran Flutter commands at repo root instead of `flutter/`; both jobs now scope `working-directory: flutter`, the release step got `contents: write` and the correct asset path. Test + build jobs green.
+- [2026-08-21] **v1.0.0 in tree**: night-ledger remaining-first UI; tiered alerts + sync health; all six providers; Keystore tokens; onboarding; update checker; monthly envelope; hottest pools; sync deltas; encrypted backup import/export; medium three-pool widget; battery settings coach; working Sync now shortcut; real Anthropic + DeepSeek logos. Analyze and hermetic tests green. Pages `docs/index.html` is root-owned so the landing refresh is drafted but not applied.
 
 ## Next
 
-- Roadmap to v1.0 lives in `ROADMAP.md` (v0.4.0–v0.6.0 shipped; v1.0.0 hardening remains).
-- Verify limit notifications fire on a real device after sideloading; same for the home-screen widget.
-- Android: app icon polish (low priority; sideload only, no Play Store).
+- Sideload v1.0.0 APK and verify alerts + widget on the S23.
+- Apply the landing refresh after taking ownership of `docs/index.html`.
+- Create the GitHub Release when you want it published.
 
 ## Notes
 

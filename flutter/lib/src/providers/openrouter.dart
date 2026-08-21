@@ -87,13 +87,56 @@ class OpenRouterProvider implements AiProvider {
     if (totalUsage == 0) totalUsage = _n(key['usage']);
     final limit = _n(key['limit']);
     if (limit > 0) {
+      var keyUsed = _n(key['usage']);
+      final limitRemaining = key['limit_remaining'];
+      if (limitRemaining != null) {
+        final derived = limit - _n(limitRemaining);
+        if (derived >= 0) keyUsed = derived;
+      }
       windows.add(
         LimitWindow(
           id: 'openrouter:key',
           label: 'Key quota',
-          used: _n(key['usage']),
+          used: keyUsed,
           cap: limit,
           kind: LimitKind.budget,
+        ),
+      );
+    }
+
+    final daily = _n(key['usage_daily']);
+    if (daily > 0) {
+      windows.add(
+        LimitWindow(
+          id: 'openrouter:day',
+          label: 'Today',
+          used: daily,
+          cap: 0,
+          kind: LimitKind.extra,
+        ),
+      );
+    }
+    final weekly = _n(key['usage_weekly']);
+    if (weekly > 0) {
+      windows.add(
+        LimitWindow(
+          id: 'openrouter:week',
+          label: 'This week',
+          used: weekly,
+          cap: 0,
+          kind: LimitKind.extra,
+        ),
+      );
+    }
+    final monthly = _n(key['usage_monthly']);
+    if (monthly > 0) {
+      windows.add(
+        LimitWindow(
+          id: 'openrouter:month',
+          label: 'This month',
+          used: monthly,
+          cap: 0,
+          kind: LimitKind.extra,
         ),
       );
     }

@@ -79,6 +79,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
                         ('all', 'All'),
                         ('commandcode', 'Command Code'),
                         ('cursor', 'Cursor'),
+                        ('openrouter', 'OpenRouter'),
+                        ('openai', 'OpenAI'),
+                        ('anthropic', 'Anthropic'),
+                        ('deepseek', 'DeepSeek'),
                       ])
                         ChoiceChip(
                           label: Text(option.$2),
@@ -138,14 +142,37 @@ class _HistoryScreenState extends State<HistoryScreen> {
                         ),
                     ],
                   ),
-                  if (vm.loading || filtered.isEmpty)
+                  if (vm.error != null) ...[
+                    Padding(
+                      padding: const EdgeInsets.only(top: 16),
+                      child: InlineMessage.error(
+                        vm.error!,
+                        action: TextButton(
+                          onPressed: () => vm.load(),
+                          child: const Text('Retry'),
+                        ),
+                      ),
+                    ),
+                  ],
+                  if (vm.loading)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 24),
+                      child: const EmptyState(
+                        icon: Icons.sync,
+                        title: 'Loading history',
+                        hint: 'Reading saved snapshots.',
+                      ),
+                    )
+                  else if (vm.error == null && filtered.isEmpty)
                     Padding(
                       padding: const EdgeInsets.only(top: 24),
                       child: EmptyState(
                         icon: Icons.history,
-                        title: vm.loading ? 'Loading…' : 'No snapshots yet',
-                        hint: vm.loading
-                            ? ''
+                        title: vm.hasSnapshots
+                            ? 'No matching snapshots'
+                            : 'No snapshots yet',
+                        hint: vm.hasSnapshots
+                            ? 'Try another provider or time range.'
                             : 'Sync an account to start building your usage history.',
                       ),
                     )
