@@ -1,51 +1,257 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../db/db.dart';
 import '../providers/registry.dart';
 import '../providers/types.dart';
+import '../state/app_scope.dart';
 import 'theme.dart';
 
-class StatCard extends StatelessWidget {
+// ---------------------------------------------------------------------------
+// Signature element: the pool gauge.
+//
+// Every budget window is drawn as an instrument meter — a tick-marked track,
+// a fill in its semantic color, and (when burn rate says so) a caret marking
+// where the level will sit when the window resets.
+// ---------------------------------------------------------------------------
+
+class PoolGauge extends StatelessWidget {
+  final LimitWindow window;
+  final double? paceCaretFraction;
+  final bool compact;
+
+  const PoolGauge({
+    super.key,
+    required this.window,
+    this.paceCaretFraction,
+    this.compact = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final f = window.fraction.clamp(0.0, 1.0);
+    final color = limitColor(f, exceeded: window.exceeded);
+    final reset = fmtResetAt(window.resetAt);
+    final caret = paceCaretFraction?.clamp(0.0, 1.0);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.baseline,
+          textBaseline: TextBaseline.alphabetic,
+          children: [
+            Expanded(
+              child: Text(
+                window.label.toUpperCase(),
+                style: AppText.sectionLabel.copyWith(color: AppColors.text),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              window.cap > 0
+                  ? '${fmtCost(window.used)} / ${fmtCost(window.cap)}'
+                  : fmtCost(window.used),
+              style: AppText.data(size: 11, color: AppColors.textDim),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        _GaugeTrack(
+          fraction: f,
+          color: color,
+          caretFraction: caret,
+          height: compact ? 8 : 12,
+        ),
+        const SizedBox(height: 5),
+        Row(
+          children: [
+            Text(
+              window.exceeded ? 'LIMIT REACHED' : fmtPct(f),
+              style: AppText.data(
+                size: 10,
+                weight: FontWeight.w700,
+                color: color,
+                spacing: 0.6,
+              ),
+            ),
+            const Spacer(),
+            if (reset.isNotEmpty)
+              Text(reset, style: AppText.data(size: 10, color: AppColors.textDim)),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _GaugeTrack extends StatelessWidget {
+  final double fraction;
+  final Color color;
+  final double? caretFraction;
+  final double height;
+
+  const _GaugeTrack({
+    required this.fraction,
+    required this.color,
+    required this.height,
+    this.caretFraction,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth;
+        Widget ticks = Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            for (var i = 1; i < 10; i++)
+              Container(
+                width: 1,
+                height: height * 0.55,
+                color: AppColors.border.withValues(alpha: .7),
+              ),
+          ],
+        );
+        return SizedBox(
+          height: height,
+          width: width,
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              // Track
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceHi,
+                  borderRadius: BorderRadius.circular(height / 2),
+                  border: Border.all(color: AppColors.border),
+                ),
+                child: const SizedBox.expand(),
+              ),
+              // Fill
+              FractionallySizedBox(
+                widthFactor: math.max(fraction, 0.004),
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: color,
+                    borderRadius: BorderRadius.circular(height / 2),
+                  ),
+                  child: const SizedBox.expand(),
+                ),
+              ),
+              // Tick marks over everything
+              Positioned.fill(
+                child: Padding(
+                  padding: EdgeInsets.symmetric(horizontal: height * .55),
+                  child: ticks,
+                ),
+              ),
+              // Pace caret
+              if (caretFraction != null && caretFraction! > fraction + 0.01)
+                Positioned(
+                  left: width * caretFraction! - 4,
+                  top: -3,
+                  child: Column(
+                    children: [
+                      Icon(
+                        Icons.play_arrow_rounded,
+                        size: height + 2,
+                        color: AppColors.textDim,
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// Tiny inline share bar (Auto/API slices of one pool).
+class ShareBar extends StatelessWidget {
+  final String label;
+  final double fraction;
+  final bool exceeded;
+
+  const ShareBar({
+    super.key,
+    required this.label,
+    required this.fraction,
+    this.exceeded = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final f = fraction.clamp(0.0, 1.0);
+    final color = limitColor(f, exceeded: exceeded);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                label,
+                style: AppText.data(size: 10, color: AppColors.textDim),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            Text(
+              fmtPct(f),
+              style: AppText.data(size: 10, weight: FontWeight.w700, color: color),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(3),
+          child: LinearProgressIndicator(
+            value: f,
+            minHeight: 4,
+            backgroundColor: AppColors.surfaceHi,
+            valueColor: AlwaysStoppedAnimation(color),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Structure & chrome
+// ---------------------------------------------------------------------------
+
+class StatCell extends StatelessWidget {
   final String label;
   final String value;
-  final String? sub;
   final Color? valueColor;
-  const StatCard({
+  const StatCell({
     super.key,
     required this.label,
     required this.value,
-    this.sub,
     this.valueColor,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Expanded(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: const TextStyle(fontSize: 12, color: AppColors.textDim),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
-              color: valueColor ?? AppColors.text,
-              fontFeatures: const [FontFeature.tabularFigures()],
-            ),
-          ),
-          if (sub != null)
-            Text(
-              sub!,
-              style: const TextStyle(fontSize: 10, color: AppColors.textDim),
-            ),
-        ],
-      ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: AppText.sectionLabel),
+        const SizedBox(height: 3),
+        Text(
+          value,
+          style: AppText.data(size: 15, weight: FontWeight.w700, color: valueColor ?? AppColors.text),
+        ),
+      ],
     );
   }
 }
@@ -68,32 +274,6 @@ class StatRow extends StatelessWidget {
   }
 }
 
-class LimitBar extends StatelessWidget {
-  final double fraction;
-  final bool exceeded;
-  final double height;
-  const LimitBar({
-    super.key,
-    required this.fraction,
-    this.exceeded = false,
-    this.height = 6,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final f = fraction.clamp(0.0, 1.0);
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(4),
-      child: LinearProgressIndicator(
-        value: f,
-        minHeight: height,
-        backgroundColor: AppColors.bgElevated,
-        valueColor: AlwaysStoppedAnimation(limitColor(f, exceeded: exceeded)),
-      ),
-    );
-  }
-}
-
 class ProviderAvatar extends StatelessWidget {
   final String platform;
   final double size;
@@ -107,12 +287,12 @@ class ProviderAvatar extends StatelessWidget {
       label: '${providerName(platform)} logo',
       child: DecoratedBox(
         decoration: BoxDecoration(
-          color: AppColors.bgCard,
-          borderRadius: BorderRadius.circular(8),
+          color: AppColors.surfaceHi,
+          borderRadius: BorderRadius.circular(9),
           border: Border.all(color: AppColors.border),
         ),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(7),
+          borderRadius: BorderRadius.circular(8),
           child: SizedBox(
             width: size,
             height: size,
@@ -135,6 +315,7 @@ class ProviderAvatar extends StatelessWidget {
   }
 }
 
+/// Brand row with optional trailing actions (sync button etc).
 class AppBrandBar extends StatelessWidget {
   final List<Widget>? actions;
 
@@ -148,6 +329,78 @@ class AppBrandBar extends StatelessWidget {
         if (actions != null) ...actions!,
       ],
     );
+  }
+}
+
+/// Brand row with the live sync chip — used on every tab.
+class BrandBarWithSync extends StatelessWidget {
+  const BrandBarWithSync({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final scope = AppScope.of(context);
+    return ListenableBuilder(
+      listenable: scope.sync,
+      builder: (context, _) => AppBrandBar(
+        actions: [
+          SyncChip(
+            lastSyncAt: scope.sync.lastSyncAt,
+            syncing: scope.sync.syncing,
+            onTap: () => scope.sync.sync(),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Mono status chip: SYNCED 2M AGO / SYNCING… / AUTO OFF.
+class SyncChip extends StatelessWidget {
+  final DateTime? lastSyncAt;
+  final bool syncing;
+  final VoidCallback onTap;
+
+  const SyncChip({
+    super.key,
+    required this.lastSyncAt,
+    required this.syncing,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final label = syncing
+        ? 'SYNCING…'
+        : lastSyncAt == null
+            ? 'NOT SYNCED'
+            : 'SYNCED ${_ago(lastSyncAt!).toUpperCase()}';
+    final color = syncing ? AppColors.accent : AppColors.textDim;
+    return ActionChip(
+      onPressed: syncing ? null : onTap,
+      backgroundColor: Colors.transparent,
+      side: BorderSide(color: AppColors.border),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
+      visualDensity: VisualDensity.compact,
+      avatar: syncing
+          ? SizedBox(
+              width: 12,
+              height: 12,
+              child: CircularProgressIndicator(strokeWidth: 1.6, color: color),
+            )
+          : Icon(Icons.satellite_alt_outlined, size: 13, color: color),
+      label: Text(
+        label,
+        style: AppText.data(size: 9.5, weight: FontWeight.w600, color: color, spacing: 0.8),
+      ),
+    );
+  }
+
+  static String _ago(DateTime when) {
+    final diff = DateTime.now().difference(when);
+    if (diff.inMinutes < 1) return 'just now';
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+    if (diff.inHours < 24) return '${diff.inHours}h ago';
+    return '${diff.inDays}d ago';
   }
 }
 
@@ -206,7 +459,7 @@ class InlineMessage extends StatelessWidget {
     message: message,
     icon: Icons.error_outline,
     background: AppColors.dangerSoft,
-    border: const Color(0xFFE4C4B6),
+    border: AppColors.danger.withValues(alpha: .4),
     foreground: AppColors.danger,
   );
 
@@ -214,7 +467,7 @@ class InlineMessage extends StatelessWidget {
     message: message,
     icon: Icons.info_outline,
     background: AppColors.accentSoft,
-    border: AppColors.border,
+    border: AppColors.accent.withValues(alpha: .35),
     foreground: AppColors.accent,
   );
 
@@ -226,7 +479,7 @@ class InlineMessage extends StatelessWidget {
       child: DecoratedBox(
         decoration: BoxDecoration(
           color: background,
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(10),
           border: Border.all(color: border),
         ),
         child: Padding(
@@ -264,19 +517,14 @@ class SectionHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(2, 20, 2, 10),
+      padding: const EdgeInsets.fromLTRB(2, 22, 2, 10),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          Text(
-            title,
-            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
-          ),
+          Text(title.toUpperCase(), style: AppText.sectionLabel.copyWith(fontSize: 11)),
           if (trailing != null)
-            Text(
-              trailing!,
-              style: const TextStyle(fontSize: 11, color: AppColors.textDim),
-            ),
+            Text(trailing!, style: AppText.data(size: 10, color: AppColors.textDim)),
         ],
       ),
     );
@@ -297,43 +545,34 @@ class AddAccountCard extends StatelessWidget {
         onPressed: onPressed,
         style: OutlinedButton.styleFrom(
           alignment: Alignment.centerLeft,
-          backgroundColor: AppColors.accentSoft,
-          foregroundColor: AppColors.accent,
-          side: const BorderSide(color: AppColors.accent),
+          backgroundColor: Colors.transparent,
+          foregroundColor: AppColors.text,
+          side: const BorderSide(color: AppColors.border),
           minimumSize: const Size.fromHeight(56),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 12),
         ),
         child: Row(
           children: [
-            DecoratedBox(
-              decoration: const BoxDecoration(
-                color: AppColors.accent,
-                shape: BoxShape.circle,
-              ),
-              child: const Padding(
-                padding: EdgeInsets.all(6),
-                child: Icon(Icons.add, size: 18, color: Colors.white),
-              ),
-            ),
+            const Icon(Icons.add_circle_outline, size: 20, color: AppColors.accent),
             const SizedBox(width: 12),
             const Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Add another account',
-                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+                    'Add account',
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
                   ),
-                  SizedBox(height: 3),
+                  SizedBox(height: 2),
                   Text(
-                    'Command Code or Cursor · stored on this device',
+                    'Command Code or Cursor · key stays on device',
                     style: TextStyle(fontSize: 11, color: AppColors.textDim),
                   ),
                 ],
               ),
             ),
-            const Icon(Icons.chevron_right, size: 20),
+            const Icon(Icons.chevron_right, size: 20, color: AppColors.textDim),
           ],
         ),
       ),
@@ -363,8 +602,9 @@ class EmptyState extends StatelessWidget {
         children: [
           DecoratedBox(
             decoration: BoxDecoration(
-              color: AppColors.bgElevated,
+              color: AppColors.surfaceHi,
               shape: BoxShape.circle,
+              border: Border.all(color: AppColors.border),
             ),
             child: Padding(
               padding: const EdgeInsets.all(18),
@@ -376,17 +616,14 @@ class EmptyState extends StatelessWidget {
             title,
             textAlign: TextAlign.center,
             style: const TextStyle(
+              fontFamily: displayFamily,
               fontSize: 17,
               fontWeight: FontWeight.w700,
               color: AppColors.text,
             ),
           ),
           const SizedBox(height: 6),
-          Text(
-            hint,
-            textAlign: TextAlign.center,
-            style: AppText.pageSubtitle,
-          ),
+          Text(hint, textAlign: TextAlign.center, style: AppText.pageSubtitle),
           if (action != null) ...[const SizedBox(height: 18), action!],
         ],
       ),
@@ -394,69 +631,9 @@ class EmptyState extends StatelessWidget {
   }
 }
 
-class AttentionBanner extends StatelessWidget {
-  final List<(String account, LimitWindow window)> items;
-  const AttentionBanner({super.key, required this.items});
-
-  @override
-  Widget build(BuildContext context) {
-    if (items.isEmpty) return const SizedBox.shrink();
-    final first = items.first;
-    final more = items.length - 1;
-    final reset = fmtResetAt(first.$2.resetAt);
-    return Semantics(
-      container: true,
-      label: first.$2.exceeded ? 'Usage limit reached' : 'Usage nearing limit',
-      child: Padding(
-        padding: const EdgeInsets.only(bottom: 14),
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            color: AppColors.dangerSoft,
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: const Color(0xFFE4C4B6)),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(
-                  first.$2.exceeded ? Icons.warning_amber_rounded : Icons.speed,
-                  size: 18,
-                  color: AppColors.danger,
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        first.$2.exceeded ? 'Limit reached' : 'Near a limit',
-                        style: const TextStyle(
-                          color: AppColors.danger,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: .4,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        '${first.$1} · ${first.$2.label} is at ${fmtPct(first.$2.fraction)}'
-                        '${reset.isEmpty ? '' : ' · $reset'}'
-                        '${more > 0 ? ' · +$more more' : ''}',
-                        style: const TextStyle(fontSize: 12, height: 1.35),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
+// ---------------------------------------------------------------------------
+// Account card (Overview + Accounts tabs)
+// ---------------------------------------------------------------------------
 
 class AccountUsageCard extends StatelessWidget {
   final AccountRow account;
@@ -467,6 +644,7 @@ class AccountUsageCard extends StatelessWidget {
   final List<LimitWindow> windows;
   final List<ModelUsage> models;
   final int lastRefreshAt;
+  final VoidCallback? onOpen;
   final Widget? footer;
 
   const AccountUsageCard({
@@ -479,224 +657,134 @@ class AccountUsageCard extends StatelessWidget {
     this.windows = const [],
     this.models = const [],
     this.lastRefreshAt = 0,
+    this.onOpen,
     this.footer,
   });
 
   @override
   Widget build(BuildContext context) {
-    final budgets = windows.where((w) => w.kind == LimitKind.budget).toList();
+    final budgets = windows.where((w) => w.kind == LimitKind.budget).toList()
+      ..sort((a, b) => b.fraction.compareTo(a.fraction));
     final shares = windows.where((w) => w.kind == LimitKind.share).toList();
-    final bursts = windows.where((w) => w.kind == LimitKind.burst).toList();
+    final bursts = windows.where((w) => w.kind == LimitKind.burst).toList()
+      ..sort((a, b) => b.fraction.compareTo(a.fraction));
     final extras = windows.where((w) => w.kind == LimitKind.extra).toList();
     final ago = fmtAgo(lastRefreshAt);
     final tokenCount = inputTokens + outputTokens;
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: 9),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(15, 14, 15, 14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                ProviderAvatar(platform: account.platform),
-                const SizedBox(width: 11),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        account.label,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
-                      ),
-                      Text(
-                        [
-                          providerName(account.platform),
-                          if (ago.isNotEmpty) ago,
-                        ].join(' · '),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontSize: 10, color: AppColors.textDim),
-                      ),
-                    ],
-                  ),
-                ),
-                Text(
-                  fmtCost(costUsd),
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    fontFeatures: [FontFeature.tabularFigures()],
-                  ),
-                ),
-              ],
-            ),
-            if (bursts.isNotEmpty || budgets.isNotEmpty || shares.isNotEmpty || extras.isNotEmpty) ...[
-              const Divider(height: 22),
-              for (final burst in bursts) _burstRow(burst),
-              for (final budget in budgets) ...[
-                _budgetRow(budget),
-                const SizedBox(height: 12),
-              ],
-              if (shares.length >= 2) _shareRow(shares[0], shares[1]),
-              if (shares.length == 1) _shareSolo(shares.first),
-              for (final extra in extras) _extraRow(extra),
-            ],
-            if (tokenCount > 0 || requests > 0) ...[
-              const SizedBox(height: 4),
-              Text(
-                [
-                  if (tokenCount > 0) '${fmtTokens(tokenCount)} tokens',
-                  if (requests > 0) '$requests requests',
-                ].join(' · '),
-                style: const TextStyle(fontSize: 10, color: AppColors.textDim),
-              ),
-            ],
-            if (models.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              ModelBreakdownPanel(
-                models: models,
-                platform: account.platform,
-              ),
-            ],
-            if (footer != null) footer!,
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _budgetRow(LimitWindow window) {
-    final reset = fmtResetAt(window.resetAt);
-    final color = limitColor(window.fraction, exceeded: window.exceeded);
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 2),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(window.label, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
-              ),
-              Text(
-                '${fmtCost(window.used)} / ${fmtCost(window.cap)}',
-                style: const TextStyle(fontSize: 10, color: AppColors.textDim, fontFeatures: [FontFeature.tabularFigures()]),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          LimitBar(fraction: window.fraction, exceeded: window.exceeded),
-          const SizedBox(height: 5),
-          Row(
-            children: [
-              Text(
-                window.exceeded ? 'Limit reached' : fmtPct(window.fraction),
-                style: TextStyle(fontSize: 10, color: color, fontWeight: FontWeight.w700),
-              ),
-              const Spacer(),
-              if (reset.isNotEmpty)
-                Text(reset, style: const TextStyle(fontSize: 10, color: AppColors.textDim)),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _burstRow(LimitWindow window) {
-    if (window.idle) {
-      return Padding(
-        padding: const EdgeInsets.only(bottom: 12),
-        child: Row(
-          children: [
-            Expanded(
-              child: Text(window.label, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
-            ),
-            Text(
-              '${fmtCost(window.cap)} ready',
-              style: const TextStyle(fontSize: 10, color: AppColors.textDim),
-            ),
-          ],
-        ),
-      );
-    }
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: _budgetRow(window),
-    );
-  }
-
-  Widget _shareRow(LimitWindow left, LimitWindow right) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Row(
-        children: [
-          Expanded(child: _shareCell(left)),
-          const SizedBox(width: 14),
-          Expanded(child: _shareCell(right)),
-        ],
-      ),
-    );
-  }
-
-  Widget _shareSolo(LimitWindow window) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: _shareCell(window),
-    );
-  }
-
-  Widget _shareCell(LimitWindow window) {
-    return Column(
+    final body = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           children: [
+            ProviderAvatar(platform: account.platform),
+            const SizedBox(width: 11),
             Expanded(
-              child: Text(window.label, style: const TextStyle(fontSize: 10, color: AppColors.textDim)),
-            ),
-            Text(
-              fmtPct(window.fraction),
-              style: TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.w700,
-                color: limitColor(window.fraction, exceeded: window.exceeded),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    account.label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontFamily: displayFamily,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  Text(
+                    [
+                      providerName(account.platform).toUpperCase(),
+                      if (ago.isNotEmpty) ago,
+                    ].join(' · '),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppText.data(size: 9.5, color: AppColors.textDim, spacing: 0.6),
+                  ),
+                ],
               ),
             ),
+            Text(
+              fmtCost(costUsd),
+              style: AppText.data(size: 17, weight: FontWeight.w700),
+            ),
+            if (onOpen != null) ...[
+              const SizedBox(width: 4),
+              const Icon(Icons.chevron_right, size: 18, color: AppColors.textDim),
+            ],
           ],
         ),
-        const SizedBox(height: 5),
-        LimitBar(fraction: window.fraction, exceeded: window.exceeded, height: 4),
-        const SizedBox(height: 4),
-        Text(
-          'of included',
-          style: const TextStyle(fontSize: 9, color: AppColors.textDim),
-        ),
+        if (bursts.isNotEmpty || budgets.isNotEmpty || shares.isNotEmpty || extras.isNotEmpty) ...[
+          const SizedBox(height: 14),
+          for (final budget in budgets.take(2)) ...[
+            PoolGauge(window: budget, compact: true),
+            const SizedBox(height: 12),
+          ],
+          for (final burst in bursts)
+            if (!burst.idle) ...[
+              PoolGauge(window: burst, compact: true),
+              const SizedBox(height: 12),
+            ],
+          if (shares.length >= 2)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: Row(
+                children: [
+                  Expanded(child: ShareBar(label: shares[0].label, fraction: shares[0].fraction, exceeded: shares[0].exceeded)),
+                  const SizedBox(width: 16),
+                  Expanded(child: ShareBar(label: shares[1].label, fraction: shares[1].fraction, exceeded: shares[1].exceeded)),
+                ],
+              ),
+            )
+          else if (shares.length == 1)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: ShareBar(label: shares.first.label, fraction: shares.first.fraction, exceeded: shares.first.exceeded),
+            ),
+          for (final extra in extras)
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Row(
+                children: [
+                  const Expanded(
+                    child: Text('EXTRA USAGE', style: AppText.sectionLabel),
+                  ),
+                  Text(fmtCost(extra.used), style: AppText.data(size: 11, weight: FontWeight.w700)),
+                ],
+              ),
+            ),
+        ],
+        if (tokenCount > 0 || requests > 0) ...[
+          const SizedBox(height: 8),
+          Text(
+            [
+              if (tokenCount > 0) '${fmtTokens(tokenCount)} tok',
+              if (requests > 0) '$requests req',
+            ].join('  ·  '),
+            style: AppText.data(size: 10, color: AppColors.textDim),
+          ),
+        ],
+        if (models.isNotEmpty) ...[
+          const SizedBox(height: 6),
+          ModelBreakdownPanel(models: models, platform: account.platform),
+        ],
+        if (footer != null) footer!,
       ],
     );
-  }
 
-  Widget _extraRow(LimitWindow window) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          const Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Extra usage', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
-                SizedBox(height: 2),
-                Text('Beyond included allowance', style: TextStyle(fontSize: 9, color: AppColors.textDim)),
-              ],
-            ),
-          ),
-          Text(fmtCost(window.used), style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
-        ],
+    if (onOpen == null) {
+      return Card(
+        margin: const EdgeInsets.only(bottom: 10),
+        child: Padding(padding: const EdgeInsets.fromLTRB(15, 14, 15, 14), child: body),
+      );
+    }
+    return Card(
+      margin: const EdgeInsets.only(bottom: 10),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: onOpen,
+        child: Padding(padding: const EdgeInsets.fromLTRB(15, 14, 15, 14), child: body),
       ),
     );
   }
@@ -722,41 +810,36 @@ class ModelBreakdownPanel extends StatelessWidget {
         tilePadding: EdgeInsets.zero,
         childrenPadding: const EdgeInsets.only(bottom: 4),
         expandedAlignment: Alignment.centerLeft,
-        iconColor: AppColors.textDim,
-        collapsedIconColor: AppColors.textDim,
-        title: const Text(
-          'Model usage',
-          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+        showTrailingIcon: true,
+        title: Text(
+          'MODEL USAGE',
+          style: AppText.sectionLabel.copyWith(color: AppColors.text),
         ),
         subtitle: Text(
-          '${models.length} models · ${fmtCost(totalCost)} total',
-          style: const TextStyle(fontSize: 10, color: AppColors.textDim),
+          '${models.length} models · ${fmtCost(totalCost)}',
+          style: AppText.data(size: 10, color: AppColors.textDim),
         ),
         children: platform == 'cursor'
             ? [
                 if (_bucket(models, 'auto').isNotEmpty)
-                  _groupSection('Auto models', _bucket(models, 'auto'), totalCost),
+                  _groupSection('AUTO', _bucket(models, 'auto'), totalCost),
                 if (_bucket(models, 'api').isNotEmpty)
-                  _groupSection('API models', _bucket(models, 'api'), totalCost),
+                  _groupSection('API', _bucket(models, 'api'), totalCost),
                 if (_unbucketed(models).isNotEmpty)
-                  _groupSection('Other models', _unbucketed(models), totalCost),
+                  _groupSection('OTHER', _unbucketed(models), totalCost),
               ]
             : [_modelList(models, totalCost)],
       ),
     );
   }
 
-  List<ModelUsage> _bucket(List<ModelUsage> items, String bucket) {
-    final filtered = items.where((model) => model.bucket == bucket).toList()
-      ..sort((a, b) => b.costUsd.compareTo(a.costUsd));
-    return filtered;
-  }
+  List<ModelUsage> _bucket(List<ModelUsage> items, String bucket) =>
+      items.where((model) => model.bucket == bucket).toList()
+        ..sort((a, b) => b.costUsd.compareTo(a.costUsd));
 
-  List<ModelUsage> _unbucketed(List<ModelUsage> items) {
-    final filtered = items.where((model) => model.bucket == null).toList()
-      ..sort((a, b) => b.costUsd.compareTo(a.costUsd));
-    return filtered;
-  }
+  List<ModelUsage> _unbucketed(List<ModelUsage> items) =>
+      items.where((model) => model.bucket == null).toList()
+        ..sort((a, b) => b.costUsd.compareTo(a.costUsd));
 
   Widget _groupSection(String title, List<ModelUsage> items, double totalCost) {
     final groupCost = items.fold<double>(0, (sum, model) => sum + model.costUsd);
@@ -767,28 +850,13 @@ class ModelBreakdownPanel extends StatelessWidget {
         children: [
           Row(
             children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 0.5,
-                  color: AppColors.accent,
-                ),
-              ),
+              Text(title, style: AppText.sectionLabel.copyWith(color: AppColors.accent)),
               const Spacer(),
-              Text(
-                fmtCost(groupCost),
-                style: const TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textDim,
-                ),
-              ),
+              Text(fmtCost(groupCost), style: AppText.data(size: 10, color: AppColors.textDim)),
             ],
           ),
           const SizedBox(height: 6),
-          ..._modelRows(items, totalCost),
+          ...items.map((model) => _modelRow(model, totalCost)),
         ],
       ),
     );
@@ -798,14 +866,8 @@ class ModelBreakdownPanel extends StatelessWidget {
     final sorted = [...items]..sort((a, b) => b.costUsd.compareTo(a.costUsd));
     return Padding(
       padding: const EdgeInsets.only(bottom: 4),
-      child: Column(children: _modelRows(sorted, totalCost)),
+      child: Column(children: sorted.map((model) => _modelRow(model, totalCost)).toList()),
     );
-  }
-
-  List<Widget> _modelRows(List<ModelUsage> items, double totalCost) {
-    return [
-      for (final model in items) _modelRow(model, totalCost),
-    ];
   }
 
   Widget _modelRow(ModelUsage model, double totalCost) {
@@ -823,12 +885,12 @@ class ModelBreakdownPanel extends StatelessWidget {
                   model.model,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+                  style: AppText.data(size: 11, weight: FontWeight.w600),
                 ),
                 if (model.totalTokens > 0)
                   Text(
-                    '${fmtTokens(model.totalTokens)} tokens',
-                    style: const TextStyle(fontSize: 10, color: AppColors.textDim),
+                    '${fmtTokens(model.totalTokens)} tok',
+                    style: AppText.data(size: 10, color: AppColors.textDim),
                   ),
               ],
             ),
@@ -837,18 +899,8 @@ class ModelBreakdownPanel extends StatelessWidget {
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Text(
-                fmtCost(model.costUsd),
-                style: const TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  fontFeatures: [FontFeature.tabularFigures()],
-                ),
-              ),
-              Text(
-                fmtPct(share),
-                style: const TextStyle(fontSize: 10, color: AppColors.textDim),
-              ),
+              Text(fmtCost(model.costUsd), style: AppText.data(size: 11, weight: FontWeight.w700)),
+              Text(fmtPct(share), style: AppText.data(size: 10, color: AppColors.textDim)),
             ],
           ),
         ],
@@ -881,8 +933,8 @@ class ApiKeyPanel extends StatelessWidget {
           const SizedBox(height: 8),
           DecoratedBox(
             decoration: BoxDecoration(
-              color: AppColors.bgElevated,
-              borderRadius: BorderRadius.circular(8),
+              color: AppColors.surfaceHi,
+              borderRadius: BorderRadius.circular(10),
               border: Border.all(color: AppColors.border),
             ),
             child: Padding(
@@ -893,11 +945,7 @@ class ApiKeyPanel extends StatelessWidget {
                   Expanded(
                     child: SelectableText(
                       apiKey,
-                      style: const TextStyle(
-                        fontSize: 11,
-                        height: 1.45,
-                        fontFeatures: [FontFeature.tabularFigures()],
-                      ),
+                      style: AppText.data(size: 11, color: AppColors.textDim, height: 1.45),
                     ),
                   ),
                   IconButton(

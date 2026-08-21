@@ -1,81 +1,161 @@
 import 'package:flutter/material.dart';
 
-import '../db/db.dart';
-import '../providers/types.dart';
-import '../services/usage_service.dart';
+import '../state/app_scope.dart';
+import '../state/view_models.dart';
 import '../ui/theme.dart';
 import '../ui/widgets.dart';
+import 'account_detail_screen.dart';
 
-class AccountsScreen extends StatefulWidget {
+class AccountsScreen extends StatelessWidget {
   final VoidCallback onOpenAdd;
 
   const AccountsScreen({super.key, required this.onOpenAdd});
 
   @override
-  State<AccountsScreen> createState() => _AccountsScreenState();
-}
+  Widget build(BuildContext context) {
+    final scope = AppScope.of(context);
+    return ListenableBuilder(
+      listenable: scope.accountsVm,
+      builder: (context, _) {
+        final rows = scope.accountsVm.rows;
+        return Scaffold(
+          body: SafeArea(
+            child: RefreshIndicator(
+              color: AppColors.accent,
+              backgroundColor: AppColors.surface,
+              onRefresh: () async {
+                await scope.sync.sync();
+                await scope.accountsVm.load();
+              },
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.pageHorizontal, 16, AppSpacing.pageHorizontal, AppSpacing.pageBottom,
+                ),
+                children: [
+                  const BrandBarWithSync(),
+                  const SizedBox(height: 20),
+                  PageHeading(
+                    title: 'Accounts',
+                    subtitle: rows.isEmpty
+                        ? 'Connect a provider to begin tracking.'
+                        : '${rows.length} connected · keys stay on this device',
+                  ),
+                  const SizedBox(height: 18),
+                  if (rows.isEmpty)
+                    EmptyState(
+                      icon: Icons.account_circle_outlined,
+                      title: 'No accounts yet',
+                      hint: 'Add Command Code or Cursor to see spend, limits, and reset times here.',
+                      action: FilledButton.icon(
+                        onPressed: onOpenAdd,
+                        icon: const Icon(Icons.add, size: 18),
+                        label: const Text('Add an account'),
+                      ),
+                    )
+                  else
+                    for (final row in rows)
+                      AccountUsageCard(
+                        key: ValueKey(row.data.account.key),
+                        account: row.data.account,
+                        costUsd: row.data.latest?.costUsd ?? 0,
+                        requests: row.data.latest?.requests ?? 0,
+                        inputTokens: row.data.latest?.inputTokens ?? 0,
+                        outputTokens: row.data.latest?.outputTokens ?? 0,
+                        windows: row.data.windows,
+                        models: row.data.latest?.models ?? const [],
+                        lastRefreshAt: row.data.account.lastRefreshAt,
+                        onOpen: () => _openDetail(context, row.data.account.key),
+                        footer: _footer(context, scope, row),
+                      ),
+                  const SizedBox(height: 4),
+                  AddAccountCard(onPressed: onOpenAdd),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
 
-class _AccountView {
-  final AccountTotalsRow totals;
-  final SnapshotRow? snap;
-  const _AccountView({required this.totals, this.snap});
+  void _openDetail(BuildContext context, String key) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(builder: (_) => AccountDetailScreen(accountKey: key)),
+    );
+  }
 
-  List<LimitWindow> get windows => snap?.windows ?? const [];
-}
-
-class _AccountsScreenState extends State<AccountsScreen> {
-  List<_AccountView> _accounts = [];
-  Map<String, String> _tokens = {};
-  bool _busy = false;
-
-  Future<void> _load() async {
-    final accounts = await accountTotals();
-    final views = <_AccountView>[];
-    final tokens = <String, String>{};
-    for (final account in accounts) {
-      views.add(
-        _AccountView(
-          totals: account,
-          snap: await latestSnapshot(account.account.key),
+  Widget _footer(BuildContext context, AppScope scope, AccountRowView row) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.end,
+      children: [
+        TextButton.icon(
+          onPressed: () => _refreshOne(context, scope, row.data.account.key),
+          icon: const Icon(Icons.refresh, size: 18),
+          label: const Text('Sync'),
         ),
-      );
-      final token = await getToken(account.account.key);
-      if (token != null && token.isNotEmpty) {
-        tokens[account.account.key] = token;
-      }
-    }
-    if (!mounted) return;
-    setState(() {
-      _accounts = views;
-      _tokens = tokens;
-    });
+        TextButton(
+          onPressed: () => _rename(context, scope, row),
+          child: const Text('Rename', style: TextStyle(fontSize: 13)),
+        ),
+        TextButton(
+          onPressed: () => _removeOne(context, scope, row),
+          child: const Text(
+            'Remove',
+            style: TextStyle(color: AppColors.danger, fontSize: 13),
+          ),
+        ),
+      ],
+    );
   }
 
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  Future<void> _refreshOne(_AccountView view) async {
-    setState(() => _busy = true);
-    final result = await refreshAccount(view.totals.account);
-    if (!result.ok && mounted) {
+  Future<void> _refreshOne(BuildContext context, AppScope scope, String key) async {
+    final ok = await scope.accountsVm.refreshOne(key);
+    if (!context.mounted) return;
+    if (!ok) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Refresh failed: ${result.error}')),
+        const SnackBar(content: Text('Sync failed — check the API key and connection.')),
       );
     }
-    await _load();
-    if (mounted) setState(() => _busy = false);
   }
 
-  void _removeOne(_AccountView view) {
+  Future<void> _rename(BuildContext context, AppScope scope, AccountRowView row) async {
+    final controller = TextEditingController(text: row.data.account.label);
+    final label = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Rename account'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          decoration: const InputDecoration(labelText: 'Display name'),
+          onSubmitted: (value) => Navigator.pop(dialogContext, value),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, controller.text),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+    if (label == null) return;
+    final trimmed = label.trim();
+    if (trimmed.isEmpty || trimmed == row.data.account.label) return;
+    await scope.accountsVm.rename(row.data.account.key, trimmed);
+  }
+
+  void _removeOne(BuildContext context, AppScope scope, AccountRowView row) {
     showDialog<void>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Remove account'),
         content: Text(
-          'Remove ${view.totals.account.label}? Its usage data and stored API key will be deleted from this device.',
+          'Remove ${row.data.account.label}? Its usage data and stored API key will be deleted from this device.',
         ),
         actions: [
           TextButton(
@@ -85,100 +165,12 @@ class _AccountsScreenState extends State<AccountsScreen> {
           TextButton(
             onPressed: () async {
               Navigator.pop(dialogContext);
-              await removeAccountWithToken(view.totals.account.key);
-              await _load();
+              await scope.accountsVm.remove(row.data.account.key);
             },
             child: const Text(
               'Remove',
               style: TextStyle(color: AppColors.danger),
             ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: SafeArea(
-        child: RefreshIndicator(
-          color: AppColors.accent,
-          onRefresh: _load,
-          child: ListView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.pageHorizontal,
-              16,
-              AppSpacing.pageHorizontal,
-              AppSpacing.pageBottom,
-            ),
-            children: [
-              const AppBrandBar(),
-              const SizedBox(height: 20),
-              PageHeading(
-                title: 'Accounts',
-                subtitle: _accounts.isEmpty
-                    ? 'Connect a provider to begin tracking.'
-                    : '${_accounts.length} connected · keys stay on this device',
-              ),
-              const SizedBox(height: 18),
-              if (_accounts.isEmpty)
-                EmptyState(
-                  icon: Icons.account_circle_outlined,
-                  title: 'No accounts yet',
-                  hint:
-                      'Add Command Code or Cursor to see spend, limits, and reset times here.',
-                  action: FilledButton.icon(
-                    onPressed: widget.onOpenAdd,
-                    icon: const Icon(Icons.add, size: 18),
-                    label: const Text('Add an account'),
-                  ),
-                )
-              else ...[
-                for (final account in _accounts) _accountCard(account),
-                const SizedBox(height: 4),
-              ],
-              AddAccountCard(onPressed: widget.onOpenAdd),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _accountCard(_AccountView view) {
-    final row = view.totals;
-    final apiKey = _tokens[row.account.key];
-    return AccountUsageCard(
-      account: row.account,
-      costUsd: row.costUsd,
-      requests: row.requests,
-      inputTokens: row.inputTokens,
-      outputTokens: row.outputTokens,
-      windows: view.windows,
-      models: view.snap?.models ?? const [],
-      lastRefreshAt: row.account.lastRefreshAt,
-      footer: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          if (apiKey != null && apiKey.isNotEmpty) ApiKeyPanel(apiKey: apiKey),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              TextButton.icon(
-                onPressed: _busy ? null : () => _refreshOne(view),
-                icon: const Icon(Icons.refresh, size: 18),
-                label: Text(_busy ? 'Refreshing…' : 'Refresh'),
-              ),
-              TextButton(
-                onPressed: () => _removeOne(view),
-                child: const Text(
-                  'Remove',
-                  style: TextStyle(color: AppColors.danger, fontSize: 13),
-                ),
-              ),
-            ],
           ),
         ],
       ),

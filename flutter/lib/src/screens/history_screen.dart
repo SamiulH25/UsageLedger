@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../db/db.dart';
 import '../providers/registry.dart';
+import '../state/app_scope.dart';
+import '../state/view_models.dart';
 import '../ui/theme.dart';
 import '../ui/widgets.dart';
 
@@ -12,198 +14,158 @@ class HistoryScreen extends StatefulWidget {
   State<HistoryScreen> createState() => _HistoryScreenState();
 }
 
-class _HistoryEntry {
-  final String day;
-  final String accountLabel;
-  final String platform;
-  final double cost;
-  final int requests;
-  final int tokens;
-  final String limits;
-
-  _HistoryEntry({
-    required this.day,
-    required this.accountLabel,
-    required this.platform,
-    required this.cost,
-    required this.requests,
-    required this.tokens,
-    required this.limits,
-  });
-}
-
 class _HistoryScreenState extends State<HistoryScreen> {
-  List<_HistoryEntry> _entries = [];
-  bool _showLimits = false;
-
-  Future<void> _load() async {
-    final accounts = await listAccounts();
-    final entries = <_HistoryEntry>[];
-    for (final account in accounts) {
-      final snapshot = await latestSnapshot(account.key);
-      if (snapshot == null) continue;
-      final date = DateTime.fromMillisecondsSinceEpoch(
-        snapshot.capturedAt,
-      ).toLocal();
-      final dayLabel = '${_wd(date.weekday)} ${_mo(date.month)} ${date.day}';
-      entries.add(
-        _HistoryEntry(
-          day: dayLabel,
-          accountLabel: account.label,
-          platform: account.platform,
-          cost: snapshot.costUsd,
-          requests: snapshot.requests,
-          tokens: snapshot.inputTokens + snapshot.outputTokens,
-          limits: snapshot.windows
-              .map((w) => '${w.label}: ${fmtCost(w.used)} / ${fmtCost(w.cap)}')
-              .join(' · '),
-        ),
-      );
-    }
-    entries.sort((a, b) => b.day.compareTo(a.day));
-    if (!mounted) return;
-    setState(() => _entries = entries);
-  }
-
-  String _wd(int weekday) =>
-      const ['', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][weekday];
-  String _mo(int month) => const [
-    '',
-    'Jan',
-    'Feb',
-    'Mar',
-    'Apr',
-    'May',
-    'Jun',
-    'Jul',
-    'Aug',
-    'Sep',
-    'Oct',
-    'Nov',
-    'Dec',
-  ][month];
-
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
+  String _platformFilter = 'all';
 
   @override
   Widget build(BuildContext context) {
-    final byDay = <String, List<_HistoryEntry>>{};
-    for (final entry in _entries) {
-      byDay.putIfAbsent(entry.day, () => []).add(entry);
-    }
-    final days = byDay.keys.toList()..sort((a, b) => b.compareTo(a));
+    final scope = AppScope.of(context);
+    return ListenableBuilder(
+      listenable: scope.historyVm,
+      builder: (context, _) {
+        final vm = scope.historyVm;
+        final days = vm.days;
+        final filtered = _platformFilter == 'all'
+            ? days
+            : [
+                for (final day in days)
+                  HistoryDay(
+                    day: day.day,
+                    entries:
+                        day.entries.where((e) => e.platform == _platformFilter).toList(),
+                  )
+              ].where((d) => d.entries.isNotEmpty).toList();
 
-    return Scaffold(
-      body: SafeArea(
-        child: RefreshIndicator(
-          color: AppColors.accent,
-          onRefresh: _load,
-          child: ListView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.pageHorizontal,
-              16,
-              AppSpacing.pageHorizontal,
-              AppSpacing.pageBottom,
-            ),
-            children: [
-              const AppBrandBar(),
-              const SizedBox(height: 20),
-              PageHeading(
-                title: 'History',
-                subtitle: 'Snapshots captured when your accounts refresh.',
-                trailing: FilterChip(
-                  selected: _showLimits,
-                  label: Text(_showLimits ? 'Limits on' : 'Show limits'),
-                  onSelected: (value) => setState(() => _showLimits = value),
-                  selectedColor: AppColors.accentSoft,
-                  checkmarkColor: AppColors.accent,
-                  labelStyle: const TextStyle(
-                    fontSize: 12,
-                    color: AppColors.accent,
-                    fontWeight: FontWeight.w600,
-                  ),
-                  side: const BorderSide(color: AppColors.border),
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  visualDensity: VisualDensity.compact,
+        return Scaffold(
+          body: SafeArea(
+            child: RefreshIndicator(
+              color: AppColors.accent,
+              backgroundColor: AppColors.surface,
+              onRefresh: () async {
+                await scope.sync.sync();
+                await vm.load();
+              },
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.pageHorizontal, 16, AppSpacing.pageHorizontal, AppSpacing.pageBottom,
                 ),
-              ),
-              const SizedBox(height: 12),
-              if (_entries.isEmpty)
-                const EmptyState(
-                  icon: Icons.history,
-                  title: 'No snapshots yet',
-                  hint:
-                      'Refresh an account to start building your usage history.',
-                )
-              else
-                for (final day in days) ...[
-                  SectionHeader(
-                    title: day,
-                    trailing:
-                        '${byDay[day]!.length} account${byDay[day]!.length == 1 ? '' : 's'}',
+                children: [
+                  const BrandBarWithSync(),
+                  const SizedBox(height: 20),
+                  const PageHeading(
+                    title: 'History',
+                    subtitle: 'Every snapshot captured when your accounts sync.',
                   ),
-                  for (final entry in byDay[day]!) _entryCard(entry),
+                  const SizedBox(height: 14),
+                  Wrap(
+                    spacing: 8,
+                    children: [
+                      for (final option in const [('all', 'All'), ('commandcode', 'Command Code'), ('cursor', 'Cursor')])
+                        ChoiceChip(
+                          label: Text(option.$2),
+                          selected: _platformFilter == option.$1,
+                          onSelected: (_) => setState(() => _platformFilter = option.$1),
+                          labelStyle: TextStyle(
+                            fontSize: 12,
+                            fontFamily: monoFamily,
+                            fontWeight: FontWeight.w500,
+                            color: _platformFilter == option.$1 ? AppColors.bg : AppColors.textDim,
+                          ),
+                          selectedColor: AppColors.accent,
+                          backgroundColor: Colors.transparent,
+                          side: BorderSide(
+                            color: _platformFilter == option.$1 ? AppColors.accent : AppColors.border,
+                          ),
+                          showCheckmark: false,
+                          visualDensity: VisualDensity.compact,
+                        ),
+                    ],
+                  ),
+                  if (vm.loading || filtered.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 24),
+                      child: EmptyState(
+                        icon: Icons.history,
+                        title: vm.loading ? 'Loading…' : 'No snapshots yet',
+                        hint: vm.loading
+                            ? ''
+                            : 'Sync an account to start building your usage history.',
+                      ),
+                    )
+                  else
+                    for (final day in filtered) ...[
+                      SectionHeader(
+                        title: _dayLabel(day.day),
+                        trailing: '${day.entries.length} snapshot${day.entries.length == 1 ? '' : 's'}',
+                      ),
+                      for (final entry in day.entries) _entryCard(entry, vm.labels),
+                    ],
                 ],
-            ],
+              ),
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
-  Widget _entryCard(_HistoryEntry entry) {
+  String _dayLabel(DateTime day) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final diff = today.difference(day).inDays;
+    if (diff == 0) return 'TODAY';
+    if (diff == 1) return 'YESTERDAY';
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return '${months[day.month - 1]} ${day.day}'.toUpperCase();
+  }
+
+  Widget _entryCard(SnapshotRow entry, Map<String, String> labels) {
+    final when = DateTime.fromMillisecondsSinceEpoch(entry.capturedAt).toLocal();
+    final stamp =
+        '${when.hour.toString().padLeft(2, '0')}:${when.minute.toString().padLeft(2, '0')}';
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+      child: Theme(
+        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          tilePadding: const EdgeInsets.symmetric(horizontal: 14),
+          childrenPadding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
+          leading: ProviderAvatar(platform: entry.platform, size: 30),
+          title: Text(
+            labels[entry.accountKey] ?? entry.accountKey,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontFamily: displayFamily, fontSize: 13.5, fontWeight: FontWeight.w700),
+          ),
+          subtitle: Text(
+            '$stamp · ${fmtTokens(entry.inputTokens + entry.outputTokens)} tok · ${entry.requests} req',
+            style: AppText.data(size: 10, color: AppColors.textDim),
+          ),
+          trailing: Text(fmtCost(entry.costUsd), style: AppText.data(size: 13, weight: FontWeight.w700)),
           children: [
-            Row(
-              children: [
-                ProviderAvatar(platform: entry.platform, size: 30),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    entry.accountLabel,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
+            if (entry.windows.isNotEmpty)
+              for (final window in entry.windows.where((w) => w.cap > 0))
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: PoolGauge(window: window, compact: true),
                 ),
-                Text(
-                  fmtCost(entry.cost),
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    fontFeatures: [FontFeature.tabularFigures()],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text(
-              '${providerName(entry.platform)} · ${fmtTokens(entry.tokens)} tokens · ${entry.requests} requests',
-              style: const TextStyle(fontSize: 11, color: AppColors.textDim),
-            ),
-            if (_showLimits && entry.limits.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(top: 8),
+            if (entry.models.isNotEmpty)
+              Align(
+                alignment: Alignment.centerLeft,
                 child: Text(
-                  entry.limits,
-                  style: const TextStyle(
-                    fontSize: 11,
-                    color: AppColors.textDim,
-                    height: 1.4,
-                  ),
+                  entry.models
+                      .map((m) => '${m.model}: ${fmtCost(m.costUsd)}')
+                      .join('  ·  '),
+                  style: AppText.data(size: 10, color: AppColors.textDim, height: 1.6),
+                ),
+              ),
+            if (entry.windows.isEmpty && entry.models.isEmpty)
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  providerName(entry.platform),
+                  style: AppText.data(size: 10, color: AppColors.textDim),
                 ),
               ),
           ],

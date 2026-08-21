@@ -1,162 +1,63 @@
 import 'package:flutter/material.dart';
 
-import '../db/db.dart';
+import '../data/burn_rate.dart';
 import '../providers/types.dart';
-import '../services/usage_service.dart';
+import '../state/app_scope.dart';
+import '../state/view_models.dart';
 import '../ui/cost_chart.dart';
 import '../ui/theme.dart';
 import '../ui/widgets.dart';
+import 'account_detail_screen.dart';
 
-class HomeScreen extends StatefulWidget {
+class HomeScreen extends StatelessWidget {
   final VoidCallback onOpenAdd;
 
   const HomeScreen({super.key, required this.onOpenAdd});
 
   @override
-  State<HomeScreen> createState() => _HomeScreenState();
-}
-
-class _AccountView {
-  final AccountTotalsRow totals;
-  final SnapshotRow? snap;
-  const _AccountView({required this.totals, this.snap});
-
-  List<LimitWindow> get windows => snap?.windows ?? const [];
-}
-
-class _HomeScreenState extends State<HomeScreen> {
-  List<_AccountView> _accounts = [];
-  List<({String day, double costUsd})> _series = [];
-  ({double costUsd, int requests, int inputTokens, int outputTokens}) _agg = (
-    costUsd: 0,
-    requests: 0,
-    inputTokens: 0,
-    outputTokens: 0,
-  );
-  String? _error;
-  bool _refreshing = false;
-
-  String _todayLabel() {
-    final now = DateTime.now();
-    const weekdays = [
-      '',
-      'Monday',
-      'Tuesday',
-      'Wednesday',
-      'Thursday',
-      'Friday',
-      'Saturday',
-      'Sunday',
-    ];
-    const months = [
-      '',
-      'January',
-      'February',
-      'March',
-      'April',
-      'May',
-      'June',
-      'July',
-      'August',
-      'September',
-      'October',
-      'November',
-      'December',
-    ];
-    return '${weekdays[now.weekday]}, ${months[now.month]} ${now.day}';
-  }
-
-  Future<void> _load() async {
-    final agg = await aggregated();
-    final series = await snapshotSeries();
-    final accounts = await accountTotals();
-    final views = <_AccountView>[];
-    for (final account in accounts) {
-      views.add(
-        _AccountView(
-          totals: account,
-          snap: await latestSnapshot(account.account.key),
-        ),
-      );
-    }
-
-    if (!mounted) return;
-    setState(() {
-      _agg = agg;
-      _series = series;
-      _accounts = views;
-      _error = null;
-    });
-  }
-
-  Future<void> _refresh() async {
-    setState(() => _refreshing = true);
-    final result = await refreshAll();
-    if (result.failed.isNotEmpty && mounted) {
-      setState(() => _error = 'Sync issue: ${result.failed.first.error}');
-    }
-    await _load();
-    if (mounted) setState(() => _refreshing = false);
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: SafeArea(
-        child: RefreshIndicator(
-          color: AppColors.accent,
-          onRefresh: _refresh,
-          child: _accounts.isEmpty ? _empty() : _content(),
-        ),
-      ),
+    final scope = AppScope.of(context);
+    return ListenableBuilder(
+      listenable: scope.overviewVm,
+      builder: (context, _) {
+        final state = scope.overviewVm.state;
+        return Scaffold(
+          body: SafeArea(
+            child: RefreshIndicator(
+              color: AppColors.accent,
+              backgroundColor: AppColors.surface,
+              onRefresh: () => scope.sync.sync(),
+              child: state.accounts.isEmpty && !state.loading
+                  ? _empty(context)
+                  : _content(context, state),
+            ),
+          ),
+        );
+      },
     );
   }
 
-  Widget _empty() {
+  Widget _empty(BuildContext context) {
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(
-        AppSpacing.pageHorizontal + 4,
-        20,
-        AppSpacing.pageHorizontal + 4,
-        AppSpacing.pageBottom,
+        AppSpacing.pageHorizontal + 4, 20, AppSpacing.pageHorizontal + 4, AppSpacing.pageBottom,
       ),
       children: [
-        AppBrandBar(
-          actions: [
-            IconButton(
-              onPressed: _refreshing ? null : _refresh,
-              tooltip: 'Refresh',
-              icon: _refreshing
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.sync),
-            ),
-          ],
-        ),
+        const _BrandRow(),
         const SizedBox(height: 24),
         const PageHeading(
           title: 'Keep every account\nin view.',
           subtitle:
-              'Connect a provider once, then see spend, limits, and resets in one calm place.',
+              'Connect a provider once, then see spend, limits, and resets in one place.',
         ),
         const SizedBox(height: 24),
         EmptyState(
-          icon: Icons.link_outlined,
+          icon: Icons.speed_outlined,
           title: 'No accounts yet',
-          hint:
-              'Add Command Code or Cursor to start tracking usage on this device.',
+          hint: 'Add Command Code or Cursor to start tracking usage on this device.',
           action: FilledButton.icon(
-            onPressed: widget.onOpenAdd,
+            onPressed: onOpenAdd,
             icon: const Icon(Icons.add, size: 18),
             label: const Text('Add an account'),
           ),
@@ -165,141 +66,229 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _content() {
-    final tokenCount = _agg.inputTokens + _agg.outputTokens;
-    final hot = <(String, LimitWindow)>[];
-    for (final account in _accounts) {
-      for (final window in account.windows) {
-        if (window.kind == LimitKind.extra) continue;
-        if (window.hot) hot.add((account.totals.account.label, window));
-      }
-    }
-    hot.sort((a, b) => b.$2.fraction.compareTo(a.$2.fraction));
+  Widget _content(BuildContext context, OverviewState state) {
+    final tokenCount = state.totals.inputTokens + state.totals.outputTokens;
+    final accounts = state.accounts;
 
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(
-        AppSpacing.pageHorizontal,
-        16,
-        AppSpacing.pageHorizontal,
-        AppSpacing.pageBottom,
+        AppSpacing.pageHorizontal, 16, AppSpacing.pageHorizontal, AppSpacing.pageBottom,
       ),
       children: [
-        AppBrandBar(
-          actions: [
-            IconButton(
-              onPressed: _refreshing ? null : _refresh,
-              tooltip: 'Refresh all accounts',
-              icon: _refreshing
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.sync),
-            ),
-          ],
-        ),
+        const _BrandRow(),
         const SizedBox(height: 18),
         Text(_todayLabel(), style: AppText.eyebrow),
         const SizedBox(height: 6),
         const PageHeading(
           title: 'Overview',
-          subtitle: 'Pull down anywhere to refresh usage from your accounts.',
+          subtitle: 'Pull down to sync usage from every connected account.',
         ),
         const SizedBox(height: 18),
-        AttentionBanner(items: hot),
-        _summaryCard(tokenCount),
-        SectionHeader(
-          title: 'Connected accounts',
-          trailing: '${_accounts.length} active',
-        ),
-        for (final account in _accounts) _accountCard(account),
-        const SizedBox(height: 4),
-        AddAccountCard(onPressed: widget.onOpenAdd),
-        if (_error != null) ...[
-          const SizedBox(height: 14),
-          InlineMessage.error(_error!),
+        if (state.heroWindow != null)
+          _HeroWallCard(
+            window: state.heroWindow!,
+            accountLabel: state.heroAccountLabel ?? '',
+            outlook: state.heroOutlook!,
+          )
+        else ...[
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(18),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('ALL ACCOUNTS', style: AppText.sectionLabel),
+                  const SizedBox(height: 10),
+                  Text(fmtCost(state.totals.costUsd), style: AppText.heroNumber()),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${fmtTokens(tokenCount)} tokens · ${state.totals.requests} requests',
+                    style: AppText.data(size: 11, color: AppColors.textDim),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
         ],
-        if (_series.length >= 2) ...[
-          const SectionHeader(title: 'Spend over time'),
+        const SizedBox(height: 14),
+        _StatStrip(state: state, tokenCount: tokenCount),
+        if (state.series.length >= 2) ...[
+          const SectionHeader(title: 'Tracked spend by day'),
           Card(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(14, 14, 14, 10),
-              child: SizedBox(height: 150, child: CostChart(series: _series)),
+              child: CostChart(series: state.series),
             ),
           ),
         ],
+        SectionHeader(title: 'Accounts', trailing: '${accounts.length} active'),
+        for (final account in accounts)
+          AccountUsageCard(
+            key: ValueKey(account.account.key),
+            account: account.account,
+            costUsd: account.latest?.costUsd ?? 0,
+            requests: account.latest?.requests ?? 0,
+            inputTokens: account.latest?.inputTokens ?? 0,
+            outputTokens: account.latest?.outputTokens ?? 0,
+            windows: account.windows,
+            models: account.latest?.models ?? const [],
+            lastRefreshAt: account.account.lastRefreshAt,
+            onOpen: () => _openDetail(context, account.account.key),
+          ),
+        const SizedBox(height: 4),
+        AddAccountCard(onPressed: onOpenAdd),
       ],
     );
   }
 
-  Widget _summaryCard(int tokenCount) {
-    return Card(
-      color: AppColors.accent,
-      margin: const EdgeInsets.only(bottom: 6),
+  void _openDetail(BuildContext context, String key) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(builder: (_) => AccountDetailScreen(accountKey: key)),
+    );
+  }
+}
+
+String _todayLabel() {
+  final now = DateTime.now();
+  const weekdays = ['', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+  const months = ['', 'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  return '${weekdays[now.weekday].toUpperCase()}, ${months[now.month].toUpperCase()} ${now.day}';
+}
+
+class _BrandRow extends StatelessWidget {
+  const _BrandRow();
+
+  @override
+  Widget build(BuildContext context) => const BrandBarWithSync();
+}
+
+/// The most urgent pool, framed as an instrument readout.
+class _HeroWallCard extends StatelessWidget {
+  final LimitWindow window;
+  final String accountLabel;
+  final PoolOutlook outlook;
+
+  const _HeroWallCard({
+    required this.window,
+    required this.accountLabel,
+    required this.outlook,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final f = window.fraction.clamp(0.0, 1.0);
+    final color = limitColor(f, exceeded: window.exceeded);
+    final urgent = f >= 0.7 || window.exceeded;
+
+    // Caret: where the level lands at reset if the pace holds.
+    double? caret;
+    if (outlook.perDay > 0 && outlook.daysToReset != null && outlook.daysToReset! > 0) {
+      caret = ((window.used + outlook.perDay * outlook.daysToReset!) / window.cap);
+    }
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: urgent ? color.withValues(alpha: .55) : AppColors.border,
+        ),
+      ),
       child: Padding(
         padding: const EdgeInsets.all(18),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
-                  'ALL ACCOUNTS',
-                  style: TextStyle(
-                    color: Colors.white70,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.8,
-                  ),
+                Icon(Icons.speed, size: 15, color: color),
+                const SizedBox(width: 7),
+                Text('NEXT WALL', style: AppText.sectionLabel.copyWith(color: color)),
+                const Spacer(),
+                Text(
+                  fmtCost(window.used),
+                  style: AppText.data(size: 13, weight: FontWeight.w700, color: color),
                 ),
                 Text(
-                  'Latest snapshot',
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: .75),
-                    fontSize: 11,
+                  ' / ${fmtCost(window.cap)}',
+                  style: AppText.data(size: 12, color: AppColors.textDim),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.baseline,
+              textBaseline: TextBaseline.alphabetic,
+              children: [
+                Text(
+                  fmtPct(f),
+                  style: AppText.heroNumber(color: color),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    [
+                      window.label.toUpperCase(),
+                      accountLabel.toUpperCase(),
+                    ].join(' · '),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppText.data(size: 10, color: AppColors.textDim, spacing: 0.8),
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 12),
-            Text(
-              fmtCost(_agg.costUsd),
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 38,
-                fontWeight: FontWeight.w600,
-                letterSpacing: -1.5,
-                fontFeatures: [FontFeature.tabularFigures()],
+            PoolGauge(window: window, paceCaretFraction: caret),
+            if (outlook.perDay > 0) ...[
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Icon(Icons.trending_up, size: 13, color: AppColors.textDim),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      'pace ${fmtCost(outlook.perDay)}/day · ${outlook.verdict()}',
+                      style: AppText.data(size: 10.5, color: AppColors.textDim),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
               ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              '${fmtTokens(tokenCount)} tokens · ${_agg.requests} requests',
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: .82),
-                fontSize: 12,
-              ),
-            ),
+            ],
           ],
         ),
       ),
     );
   }
+}
 
-  Widget _accountCard(_AccountView view) {
-    final row = view.totals;
-    return AccountUsageCard(
-      account: row.account,
-      costUsd: row.costUsd,
-      requests: row.requests,
-      inputTokens: row.inputTokens,
-      outputTokens: row.outputTokens,
-      windows: view.windows,
-      models: view.snap?.models ?? const [],
-      lastRefreshAt: row.account.lastRefreshAt,
+class _StatStrip extends StatelessWidget {
+  final OverviewState state;
+  final int tokenCount;
+
+  const _StatStrip({required this.state, required this.tokenCount});
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        child: StatRow(
+          children: [
+            StatCell(label: 'SPEND', value: fmtCost(state.totals.costUsd)),
+            StatCell(
+              label: 'PACE / DAY',
+              value: state.perDay > 0 ? fmtCost(state.perDay) : '—',
+            ),
+            StatCell(label: 'TOKENS', value: fmtTokens(tokenCount)),
+            StatCell(label: 'REQUESTS', value: '${state.totals.requests}'),
+          ],
+        ),
+      ),
     );
   }
 }

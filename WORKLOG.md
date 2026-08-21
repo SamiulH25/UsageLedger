@@ -1,6 +1,6 @@
 # Worklog — AI Usage Monitor
 
-Updated: 2026-08-20
+Updated: 2026-08-21
 
 ## Done
 
@@ -14,14 +14,25 @@ Updated: 2026-08-20
 - [2026-08-20] **Android packaging**: installed Android SDK (platform 36, build-tools, cmdline-tools) at /opt/android-sdk + JDK 17 (/usr/lib/jvm/java-17-openjdk). DB layer now uses native `sqflite` on Android (FFI only on Linux); added INTERNET permission; generated `upload-keystore.jks` + `key.properties` (both gitignored) wired into build.gradle.kts release signing. Built signed `app-release.apk` (21.9MB), copied to repo root as `ai-usage-monitor.apk`.
 - [2026-08-20] **GitHub publish**: repo **SamiulH25/UsageLedger** (public). Landing page in `docs/` → GitHub Pages at https://samiulh25.github.io/UsageLedger/. Release **v0.1.0** with `ai-usage-monitor.apk` attached. Name: **UsageLedger**.
 - [2026-08-20] **v0.2.0**: Accounts First light mobile UI overhaul — bottom-sheet add account; Cursor shows one included $70 pool with Auto/API shares plus extra/bonus spend; Command Code billing-period totals (weekly pool, monthly period+credits, 5-hour burst ready state, relative reset times). Signed APK built and attached to GitHub Release **v0.2.0**.
+- [2026-08-21] **v0.3.0**: MVVM refactor — `AppScope` DI + `SyncController`
+  (configurable auto-refresh interval, persisted in settings) + per-tab
+  ViewModels; new Account Detail screen (pools, trend, token split,
+  expandable snapshots); burn-rate `PoolOutlook` projections on the hero
+  gauge ("runs out ~Nd before reset"); Space Grotesk + JetBrains Mono fonts.
+  **Fixed daily-spend series**: was plotting per-day MAX(account period
+  total) as if cumulative — now per-account day-over-day delta of period
+  totals, clamped at resets, zero-filled, summed across accounts; pace =
+  trailing 3-day mean blended with today's partial (capped 3x, skipped
+  before 6am). Pull-to-refresh now responds to mouse drag on desktop
+  (custom ScrollBehavior). Limit-exceeded Android local notifications
+  (flutter_local_notifications 19.5, desugaring enabled, POST_NOTIFICATIONS;
+  deduped per account+window+reset in settings; desktop no-op). Verified on
+  desktop with screenshots; 10/10 tests; Pages site confirmed live.
 
 ## Next
 
-- Verify Pages site goes live (was 404 during first deploy — check in a few minutes).
-- Android: bump versionCode/versionName for future releases; app icon polish; Play Store not targeted (sideload only).
-- History tab: model/token detail per snapshot; pull-to-refresh wiring on desktop.
-- Background/auto refresh; limit-exceeded notifications.
-
+- Verify limit notifications fire on a real device after sideloading v0.3.0.
+- Android: app icon polish (low priority; sideload only, no Play Store).
 ## Notes
 
 - Running as root here; all real data under `/home/bob2142`. Always run the app as bob (`sudo -u bob2142`), DISPLAY=:0 (Hyprland + Xwayland). Screenshots: `sudo -u bob2142 DISPLAY=:0 import -window <id> /tmp/x.png`.

@@ -3,7 +3,8 @@ import 'dart:io';
 
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
-import 'package:sqflite/sqflite.dart' show databaseFactory, openDatabase, Database, ConflictAlgorithm;
+import 'package:sqflite/sqflite.dart'
+    show databaseFactory, openDatabase, Database, ConflictAlgorithm;
 import 'package:sqflite_common_ffi/sqflite_ffi.dart' show databaseFactoryFfi;
 
 import '../providers/types.dart';
@@ -25,22 +26,22 @@ class AccountRow {
   });
 
   Map<String, Object?> toMap() => {
-        'key': key,
-        'platform': platform,
-        'label': label,
-        'email': email,
-        'added_at': addedAt,
-        'last_refresh_at': lastRefreshAt,
-      };
+    'key': key,
+    'platform': platform,
+    'label': label,
+    'email': email,
+    'added_at': addedAt,
+    'last_refresh_at': lastRefreshAt,
+  };
 
   factory AccountRow.fromMap(Map<String, Object?> m) => AccountRow(
-        key: m['key'] as String,
-        platform: m['platform'] as String,
-        label: m['label'] as String? ?? '',
-        email: m['email'] as String? ?? '',
-        addedAt: (m['added_at'] as num?)?.toInt() ?? 0,
-        lastRefreshAt: (m['last_refresh_at'] as num?)?.toInt() ?? 0,
-      );
+    key: m['key'] as String,
+    platform: m['platform'] as String,
+    label: m['label'] as String? ?? '',
+    email: m['email'] as String? ?? '',
+    addedAt: (m['added_at'] as num?)?.toInt() ?? 0,
+    lastRefreshAt: (m['last_refresh_at'] as num?)?.toInt() ?? 0,
+  );
 }
 
 class SnapshotRow {
@@ -107,14 +108,21 @@ Future<Database> getDb() async {
   final path = p.join(dir, 'usage.db');
   _db = await openDatabase(
     path,
-    version: 2,
+    version: 3,
     onUpgrade: (db, oldV, newV) async {
       if (oldV < 2) {
         final cols = await db.rawQuery('PRAGMA table_info(usage_snapshot)');
         final has = cols.any((c) => c['name'] == 'models_json');
         if (!has) {
-          await db.execute("ALTER TABLE usage_snapshot ADD COLUMN models_json TEXT NOT NULL DEFAULT '[]'");
+          await db.execute(
+            "ALTER TABLE usage_snapshot ADD COLUMN models_json TEXT NOT NULL DEFAULT '[]'",
+          );
         }
+      }
+      if (oldV < 3) {
+        await db.execute(
+          'CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL)',
+        );
       }
     },
     onCreate: (db, _) async {
@@ -127,7 +135,9 @@ Future<Database> getDb() async {
           added_at INTEGER NOT NULL DEFAULT 0,
           last_refresh_at INTEGER NOT NULL DEFAULT 0
         )''');
-      await db.execute('CREATE INDEX idx_account_platform ON account(platform)');
+      await db.execute(
+        'CREATE INDEX idx_account_platform ON account(platform)',
+      );
       await db.execute('''
         CREATE TABLE usage_snapshot (
           id TEXT PRIMARY KEY,
@@ -141,8 +151,15 @@ Future<Database> getDb() async {
           windows_json TEXT NOT NULL DEFAULT '[]',
           models_json TEXT NOT NULL DEFAULT '[]'
         )''');
-      await db.execute('CREATE INDEX idx_snapshot_acct ON usage_snapshot(account_key, captured_at)');
-      await db.execute('CREATE INDEX idx_snapshot_time ON usage_snapshot(captured_at)');
+      await db.execute(
+        'CREATE INDEX idx_snapshot_acct ON usage_snapshot(account_key, captured_at)',
+      );
+      await db.execute(
+        'CREATE INDEX idx_snapshot_time ON usage_snapshot(captured_at)',
+      );
+      await db.execute(
+        'CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL)',
+      );
     },
   );
   return _db!;
@@ -152,7 +169,11 @@ Future<Database> getDb() async {
 
 Future<void> upsertAccount(AccountRow a) async {
   final db = await getDb();
-  await db.insert('account', a.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+  await db.insert(
+    'account',
+    a.toMap(),
+    conflictAlgorithm: ConflictAlgorithm.replace,
+  );
 }
 
 Future<List<AccountRow>> listAccounts() async {
@@ -165,8 +186,22 @@ Future<void> removeAccount(String key) async {
   final db = await getDb();
   await db.transaction((txn) async {
     await txn.delete('account', where: 'key = ?', whereArgs: [key]);
-    await txn.delete('usage_snapshot', where: 'account_key = ?', whereArgs: [key]);
+    await txn.delete(
+      'usage_snapshot',
+      where: 'account_key = ?',
+      whereArgs: [key],
+    );
   });
+}
+
+Future<void> renameAccount(String key, String label) async {
+  final db = await getDb();
+  await db.update(
+    'account',
+    {'label': label},
+    where: 'key = ?',
+    whereArgs: [key],
+  );
 }
 
 // --- snapshots ---
@@ -174,22 +209,18 @@ Future<void> removeAccount(String key) async {
 Future<void> saveSnapshot(SnapshotRow s) async {
   final db = await getDb();
   final id = '${s.accountKey}:${s.capturedAt}';
-  await db.insert(
-    'usage_snapshot',
-    {
-      'id': id,
-      'account_key': s.accountKey,
-      'platform': s.platform,
-      'captured_at': s.capturedAt,
-      'requests': s.requests,
-      'input_tokens': s.inputTokens,
-      'output_tokens': s.outputTokens,
-      'cost_usd': s.costUsd,
-      'windows_json': jsonEncode(s.windows.map((w) => w.toJson()).toList()),
-      'models_json': jsonEncode(s.models.map((m) => m.toJson()).toList()),
-    },
-    conflictAlgorithm: ConflictAlgorithm.replace,
-  );
+  await db.insert('usage_snapshot', {
+    'id': id,
+    'account_key': s.accountKey,
+    'platform': s.platform,
+    'captured_at': s.capturedAt,
+    'requests': s.requests,
+    'input_tokens': s.inputTokens,
+    'output_tokens': s.outputTokens,
+    'cost_usd': s.costUsd,
+    'windows_json': jsonEncode(s.windows.map((w) => w.toJson()).toList()),
+    'models_json': jsonEncode(s.models.map((m) => m.toJson()).toList()),
+  }, conflictAlgorithm: ConflictAlgorithm.replace);
 }
 
 Future<SnapshotRow?> latestSnapshot(String accountKey) async {
@@ -202,22 +233,7 @@ Future<SnapshotRow?> latestSnapshot(String accountKey) async {
     limit: 1,
   );
   if (rows.isEmpty) return null;
-  final r = rows.first;
-  return SnapshotRow(
-    accountKey: r['account_key'] as String,
-    platform: r['platform'] as String,
-    capturedAt: (r['captured_at'] as num).toInt(),
-    requests: (r['requests'] as num).toInt(),
-    inputTokens: (r['input_tokens'] as num).toInt(),
-    outputTokens: (r['output_tokens'] as num).toInt(),
-    costUsd: (r['cost_usd'] as num).toDouble(),
-    windows: (jsonDecode(r['windows_json'] as String) as List)
-        .map((e) => LimitWindow.fromJson(e as Map<String, dynamic>))
-        .toList(),
-    models: (jsonDecode(r['models_json'] as String? ?? '[]') as List)
-        .map((e) => ModelUsage.fromJson(e as Map<String, dynamic>))
-        .toList(),
-  );
+  return _snapshotFromRow(rows.first);
 }
 
 Future<List<AccountTotalsRow>> accountTotals() async {
@@ -230,24 +246,28 @@ Future<List<AccountTotalsRow>> accountTotals() async {
     )
     ORDER BY a.added_at
   ''');
-  return rows.map((r) => AccountTotalsRow(
-        account: AccountRow.fromMap({
-          'key': r['key'],
-          'platform': r['platform'],
-          'label': r['label'],
-          'email': r['email'],
-          'added_at': r['added_at'],
-          'last_refresh_at': r['last_refresh_at'],
-        }),
-        costUsd: (r['cost_usd'] as num?)?.toDouble() ?? 0,
-        requests: (r['requests'] as num?)?.toInt() ?? 0,
-        inputTokens: (r['input_tokens'] as num?)?.toInt() ?? 0,
-        outputTokens: (r['output_tokens'] as num?)?.toInt() ?? 0,
-      ))
+  return rows
+      .map(
+        (r) => AccountTotalsRow(
+          account: AccountRow.fromMap({
+            'key': r['key'],
+            'platform': r['platform'],
+            'label': r['label'],
+            'email': r['email'],
+            'added_at': r['added_at'],
+            'last_refresh_at': r['last_refresh_at'],
+          }),
+          costUsd: (r['cost_usd'] as num?)?.toDouble() ?? 0,
+          requests: (r['requests'] as num?)?.toInt() ?? 0,
+          inputTokens: (r['input_tokens'] as num?)?.toInt() ?? 0,
+          outputTokens: (r['output_tokens'] as num?)?.toInt() ?? 0,
+        ),
+      )
       .toList();
 }
 
-Future<({double costUsd, int requests, int inputTokens, int outputTokens})> aggregated() async {
+Future<({double costUsd, int requests, int inputTokens, int outputTokens})>
+aggregated() async {
   final db = await getDb();
   final r = await db.rawQuery('''
     SELECT SUM(cost_usd) as cost_usd, SUM(requests) as requests,
@@ -264,18 +284,131 @@ Future<({double costUsd, int requests, int inputTokens, int outputTokens})> aggr
   );
 }
 
-/// Per-day latest-cost series for the chart.
-Future<List<({String day, double costUsd})>> snapshotSeries() async {
+/// Per-day spend: for each account, the day-over-day change of its
+/// period-to-date total (clamped at period resets), summed across accounts.
+/// The first captured day per account has no baseline and contributes 0.
+Future<List<({String day, double costUsd})>> dailySpend({
+  String? accountKey,
+}) async {
   final db = await getDb();
   final rows = await db.rawQuery('''
-    SELECT strftime('%Y-%m-%d', captured_at / 1000, 'unixepoch', 'localtime') as day,
-           MAX(cost_usd) as cost_usd
-    FROM usage_snapshot
-    GROUP BY day ORDER BY day
-  ''');
-  return rows
-      .map((r) => (day: r['day'] as String, costUsd: (r['cost_usd'] as num?)?.toDouble() ?? 0))
-      .toList();
+    SELECT s.account_key AS account_key, m.day AS day, s.cost_usd AS cost_usd
+    FROM usage_snapshot s
+    JOIN (
+      SELECT account_key,
+             strftime('%Y-%m-%d', captured_at / 1000, 'unixepoch', 'localtime') AS day,
+             MAX(id) AS id
+      FROM usage_snapshot
+      ${accountKey == null ? '' : 'WHERE account_key = ?'}
+      GROUP BY account_key, day
+    ) m ON m.id = s.id
+    ORDER BY s.account_key, m.day
+    ''', accountKey == null ? const [] : [accountKey]);
+
+  final byDay = <String, double>{};
+  String? firstDay;
+  String? account;
+  String? prevDay;
+  var prev = 0.0;
+  for (final r in rows) {
+    final a = r['account_key'] as String;
+    final day = r['day'] as String;
+    final cost = (r['cost_usd'] as num?)?.toDouble() ?? 0;
+    if (a != account) {
+      account = a;
+      prevDay = null;
+      prev = 0;
+    }
+    if (prevDay != null && cost > prev) {
+      byDay[day] = (byDay[day] ?? 0) + (cost - prev);
+    }
+    prev = cost;
+    prevDay = day;
+    firstDay ??= day;
+    if (!byDay.containsKey(day)) byDay[day] = 0;
+  }
+  if (byDay.isEmpty) return const [];
+
+  // Emit every calendar day from first to last capture so zero-spend days
+  // still chart as zero bars.
+  final lastDay = prevDay!;
+  final out = <({String day, double costUsd})>[];
+  var cursor = DateTime.parse(firstDay!);
+  final end = DateTime.parse(lastDay);
+  while (!cursor.isAfter(end)) {
+    final key =
+        '${cursor.year.toString().padLeft(4, '0')}-'
+        '${cursor.month.toString().padLeft(2, '0')}-'
+        '${cursor.day.toString().padLeft(2, '0')}';
+    out.add((day: key, costUsd: byDay[key] ?? 0));
+    cursor = cursor.add(const Duration(days: 1));
+  }
+  return out;
+}
+
+/// Full snapshot history for one account, newest first.
+Future<List<SnapshotRow>> snapshotHistory(
+  String accountKey, {
+  int limit = 60,
+}) async {
+  final db = await getDb();
+  final rows = await db.query(
+    'usage_snapshot',
+    where: 'account_key = ?',
+    whereArgs: [accountKey],
+    orderBy: 'captured_at DESC',
+    limit: limit,
+  );
+  return rows.map(_snapshotFromRow).toList();
+}
+
+/// Latest snapshot per account per capture moment, newest first (all accounts).
+Future<List<SnapshotRow>> recentSnapshots({int limit = 200}) async {
+  final db = await getDb();
+  final rows = await db.query(
+    'usage_snapshot',
+    orderBy: 'captured_at DESC',
+    limit: limit,
+  );
+  return rows.map(_snapshotFromRow).toList();
+}
+
+SnapshotRow _snapshotFromRow(Map<String, Object?> r) => SnapshotRow(
+  accountKey: r['account_key'] as String,
+  platform: r['platform'] as String,
+  capturedAt: (r['captured_at'] as num).toInt(),
+  requests: (r['requests'] as num).toInt(),
+  inputTokens: (r['input_tokens'] as num).toInt(),
+  outputTokens: (r['output_tokens'] as num).toInt(),
+  costUsd: (r['cost_usd'] as num).toDouble(),
+  windows: (jsonDecode(r['windows_json'] as String) as List)
+      .map((e) => LimitWindow.fromJson(e as Map<String, dynamic>))
+      .toList(),
+  models: (jsonDecode(r['models_json'] as String? ?? '[]') as List)
+      .map((e) => ModelUsage.fromJson(e as Map<String, dynamic>))
+      .toList(),
+);
+
+// --- settings (key/value) ---
+
+Future<String?> getSetting(String key) async {
+  final db = await getDb();
+  final rows = await db.query(
+    'settings',
+    where: 'key = ?',
+    whereArgs: [key],
+    limit: 1,
+  );
+  if (rows.isEmpty) return null;
+  return rows.first['value'] as String?;
+}
+
+Future<void> setSetting(String key, String value) async {
+  final db = await getDb();
+  await db.insert('settings', {
+    'key': key,
+    'value': value,
+  }, conflictAlgorithm: ConflictAlgorithm.replace);
 }
 
 // --- secure token storage (plain file on desktop, chmod 600) ---

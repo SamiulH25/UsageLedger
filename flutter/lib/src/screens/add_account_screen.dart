@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../providers/registry.dart';
 import '../providers/types.dart';
-import '../services/usage_service.dart';
+import '../state/app_scope.dart';
 import '../ui/theme.dart';
 import '../ui/widgets.dart';
 
@@ -36,10 +36,11 @@ class _AddAccountScreenState extends State<AddAccountScreen> {
       _error = null;
     });
     try {
-      await addAccount(providerId: _providerId, token: token);
-      if (mounted) {
-        Navigator.pop(context, true);
-      }
+      await AppScope.of(context).repository.addAccount(
+            providerId: _providerId,
+            token: token,
+          );
+      if (mounted) Navigator.pop(context, true);
     } catch (error) {
       if (mounted) {
         setState(
@@ -47,9 +48,7 @@ class _AddAccountScreenState extends State<AddAccountScreen> {
         );
       }
     } finally {
-      if (mounted) {
-        setState(() => _busy = false);
-      }
+      if (mounted) setState(() => _busy = false);
     }
   }
 
@@ -59,7 +58,7 @@ class _AddAccountScreenState extends State<AddAccountScreen> {
     return Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
       child: Material(
-        color: AppColors.bg,
+        color: AppColors.surface,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
         clipBehavior: Clip.antiAlias,
         child: SafeArea(
@@ -90,7 +89,7 @@ class _AddAccountScreenState extends State<AddAccountScreen> {
                           Text('New account', style: AppText.pageTitle),
                           SizedBox(height: 6),
                           Text(
-                            'Pick a provider, paste its API key, and we will verify it before saving.',
+                            'Pick a provider, paste its API key, and it is verified before saving.',
                             style: AppText.pageSubtitle,
                           ),
                         ],
@@ -121,6 +120,7 @@ class _AddAccountScreenState extends State<AddAccountScreen> {
                   onSubmitted: (_) => _busy ? null : _add(),
                   decoration: InputDecoration(
                     labelText: 'Paste API key',
+                    labelStyle: AppText.data(size: 13, color: AppColors.textDim),
                     hintText: _providerId == 'commandcode' ? 'user_…' : 'crsr_…',
                     helperText: provider?.howToGetToken ?? '',
                     helperMaxLines: 4,
@@ -158,7 +158,7 @@ class _AddAccountScreenState extends State<AddAccountScreen> {
               }),
         style: OutlinedButton.styleFrom(
           alignment: Alignment.centerLeft,
-          backgroundColor: selected ? AppColors.accentSoft : AppColors.bgCard,
+          backgroundColor: selected ? AppColors.accentSoft : AppColors.surfaceHi,
           foregroundColor: AppColors.text,
           side: BorderSide(
             color: selected ? AppColors.accent : AppColors.border,
@@ -178,18 +178,14 @@ class _AddAccountScreenState extends State<AddAccountScreen> {
                   Text(
                     option.name,
                     style: const TextStyle(
-                      fontSize: 13,
+                      fontFamily: displayFamily,
+                      fontSize: 14,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
                   Text(
-                    option.id == 'commandcode'
-                        ? 'user_… API key'
-                        : 'User API key',
-                    style: const TextStyle(
-                      color: AppColors.textDim,
-                      fontSize: 11,
-                    ),
+                    option.id == 'commandcode' ? 'user_… API key' : 'crsr_… User API key',
+                    style: AppText.data(size: 11, color: AppColors.textDim),
                   ),
                 ],
               ),
