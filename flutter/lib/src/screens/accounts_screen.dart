@@ -25,11 +25,13 @@ class _AccountView {
 
 class _AccountsScreenState extends State<AccountsScreen> {
   List<_AccountView> _accounts = [];
+  Map<String, String> _tokens = {};
   bool _busy = false;
 
   Future<void> _load() async {
     final accounts = await accountTotals();
     final views = <_AccountView>[];
+    final tokens = <String, String>{};
     for (final account in accounts) {
       views.add(
         _AccountView(
@@ -37,9 +39,16 @@ class _AccountsScreenState extends State<AccountsScreen> {
           snap: await latestSnapshot(account.account.key),
         ),
       );
+      final token = await getToken(account.account.key);
+      if (token != null && token.isNotEmpty) {
+        tokens[account.account.key] = token;
+      }
     }
     if (!mounted) return;
-    setState(() => _accounts = views);
+    setState(() {
+      _accounts = views;
+      _tokens = tokens;
+    });
   }
 
   @override
@@ -140,6 +149,7 @@ class _AccountsScreenState extends State<AccountsScreen> {
 
   Widget _accountCard(_AccountView view) {
     final row = view.totals;
+    final apiKey = _tokens[row.account.key];
     return AccountUsageCard(
       account: row.account,
       costUsd: row.costUsd,
@@ -147,21 +157,28 @@ class _AccountsScreenState extends State<AccountsScreen> {
       inputTokens: row.inputTokens,
       outputTokens: row.outputTokens,
       windows: view.windows,
+      models: view.snap?.models ?? const [],
       lastRefreshAt: row.account.lastRefreshAt,
-      footer: Row(
-        mainAxisAlignment: MainAxisAlignment.end,
+      footer: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          TextButton.icon(
-            onPressed: _busy ? null : () => _refreshOne(view),
-            icon: const Icon(Icons.refresh, size: 18),
-            label: Text(_busy ? 'Refreshing…' : 'Refresh'),
-          ),
-          TextButton(
-            onPressed: () => _removeOne(view),
-            child: const Text(
-              'Remove',
-              style: TextStyle(color: AppColors.danger, fontSize: 13),
-            ),
+          if (apiKey != null && apiKey.isNotEmpty) ApiKeyPanel(apiKey: apiKey),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              TextButton.icon(
+                onPressed: _busy ? null : () => _refreshOne(view),
+                icon: const Icon(Icons.refresh, size: 18),
+                label: Text(_busy ? 'Refreshing…' : 'Refresh'),
+              ),
+              TextButton(
+                onPressed: () => _removeOne(view),
+                child: const Text(
+                  'Remove',
+                  style: TextStyle(color: AppColors.danger, fontSize: 13),
+                ),
+              ),
+            ],
           ),
         ],
       ),

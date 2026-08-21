@@ -298,6 +298,7 @@ class _HomeScreenState extends State<HomeScreen> {
       inputTokens: row.inputTokens,
       outputTokens: row.outputTokens,
       windows: view.windows,
+      models: view.snap?.models ?? const [],
       lastRefreshAt: row.account.lastRefreshAt,
     );
   }

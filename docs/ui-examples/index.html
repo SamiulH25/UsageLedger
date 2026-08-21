@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>UsageLedger mobile UI explorations</title>
+  <style>
+    :root{font-family:ui-sans-serif,system-ui,sans-serif;color:#22252a;background:#d5d8d2;--paper:#f7f6f1;--line:#d6d9d2;--muted:#697178;--blue:#315f79}
+    *{box-sizing:border-box}body{margin:0;background:#d5d8d2}.phone{max-width:430px;min-height:100vh;margin:auto;background:var(--paper);padding:38px 20px 50px}.kicker{font-size:10px;color:var(--blue);letter-spacing:.13em;text-transform:uppercase;font-weight:800}h1{font-size:36px;line-height:.97;letter-spacing:-.08em;margin:9px 0 15px;max-width:9ch}.intro{color:var(--muted);font-size:12px;line-height:1.5;margin:0 0 27px}.list{display:grid;gap:9px}a{display:grid;grid-template-columns:33px 1fr 20px;gap:10px;align-items:center;color:#22252a;background:#fff;border:1px solid var(--line);border-radius:9px;padding:15px;text-decoration:none}a:hover{border-color:var(--blue);transform:translateY(-1px)}a:focus-visible{outline:2px solid var(--blue);outline-offset:3px}.num{color:var(--blue);font:700 11px "Lucida Console",monospace}h2{font-size:12px;margin:0 0 4px}p{color:var(--muted);font-size:10px;line-height:1.4;margin:0}.arrow{font-size:19px;color:var(--blue)}footer{color:var(--muted);font-size:10px;line-height:1.5;margin-top:27px}
+    @media(min-width:431px){body{padding:20px 0}.phone{border-radius:28px;box-shadow:0 20px 80px rgba(34,37,42,.18)}}
+  </style>
+</head>
+<body>
+  <main class="phone">
+    <div class="kicker">UsageLedger · mobile explorations</div>
+    <h1>Four mobile ways to add an account.</h1>
+    <p class="intro">These are phone-first prototypes, not desktop layouts in a smaller window. Test the thumb reach, bottom navigation, stacked content, and add-account bottom sheet in each one.</p>
+    <div class="list">
+      <a href="01-pulse.html"><span class="num">01</span><span><h2>Pulse</h2><p>Dark overview with a floating add button and guided bottom sheet.</p></span><span class="arrow">→</span></a>
+      <a href="02-accounts-first.html"><span class="num">02</span><span><h2>Accounts First</h2><p>Calm account cards with an obvious inline “add another” action.</p></span><span class="arrow">→</span></a>
+      <a href="03-focus.html"><span class="num">03</span><span><h2>Focus</h2><p>Alert-led home screen with segmented metrics and activity feed.</p></span><span class="arrow">→</span></a>
+      <a href="04-quick-add.html"><span class="num">04</span><span><h2>Quick Add</h2><p>Compact utility layout with prominent warning and fast account action.</p></span><span class="arrow">→</span></a>
+    </div>
+    <footer>Demo only · sample data · no network calls · no credentials are saved.</footer>
+  </main>
+</body>
+</html>

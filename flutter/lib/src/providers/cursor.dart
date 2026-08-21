@@ -183,6 +183,10 @@ class CursorProvider implements AiProvider {
     final aggs =
         (agg['aggregations'] as List?)?.cast<Map<String, dynamic>>() ??
         const [];
+    final autoBucket = <String>{
+      for (final name in (period['autoBucketModels'] as List?) ?? const [])
+        name.toString(),
+    };
     var inputTokens = 0, outputTokens = 0;
     final models = <ModelUsage>[];
     for (final a in aggs) {
@@ -191,16 +195,18 @@ class CursorProvider implements AiProvider {
       final cr = _num(a['cacheReadTokens']).toInt();
       final cw = _num(a['cacheWriteTokens']).toInt();
       final tc = _num(a['totalCents']).toDouble();
+      final modelIntent = a['modelIntent'] as String? ?? 'unknown';
       inputTokens += it;
       outputTokens += ot;
       models.add(
         ModelUsage(
-          model: a['modelIntent'] as String? ?? 'unknown',
+          model: modelIntent,
           inputTokens: it,
           outputTokens: ot,
           cacheReadTokens: cr,
           cacheWriteTokens: cw,
           costUsd: tc / 100,
+          bucket: autoBucket.contains(modelIntent) ? 'auto' : 'api',
         ),
       );
     }

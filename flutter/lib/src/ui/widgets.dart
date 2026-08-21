@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../db/db.dart';
 import '../providers/registry.dart';
@@ -464,6 +465,7 @@ class AccountUsageCard extends StatelessWidget {
   final int inputTokens;
   final int outputTokens;
   final List<LimitWindow> windows;
+  final List<ModelUsage> models;
   final int lastRefreshAt;
   final Widget? footer;
 
@@ -475,6 +477,7 @@ class AccountUsageCard extends StatelessWidget {
     required this.inputTokens,
     required this.outputTokens,
     this.windows = const [],
+    this.models = const [],
     this.lastRefreshAt = 0,
     this.footer,
   });
@@ -550,6 +553,13 @@ class AccountUsageCard extends StatelessWidget {
                   if (requests > 0) '$requests requests',
                 ].join(' · '),
                 style: const TextStyle(fontSize: 10, color: AppColors.textDim),
+              ),
+            ],
+            if (models.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              ModelBreakdownPanel(
+                models: models,
+                platform: account.platform,
               ),
             ],
             if (footer != null) footer!,
@@ -686,6 +696,220 @@ class AccountUsageCard extends StatelessWidget {
             ),
           ),
           Text(fmtCost(window.used), style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
+        ],
+      ),
+    );
+  }
+}
+
+class ModelBreakdownPanel extends StatelessWidget {
+  final List<ModelUsage> models;
+  final String platform;
+
+  const ModelBreakdownPanel({
+    super.key,
+    required this.models,
+    required this.platform,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final totalCost = models.fold<double>(0, (sum, model) => sum + model.costUsd);
+
+    return Theme(
+      data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+      child: ExpansionTile(
+        tilePadding: EdgeInsets.zero,
+        childrenPadding: const EdgeInsets.only(bottom: 4),
+        expandedAlignment: Alignment.centerLeft,
+        iconColor: AppColors.textDim,
+        collapsedIconColor: AppColors.textDim,
+        title: const Text(
+          'Model usage',
+          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+        ),
+        subtitle: Text(
+          '${models.length} models · ${fmtCost(totalCost)} total',
+          style: const TextStyle(fontSize: 10, color: AppColors.textDim),
+        ),
+        children: platform == 'cursor'
+            ? [
+                if (_bucket(models, 'auto').isNotEmpty)
+                  _groupSection('Auto models', _bucket(models, 'auto'), totalCost),
+                if (_bucket(models, 'api').isNotEmpty)
+                  _groupSection('API models', _bucket(models, 'api'), totalCost),
+                if (_unbucketed(models).isNotEmpty)
+                  _groupSection('Other models', _unbucketed(models), totalCost),
+              ]
+            : [_modelList(models, totalCost)],
+      ),
+    );
+  }
+
+  List<ModelUsage> _bucket(List<ModelUsage> items, String bucket) {
+    final filtered = items.where((model) => model.bucket == bucket).toList()
+      ..sort((a, b) => b.costUsd.compareTo(a.costUsd));
+    return filtered;
+  }
+
+  List<ModelUsage> _unbucketed(List<ModelUsage> items) {
+    final filtered = items.where((model) => model.bucket == null).toList()
+      ..sort((a, b) => b.costUsd.compareTo(a.costUsd));
+    return filtered;
+  }
+
+  Widget _groupSection(String title, List<ModelUsage> items, double totalCost) {
+    final groupCost = items.fold<double>(0, (sum, model) => sum + model.costUsd);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 0.5,
+                  color: AppColors.accent,
+                ),
+              ),
+              const Spacer(),
+              Text(
+                fmtCost(groupCost),
+                style: const TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textDim,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          ..._modelRows(items, totalCost),
+        ],
+      ),
+    );
+  }
+
+  Widget _modelList(List<ModelUsage> items, double totalCost) {
+    final sorted = [...items]..sort((a, b) => b.costUsd.compareTo(a.costUsd));
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Column(children: _modelRows(sorted, totalCost)),
+    );
+  }
+
+  List<Widget> _modelRows(List<ModelUsage> items, double totalCost) {
+    return [
+      for (final model in items) _modelRow(model, totalCost),
+    ];
+  }
+
+  Widget _modelRow(ModelUsage model, double totalCost) {
+    final share = totalCost > 0 ? model.costUsd / totalCost : 0.0;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 5),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  model.model,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+                ),
+                if (model.totalTokens > 0)
+                  Text(
+                    '${fmtTokens(model.totalTokens)} tokens',
+                    style: const TextStyle(fontSize: 10, color: AppColors.textDim),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                fmtCost(model.costUsd),
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  fontFeatures: [FontFeature.tabularFigures()],
+                ),
+              ),
+              Text(
+                fmtPct(share),
+                style: const TextStyle(fontSize: 10, color: AppColors.textDim),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class ApiKeyPanel extends StatelessWidget {
+  final String apiKey;
+
+  const ApiKeyPanel({super.key, required this.apiKey});
+
+  Future<void> _copy(BuildContext context) async {
+    await Clipboard.setData(ClipboardData(text: apiKey));
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('API key copied')),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 12, bottom: 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Text('API KEY', style: AppText.sectionLabel),
+          const SizedBox(height: 8),
+          DecoratedBox(
+            decoration: BoxDecoration(
+              color: AppColors.bgElevated,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: SelectableText(
+                      apiKey,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        height: 1.45,
+                        fontFeatures: [FontFeature.tabularFigures()],
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => _copy(context),
+                    icon: const Icon(Icons.copy, size: 18),
+                    tooltip: 'Copy API key',
+                    visualDensity: VisualDensity.compact,
+                  ),
+                ],
+              ),
+            ),
+          ),
         ],
       ),
     );

@@ -116,8 +116,7 @@ class _AddAccountScreenState extends State<AddAccountScreen> {
                 const SizedBox(height: 10),
                 TextField(
                   controller: _tokenController,
-                  obscureText: true,
-                  maxLines: 2,
+                  maxLines: 3,
                   textInputAction: TextInputAction.done,
                   onSubmitted: (_) => _busy ? null : _add(),
                   decoration: InputDecoration(

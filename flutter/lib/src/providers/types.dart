@@ -100,6 +100,8 @@ class ModelUsage {
   final int cacheReadTokens;
   final int cacheWriteTokens;
   final double costUsd;
+  /// Cursor only: `auto` or `api`. Null for other providers.
+  final String? bucket;
   const ModelUsage({
     required this.model,
     required this.inputTokens,
@@ -107,7 +109,10 @@ class ModelUsage {
     required this.cacheReadTokens,
     required this.cacheWriteTokens,
     required this.costUsd,
+    this.bucket,
   });
+
+  int get totalTokens => inputTokens + outputTokens + cacheReadTokens + cacheWriteTokens;
 
   Map<String, dynamic> toJson() => {
     'model': model,
@@ -116,6 +121,7 @@ class ModelUsage {
     'cacheReadTokens': cacheReadTokens,
     'cacheWriteTokens': cacheWriteTokens,
     'costUsd': costUsd,
+    if (bucket != null) 'bucket': bucket,
   };
 
   factory ModelUsage.fromJson(Map<String, dynamic> j) => ModelUsage(
@@ -125,6 +131,7 @@ class ModelUsage {
     cacheReadTokens: (j['cacheReadTokens'] as num?)?.toInt() ?? 0,
     cacheWriteTokens: (j['cacheWriteTokens'] as num?)?.toInt() ?? 0,
     costUsd: (j['costUsd'] as num?)?.toDouble() ?? 0,
+    bucket: j['bucket'] as String?,
   );
 }
 
