@@ -1,6 +1,6 @@
 # Worklog — AI Usage Monitor
 
-Updated: 2026-08-21
+Updated: 2026-08-25
 
 ## Done
 
@@ -45,6 +45,8 @@ Updated: 2026-08-21
   and unsigned `UsageLedger-v1.1.0-ios-unsigned.ipa`. Artifacts inspected
   locally: correct bundle id `dev.bob2142.usageledger`, version 1.1.0,
   MinimumOSVersion 15.6 / LSMinimumSystemVersion 10.15.
+
+- [2026-08-25] **v1.2.0 — Apple HIG dashboard** (user pick, themelab lab approach): Apple HIG semantic dark elevations (`#000 → #1C1C1E → #2C2C2E → #38383A`), system blue `#0A84FF` as cold/warm `#FF9F0A` / hot `#FF3B30`, 12px card / 8px control radius, backdrop-blur nav. Collapsible Ledger hero — `USAGE` 9px mono/cold-lit over `Ledger` Fraunces 26px (shrinks to 17px at >18px scroll, header 64→46px with frosted `rgba(10,15,23,.92)` + blur). Provider-collapsible runway replaces flat Now lanes: each platform is an `ExpansionTile` row (chevron, ProviderAvatar, left total, burn · health subtitle) — hottest provider expands first. Flat `Accounts` list removed from Home (Accounts tab owns it). KPI strip above hero: **Amount Left** `$76.63` (68% rail) + **Burn Rate** `$2.14/day ↗ +12%` with trend + `7d` outline tag, secondary row: Hottest Pool / Runway / This Week. Pills polished per Eleken+shadcn research: `tag ok` (dot+label 6px pill) / inline `trend` (svg arrow) / `muted` outline. Themelab lab at `themelab/` served at `8765`: themes (Horizon/Signal/Noir/Orchard + Linear/Geist/Apple HIG/Radix OKLCH research-backed), layouts (compact/timeline/focus/providers), brand (icon/wordmark/collapse), dashboard (burn+left). `flutter analyze` + 70 tests green. Signed `usageledger-v1.2.0.apk` (27.3 MB) built with `--android-skip-build-dependency-validation` (Gradle 8.12 vs 8.14.0 gate); published as GitHub Release **v1.2.0**.
 
 ## Next
 
