@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Collapse — Ledger hero | UsageLedger themelab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&family=Fraunces:opsz,wght@9..144,600;9..144,800;9..144,900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--c-abyss:#0A0F17;--c-deck:#131B26;--c-riser:#1C2735;--c-rule:#2B3A4C;--c-beam:#E6EDF6;--c-haze:#8497AD;--c-cold:#3FC1B8;--c-cold-lit:#7EE0D8;--c-hot:#FF6A5E;--c-hot-lit:#FF9188}
+html{scroll-behavior:smooth}
+body{background:#06080C;color:var(--c-beam);font-family:"Archivo",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:inherit;text-decoration:none}
+.switcher{position:fixed;top:10px;right:10px;background:#131B26;border:1px solid #2B3A4C;border-radius:999px;padding:4px;display:flex;gap:4px;z-index:20}
+.switcher a{font-family:"JetBrains Mono",monospace;font-size:10px;letter-spacing:1px;color:#8497AD;padding:6px 10px;border-radius:999px;border:1px solid transparent}
+.switcher a.on{background:var(--c-cold);color:#0A0F17;border-color:var(--c-cold)}
+.shell{max-width:420px;margin:0 auto;min-height:100dvh;background:var(--c-abyss);border-left:1px solid var(--c-rule);border-right:1px solid var(--c-rule);display:flex;flex-direction:column}
+.lab-head{position:sticky;top:0;z-index:10;background:var(--c-abyss);border-bottom:1px solid var(--c-rule);display:flex;align-items:center;gap:10px;padding:14px 16px;height:64px;transition:height .28s cubic-bezier(.33,1,.68,1), background .28s, border-color .28s, padding .28s}
+.lab-head.scrolled{height:46px;padding:8px 16px;background:rgba(10,15,23,.92);backdrop-filter:blur(8px)}
+.wordmark{flex:1;display:flex;flex-direction:column;gap:1px;overflow:hidden;transition:gap .22s}
+.wordmark .top{font-family:"JetBrains Mono",monospace;font-size:9px;letter-spacing:2px;color:var(--c-cold-lit);line-height:1;transition:opacity .22s, transform .22s, height .22s, margin .22s}
+.wordmark .main{font-family:"Fraunces",serif;font-size:26px;font-weight:800;letter-spacing:-.8px;line-height:1;transition:font-size .28s cubic-bezier(.33,1,.68,1), letter-spacing .28s, transform .28s}
+.lab-head.scrolled .wordmark{gap:0}
+.lab-head.scrolled .wordmark .top{opacity:0;transform:translateY(-6px);height:0;margin:0;pointer-events:none}
+.lab-head.scrolled .wordmark .main{font-size:17px;letter-spacing:-.4px;transform:translateY(1px)}
+.sync{font-family:"JetBrains Mono",monospace;font-size:9.5px;letter-spacing:1.5px;color:var(--c-haze);display:flex;align-items:center;gap:7px;flex-shrink:0}
+.sync .dot{width:6px;height:6px;border-radius:50%;background:var(--c-cold)}
+.gear{width:28px;height:28px;border:1px solid var(--c-rule);border-radius:5px;background:var(--c-riser);color:var(--c-haze);display:grid;place-items:center;font-size:13px;flex-shrink:0}
+.page{padding:18px 18px 90px 18px}
+.eyebrow{font-family:"JetBrains Mono",monospace;font-size:10px;letter-spacing:1.5px;color:var(--c-haze)}
+.hero{border:1px solid var(--c-rule);border-radius:6px;background:var(--c-deck);position:relative;overflow:hidden;padding:17px;margin-top:14px}
+.hero::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--c-hot)}
+.hero .kicker{font-family:"JetBrains Mono",monospace;font-size:10px;letter-spacing:1.5px;color:var(--c-hot-lit)}
+.hero .value{font-family:"Archivo",sans-serif;font-size:44px;font-weight:800;font-variation-settings:"wdth" 118,"wght" 780;letter-spacing:-1.2px;margin:10px 0 8px 0;color:var(--c-hot-lit);font-feature-settings:"tnum"}
+.hero .detail{font-family:"JetBrains Mono",monospace;font-size:11.5px;color:var(--c-haze)}
+.hero .divider{height:1px;background:var(--c-rule);margin:16px 0 14px 0}
+.metric-row{display:flex;gap:16px}
+.metric{flex:1}
+.metric .label{font-family:"JetBrains Mono",monospace;font-size:10px;letter-spacing:1.5px;color:var(--c-haze)}
+.metric .val{font-family:"JetBrains Mono",monospace;font-size:13px;font-weight:700;margin-top:6px}
+.divider-v{width:1px;background:var(--c-rule)}
+.hint{margin:18px 0 2px 0;display:flex;gap:8px;align-items:center;font-family:"JetBrains Mono",monospace;font-size:10px;letter-spacing:1px;color:var(--c-haze);background:var(--c-riser);border:1px dashed var(--c-rule);border-radius:999px;padding:7px 10px;align-self:flex-start}
+.section{margin-top:22px}
+.section-head{display:flex;align-items:center;gap:12px;padding:0 0 12px 0}
+.section-head .title{font-family:"JetBrains Mono",monospace;font-size:10.5px;letter-spacing:1.5px;color:var(--c-beam)}
+.section-head .rule{flex:1;height:1px;background:var(--c-rule)}
+.card{border:1px solid var(--c-rule);border-radius:6px;background:var(--c-deck);padding:12px 14px}
+@media(prefers-reduced-motion:reduce){
+  .lab-head,.wordmark,.wordmark .top,.wordmark .main{transition:none}
+}
+</style>
+</head>
+<body>
+<div class="switcher">
+  <a href="../index.html">Index</a>
+  <a href="../horizon.html">Horizon</a>
+  <a href="index.html">Brand</a>
+  <a href="wordmark.html">Wordmark</a>
+  <a class="on" href="collapse-demo.html">Collapse</a>
+</div>
+
+<div class="shell">
+  <div class="lab-head" id="head">
+    <div class="wordmark" id="wm">
+      <div class="top">USAGE</div>
+      <div class="main">Ledger</div>
+    </div>
+    <div class="sync"><span class="dot"></span>JUST NOW</div>
+    <div class="gear">⚙</div>
+  </div>
+
+  <div class="page">
+    <div class="eyebrow">Scroll to collapse — USAGE drops, Ledger shrinks</div>
+    <div class="hint"><span style="width:18px;height:18px;border-radius:50%;background:var(--c-cold-soft, #102A2C);border:1px solid var(--c-cold);display:grid;place-items:center;font-size:10px;color:var(--c-cold-lit)">↕</span> Scroll down — header goes from stacked (26px) to single 17px Ledger</div>
+
+    <div class="hero">
+      <div class="kicker">EMPTY · REFILLS IN</div>
+      <div class="value">28d 2h</div>
+      <div class="detail">Samiul Hossain · Pro included</div>
+      <div class="divider"></div>
+      <div class="metric-row">
+        <div class="metric"><div class="label">LEFT</div><div class="val" style="color:var(--c-hot-lit)">$18.35</div></div>
+        <div class="divider-v"></div>
+        <div class="metric"><div class="label">PER DAY</div><div class="val">—</div></div>
+        <div class="divider-v"></div>
+        <div class="metric"><div class="label">RESET</div><div class="val">28d 2h</div></div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-head"><span class="title">RUNWAY</span><span class="rule"></span></div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div class="card"><div style="font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700">Samiul Hossain · Pro included</div><div style="height:10px;background:var(--c-riser);border-radius:2px;margin:8px 0;position:relative;overflow:hidden"><div style="position:absolute;left:0;top:0;bottom:0;width:0%;background:var(--c-hot)"></div><div style="position:absolute;inset:0;background:repeating-linear-gradient(135deg, transparent 0 3px, var(--c-rule) 3px 4px)"></div></div><div style="font-family:'JetBrains Mono',monospace;font-size:10.5px;color:var(--c-hot-lit)">empty · refills in 28d 2h</div></div>
+        <div class="card"><div style="font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700">SamiulH25 · This month</div><div style="height:10px;background:var(--c-riser);border-radius:2px;margin:8px 0;position:relative;overflow:hidden"><div style="position:absolute;left:0;top:0;bottom:0;width:58%;background:var(--c-cold)"></div></div><div style="font-family:'JetBrains Mono',monospace;font-size:10.5px;color:var(--c-haze)">not enough history to project</div></div>
+        <div class="card"><div style="font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700">SamiulH25 · This week</div><div style="height:10px;background:var(--c-riser);border-radius:2px;margin:8px 0;position:relative;overflow:hidden"><div style="position:absolute;left:0;top:0;bottom:0;width:42%;background:var(--c-cold)"></div></div><div style="font-family:'JetBrains Mono',monospace;font-size:10.5px;color:var(--c-haze)">not enough history to project</div></div>
+        <div class="card"><div style="font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700">SamiulH25 · 5-hour burst</div><div style="height:10px;background:var(--c-riser);border-radius:2px;margin:8px 0;position:relative;overflow:hidden"><div style="position:absolute;left:0;top:0;bottom:0;width:76%;background:var(--c-cold)"></div></div><div style="font-family:'JetBrains Mono',monospace;font-size:10.5px;color:var(--c-cold-lit)">on track to reach the reset</div></div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-head"><span class="title">POOLS</span><span class="rule"></span></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div class="card"><div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--c-haze)">Pro included</div><div style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;margin:4px 0">$18.35 LEFT</div><div style="height:6px;background:var(--c-riser);border-radius:2px"><div style="height:100%;width:8%;background:var(--c-hot);border-radius:2px"></div></div></div>
+        <div class="card"><div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--c-haze)">This month</div><div style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;margin:4px 0">$44.23 LEFT</div><div style="height:6px;background:var(--c-riser);border-radius:2px"><div style="height:100%;width:38%;background:var(--c-cold);border-radius:2px"></div></div></div>
+      </div>
+    </div>
+
+    <div style="height:340px"></div>
+    <div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--c-haze);text-align:center;border:1px dashed var(--c-rule);border-radius:8px;padding:16px;background:var(--c-deck)">End of demo scroll — header sticks as single-word Ledger<br><span style="color:var(--c-cold-lit)">Scroll back to top to re-expand</span></div>
+    <div style="height:20px"></div>
+  </div>
+</div>
+
+<script>
+const head = document.getElementById('head')
+let ticking = false
+function update(){
+  const y = window.scrollY
+  if(y > 18) head.classList.add('scrolled')
+  else head.classList.remove('scrolled')
+  ticking = false
+}
+window.addEventListener('scroll', () => {
+  if(!ticking){ requestAnimationFrame(update); ticking = true }
+}, {passive:true})
+if(window.matchMedia('(prefers-reduced-motion: reduce)').matches){
+  head.style.transition = 'none'
+}
+</script>
+</body>
+</html>

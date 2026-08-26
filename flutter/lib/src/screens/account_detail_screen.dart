@@ -107,6 +107,35 @@ class _AccountDetailScreenState extends State<AccountDetailScreen> {
             outlook: PoolOutlook.forWindow(window, state.perDay),
           ),
     ];
+    final budgets =
+        windows.where((w) => w.kind == LimitKind.budget).toList()
+          ..sort((a, b) => b.fraction.compareTo(a.fraction));
+    final shares = windows.where((w) => w.kind == LimitKind.share).toList();
+    final bursts =
+        windows.where((w) => w.kind == LimitKind.burst && !w.idle).toList()
+          ..sort((a, b) => b.fraction.compareTo(a.fraction));
+    final extras = windows.where((w) => w.kind == LimitKind.extra).toList();
+    final gauges = [...budgets, ...bursts];
+
+    // Remaining across every capped pool — the headline number.
+    final leftTotal = [
+      for (final w in windows)
+        if (w.cap > 0 && w.kind != LimitKind.share && w.kind != LimitKind.extra)
+          windowRemaining(w),
+    ].fold(0.0, (a, b) => a + b);
+    final hottest = gauges.isEmpty
+        ? null
+        : gauges.reduce((a, b) => a.fraction >= b.fraction ? a : b);
+    final rail = account.syncError.isNotEmpty
+        ? AppColors.hot
+        : hottest == null
+        ? AppColors.rule
+        : limitColor(hottest.fraction, exceeded: hottest.exceeded);
+    final heroColor = account.syncError.isNotEmpty
+        ? AppColors.hotLit
+        : hottest == null
+        ? AppColors.beam
+        : limitTextColor(hottest.fraction, exceeded: hottest.exceeded);
 
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
@@ -117,7 +146,56 @@ class _AccountDetailScreenState extends State<AccountDetailScreen> {
         AppSpacing.pageBottom,
       ),
       children: [
-        _header(state),
+        ThermalCard(
+          rail: rail,
+          padding: const EdgeInsets.fromLTRB(17, 16, 17, 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  ProviderAvatar(platform: account.platform, size: 34),
+                  const SizedBox(width: 11),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          providerName(account.platform).toUpperCase(),
+                          style: AppText.tag(size: 9.5),
+                        ),
+                        if (account.email.isNotEmpty) ...[
+                          const SizedBox(height: 3),
+                          Text(
+                            account.email,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppText.body(size: 12),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              // Remaining-first hero: what is left, in the account's own
+              // status colour, with spend pushed into the context line.
+              Readout(
+                eyebrow: 'LEFT ACROSS POOLS',
+                value: leftTotal > 0 ? fmtCost(leftTotal) : fmtCost(latest?.costUsd ?? 0),
+                detail: [
+                  if (latest != null && latest.costUsd > 0)
+                    '${fmtCost(latest.costUsd)} tracked spend',
+                  if (account.lastRefreshAt > 0)
+                    'Synced ${fmtAgo(account.lastRefreshAt)}',
+                ].join(' · '),
+                color: heroColor,
+                size: 38,
+              ),
+            ],
+          ),
+        ),
         if (state.error != null) ...[
           const SizedBox(height: 12),
           InlineMessage.error(
@@ -142,26 +220,75 @@ class _AccountDetailScreenState extends State<AccountDetailScreen> {
                   if (i > 0) const Divider(height: 1),
                   RunwayLane(entry: runway[i], showAccount: false),
                 ],
+                const SizedBox(height: 4),
+                const RunwayLegend(),
               ],
             ),
           ),
         ],
-        if (windows.isNotEmpty) ...[
+        if (gauges.isNotEmpty) ...[
           const SectionHeader(title: 'Pools', trailing: 'what is left'),
           ThermalCard(
             child: Column(
               children: [
-                for (var i = 0; i < windows.length; i++) ...[
+                for (var i = 0; i < gauges.length; i++) ...[
                   if (i > 0) const SizedBox(height: 16),
                   PoolGauge(
-                    window: windows[i],
-                    paceCaretFraction: _caret(windows[i], state.perDay),
+                    window: gauges[i],
+                    paceCaretFraction: _caret(gauges[i], state.perDay),
                   ),
                 ],
               ],
             ),
           ),
         ],
+        if (shares.isNotEmpty) ...[
+          const SectionHeader(title: 'Included split', trailing: 'auto · api'),
+          ThermalCard(
+            child: shares.length >= 2
+                ? Row(
+                    children: [
+                      Expanded(
+                        child: ShareBar(
+                          label: shares[0].label,
+                          fraction: shares[0].fraction,
+                          exceeded: shares[0].exceeded,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: ShareBar(
+                          label: shares[1].label,
+                          fraction: shares[1].fraction,
+                          exceeded: shares[1].exceeded,
+                        ),
+                      ),
+                    ],
+                  )
+                : ShareBar(
+                    label: shares.first.label,
+                    fraction: shares.first.fraction,
+                    exceeded: shares.first.exceeded,
+                  ),
+          ),
+        ],
+        for (final extra in extras)
+          Padding(
+            padding: const EdgeInsets.only(top: 12),
+            child: Row(
+              children: [
+                Expanded(child: Text('EXTRA USAGE', style: AppText.tag(size: 9.5))),
+                Text(
+                  fmtCost(extra.used),
+                  style: AppText.data(
+                    size: 11.5,
+                    weight: FontWeight.w700,
+                    color: AppColors.warm,
+                  ),
+                ),
+              ],
+            ),
+          ),
         if (state.series.length >= 2) ...[
           const SectionHeader(title: 'Trend', trailing: 'daily spend'),
           ThermalCard(
@@ -290,67 +417,6 @@ class _AccountDetailScreenState extends State<AccountDetailScreen> {
         (window.resetAt - DateTime.now().millisecondsSinceEpoch) / 86400000;
     if (daysToReset <= 0) return null;
     return (window.used + perDay * daysToReset) / window.cap;
-  }
-
-  Widget _header(AccountDetailState state) {
-    final account = state.account!;
-    final latest = state.latest;
-    final hottest = (latest?.windows ?? const <LimitWindow>[])
-        .where((w) => w.cap > 0 && !w.idle)
-        .fold<LimitWindow?>(
-          null,
-          (best, w) => best == null || w.fraction > best.fraction ? w : best,
-        );
-    final rail = account.syncError.isNotEmpty
-        ? AppColors.hot
-        : hottest == null
-        ? AppColors.rule
-        : limitColor(hottest.fraction, exceeded: hottest.exceeded);
-
-    return ThermalCard(
-      rail: rail,
-      padding: const EdgeInsets.fromLTRB(17, 16, 17, 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              ProviderAvatar(platform: account.platform, size: 34),
-              const SizedBox(width: 11),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      providerName(account.platform).toUpperCase(),
-                      style: AppText.tag(size: 9.5),
-                    ),
-                    if (account.email.isNotEmpty) ...[
-                      const SizedBox(height: 3),
-                      Text(
-                        account.email,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: AppText.body(size: 12),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Readout(
-            eyebrow: 'TRACKED SPEND',
-            value: fmtCost(latest?.costUsd ?? 0),
-            detail: account.lastRefreshAt > 0
-                ? 'Synced ${fmtAgo(account.lastRefreshAt)}'
-                : 'Not synced yet',
-            size: 38,
-          ),
-        ],
-      ),
-    );
   }
 
   Widget _snapshotTile(SnapshotRow snapshot) {

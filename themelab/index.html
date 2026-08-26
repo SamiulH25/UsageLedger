@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>UsageLedger — themelab</title>
+<link rel="stylesheet" href="shared.css">
+<style>
+:root{
+  --font-ui: "Archivo"; --font-mono: "JetBrains Mono";
+  --c-abyss:#0A0F17; --c-deck:#131B26; --c-riser:#1C2735; --c-rule:#2B3A4C;
+  --c-beam:#E6EDF6; --c-haze:#8497AD;
+  --c-cold:#3FC1B8; --c-cold-lit:#7EE0D8; --c-cold-soft:#102A2C;
+  --c-warm:#F0A93B; --c-hot:#FF6A5E; --c-hot-lit:#FF9188;
+}
+body{font-family:Inter,system-ui,sans-serif; background:#0B0D10; color:#E6EDF6}
+.wrap{max-width:900px;margin:40px auto;padding:24px}
+h1{font-size:28px;letter-spacing:-.5px}
+.sub{color:#8497AD;margin:8px 0 24px 0}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px}
+a.card{border:1px solid #2B3A4C;border-radius:12px;overflow:hidden;background:#131B26;text-decoration:none;color:inherit;display:block}
+a.card .thumb{height:160px;background:#1C2735;display:grid;place-items:center;font-size:12px;letter-spacing:1px;color:#8497AD}
+a.card .meta{padding:14px}
+a.card .meta h3{font-size:14px}
+a.card .meta p{font-size:12px;color:#8497AD;margin-top:6px;line-height:1.5}
+.swatch{height:14px;border-radius:999px;display:flex;overflow:hidden;margin-top:10px}
+.swatch i{flex:1}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>UsageLedger — themelab</h1>
+  <p class="sub">HTML previews of the app shell under different themes, layouts, and brand. Nothing here touches the Flutter app — open a theme, layout, or brand, compare, then we port the winner.</p>
+  <div class="grid">
+    <a class="card" href="horizon.html">
+      <div class="thumb">HORIZON — current</div>
+      <div class="meta">
+        <h3>Horizon (current)</h3>
+        <p>Cold abyss, thermal rail. Heat = depletion. The baseline we ship today.</p>
+        <div class="swatch"><i style="background:#0A0F17"></i><i style="background:#3FC1B8"></i><i style="background:#F0A93B"></i><i style="background:#FF6A5E"></i></div>
+      </div>
+    </a>
+    <a class="card" href="signal.html">
+      <div class="thumb">SIGNAL — control room</div>
+      <div class="meta">
+        <h3>Signal</h3>
+        <p>Light paper, ink, hazard amber + signal red. Shadcn-like but with a runway signature — feels like a Loom Ops console.</p>
+        <div class="swatch"><i style="background:#F8F6F1"></i><i style="background:#0F1B2D"></i><i style="background:#EAB308"></i><i style="background:#DC2626"></i></div>
+      </div>
+    </a>
+    <a class="card" href="noir.html">
+      <div class="thumb">NOIR — carbon / brass</div>
+      <div class="meta">
+        <h3>Noir</h3>
+        <p>Pure black, carbon, brass + vermilion. Cinematic monitoring wall — runway glows.</p>
+        <div class="swatch"><i style="background:#05070A"></i><i style="background:#1A1B1E"></i><i style="background:#C9A86A"></i><i style="background:#E94C3D"></i></div>
+      </div>
+    </a>
+    <a class="card" href="orchard.html">
+      <div class="thumb">ORCHARD — grove ledger</div>
+      <div class="meta">
+        <h3>Orchard</h3>
+        <p>Sage paper, bark, lichen + persimmon. Soft, print-y — quota as a crop ledger, refill as rain.</p>
+        <div class="swatch"><i style="background:#F3EFE6"></i><i style="background:#2B2E2A"></i><i style="background:#7BA68A"></i><i style="background:#E37A2E"></i></div>
+      </div>
+    </a>
+  </div>
+  <h2 style="font-size:18px;margin:32px 0 8px 0">Themes (research-backed)</h2>
+  <p class="sub">Four fresh DNAs — Linear LCH · Geist mono · Apple HIG semantic · Radix OKLCH. Same UI, new system.</p>
+  <div class="grid">
+    <a class="card" href="themes/linear.html">
+      <div class="thumb" style="background:#0E0E11;color:#7C6CF6;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px">
+        <span style="font-size:12px;letter-spacing:1px">LINEAR</span>
+        <span style="font-size:10px;color:#8B8B8F">LCH · 3 variables → 98 tokens</span>
+      </div>
+      <div class="meta">
+        <h3>Linear <span style="background:#7C6CF6;color:#fff;border-radius:999px;padding:1px 6px;font-size:10px;">NEW</span></h3>
+        <p>LCH perceptual, Inter Display heads, inverted-L chrome. 3 vars, infinite themes.</p>
+        <div class="swatch"><i style="background:#0E0E11"></i><i style="background:#7C6CF6"></i><i style="background:#FF4D4D"></i><i style="background:#1E1B2E"></i></div>
+      </div>
+    </a>
+    <a class="card" href="themes/geist.html">
+      <div class="thumb" style="background:#000;color:#FAFAFA;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px">
+        <span style="font-size:12px;letter-spacing:1px">GEIST</span>
+        <span style="font-size:10px;color:#737373">Vercel · monochrome</span>
+      </div>
+      <div class="meta">
+        <h3>Geist <span style="background:#FAFAFA;color:#000;border-radius:999px;padding:1px 6px;font-size:10px;">NEW</span></h3>
+        <p>Black + white, 4px radius, Geist Mono. Infrastructure dashboard, type does hierarchy.</p>
+        <div class="swatch"><i style="background:#000"></i><i style="background:#FAFAFA"></i><i style="background:#737373"></i><i style="background:#171717"></i></div>
+      </div>
+    </a>
+    <a class="card" href="themes/apple.html">
+      <div class="thumb" style="background:#1C1C1E;color:#0A84FF;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px">
+        <span style="font-size:12px;letter-spacing:1px">APPLE HIG</span>
+        <span style="font-size:10px;color:#98989D">semantic · vibrancy</span>
+      </div>
+      <div class="meta">
+        <h3>Apple HIG</h3>
+        <p>Semantic elevations, not hex. Elevated → translucent, adapted dark comfort.</p>
+        <div class="swatch"><i style="background:#000"></i><i style="background:#1C1C1E"></i><i style="background:#0A84FF"></i><i style="background:#FF3B30"></i></div>
+      </div>
+    </a>
+    <a class="card" href="themes/radix.html">
+      <div class="thumb" style="background:#0C0C0F;color:#3DD8C3;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px">
+        <span style="font-size:12px;letter-spacing:1px">RADIX</span>
+        <span style="font-size:10px;color:#9A9AA3">OKLCH 12-step · P3</span>
+      </div>
+      <div class="meta">
+        <h3>Radix OKLCH</h3>
+        <p>12-step scales per hue, steps 9–10 accessible on white. Export-ready CSS.</p>
+        <div class="swatch"><i style="background:#0C0C0F"></i><i style="background:#0D9B8A"></i><i style="background:#3DD8C3"></i><i style="background:#E5484D"></i></div>
+      </div>
+    </a>
+  </div>
+  <h2 style="font-size:18px;margin:32px 0 8px 0">Layouts</h2>
+  <p class="sub">Same Horizon skin, different bones. Each layout reflows the same data — pick by feel.</p>
+  <div class="grid">
+    <a class="card" href="layouts/compact.html">
+      <div class="thumb">COMPACT — runway grid</div>
+      <div class="meta">
+        <h3>Compact</h3>
+        <p>Denser wall: 2-col runway minis, sparkline pools, pill top-models. More above the fold.</p>
+        <div class="swatch"><i style="background:#0A0F17"></i><i style="background:#2B3A4C"></i><i style="background:#3FC1B8"></i><i style="background:#F0A93B"></i></div>
+      </div>
+    </a>
+    <a class="card" href="layouts/timeline.html">
+      <div class="thumb">TIMELINE — gantt runway</div>
+      <div class="meta">
+        <h3>Timeline</h3>
+        <p>Horizon axis: NOW → resets as ticks, dead zones as hatched tails. When are the gaps?</p>
+        <div class="swatch"><i style="background:#0A0F17"></i><i style="background:#E7E0D6"></i><i style="background:#FF6A5E"></i><i style="background:#C9A86A"></i></div>
+      </div>
+    </a>
+    <a class="card" href="layouts/focus.html">
+      <div class="thumb">FOCUS — hero + drawers</div>
+      <div class="meta">
+        <h3>Focus</h3>
+        <p>One wall at a time: giant hero, single runway lane, swipeable pool strip & pill models.</p>
+        <div class="swatch"><i style="background:#05070A"></i><i style="background:#E6EDF6"></i><i style="background:#3FC1B8"></i><i style="background:#C0392B"></i></div>
+      </div>
+    </a>
+    <a class="card" href="layouts/providers.html">
+      <div class="thumb">PROVIDERS — collapsible rows</div>
+      <div class="meta">
+        <h3>Providers <span style="background:#3FC1B8;color:#0A0F17;border-radius:999px;padding:1px 6px;font-size:10px;">NEW</span></h3>
+        <p>Each provider is a collapsible row. Scan health by rails & left totals; tap to expand pools.</p>
+        <div class="swatch"><i style="background:#0A0F17"></i><i style="background:#131B26"></i><i style="background:#3FC1B8"></i><i style="background:#FF6A5E"></i></div>
+      </div>
+    </a>
+  </div>
+  <h2 style="font-size:18px;margin:32px 0 8px 0">Brand</h2>
+  <p class="sub">Title + icon trials against the current ledger book. Same theme, sharper lockups.</p>
+  <div class="grid">
+    <a class="card" href="brand/index.html">
+      <div class="thumb">BRAND — title + icon lab</div>
+      <div class="meta">
+        <h3>Title & icon</h3>
+        <p>4 directions: current baseline, night ledger (recommended), ink mark, glyph lockup — launcher + bar in-context.</p>
+        <div class="swatch"><i style="background:#0A0F17"></i><i style="background:#FFF8E7"></i><i style="background:#3FC1B8"></i><i style="background:#2E4058"></i></div>
+      </div>
+    </a>
+    <a class="card" href="brand/wordmark.html">
+      <div class="thumb">WORDMARK — bold rework</div>
+      <div class="meta">
+        <h3>Wordmark bold rework</h3>
+        <p>5 takes keeping the ledger icon — compressed heavy · Fraunces Ledger hero · glyph lockup.</p>
+        <div class="swatch"><i style="background:#0A0F17"></i><i style="background:#3FC1B8"></i><i style="background:#E6EDF6"></i><i style="background:#2B3A4C"></i></div>
+      </div>
+    </a>
+    <a class="card" href="brand/collapse-demo.html">
+      <div class="thumb">COLLAPSE — Ledger hero</div>
+      <div class="meta">
+        <h3>Collapsible Ledger hero <span style="background:#3FC1B8;color:#0A0F17;border-radius:999px;padding:1px 6px;font-size:10px;">NEW</span></h3>
+        <p>Scroll to collapse USAGE, shrink to single-word Ledger — sticky 64→46px with blur.</p>
+        <div class="swatch"><i style="background:#0A0F17"></i><i style="background:#131B26"></i><i style="background:#7EE0D8"></i><i style="background:#FF6A5E"></i></div>
+      </div>
+    </a>
+  </div>
+  <h2 style="font-size:18px;margin:32px 0 8px 0">Dashboard</h2>
+  <p class="sub">Dashboard features — burn rate + amount left as glanceable KPIs before the hero.</p>
+  <div class="grid">
+    <a class="card" href="dashboard/burn-left.html">
+      <div class="thumb">BURN + LEFT — KPIs</div>
+      <div class="meta">
+        <h3>Burn + Left <span style="background:#3FC1B8;color:#0A0F17;border-radius:999px;padding:1px 6px;font-size:10px;">NEW</span></h3>
+        <p>Two-column KPI dashboard: amount left + burn rate with sparks, per-pool $/day in provider rows.</p>
+        <div class="swatch"><i style="background:#0A0F17"></i><i style="background:#3FC1B8"></i><i style="background:#F0A93B"></i><i style="background:#FF6A5E"></i></div>
+      </div>
+    </a>
+  </div>
+</div>
+</body>
+</html>

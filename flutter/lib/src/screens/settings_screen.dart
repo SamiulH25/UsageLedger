@@ -14,8 +14,7 @@ import '../state/sync_controller.dart';
 import '../ui/theme.dart';
 import '../ui/widgets.dart';
 
-/// Shown in Settings; bump per release.
-const appVersion = '1.1.0';
+const appVersion = '1.2.0';
 
 /// Sync, alerts, budget, backup and about.
 class SettingsScreen extends StatefulWidget {
@@ -107,7 +106,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     runSpacing: 7,
                     children: [
                       for (final minutes in SyncController.intervalChoices)
-                        _Pill(
+                        PillButton(
                           label: _intervalLabel(minutes),
                           selected: scope.sync.intervalMinutes == minutes,
                           onTap: () => scope.sync.setInterval(minutes),
@@ -495,50 +494,6 @@ class _SettingTile extends StatelessWidget {
       trailing: Icon(icon, size: 18, color: AppColors.haze),
       contentPadding: const EdgeInsets.fromLTRB(14, 8, 14, 8),
       onTap: onTap,
-    );
-  }
-}
-
-/// Small selectable pill used for the refresh interval.
-class _Pill extends StatelessWidget {
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  const _Pill({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      button: true,
-      selected: selected,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppRadius.control),
-        child: Container(
-          constraints: const BoxConstraints(minWidth: 56, minHeight: 42),
-          alignment: Alignment.center,
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          decoration: BoxDecoration(
-            color: selected ? AppColors.coldSoft : Colors.transparent,
-            borderRadius: BorderRadius.circular(AppRadius.control),
-            border: Border.all(
-              color: selected ? AppColors.cold : AppColors.rule,
-            ),
-          ),
-          child: Text(
-            label,
-            style: AppText.tag(
-              size: 10.5,
-              color: selected ? AppColors.coldLit : AppColors.haze,
-            ),
-          ),
-        ),
-      ),
     );
   }
 }

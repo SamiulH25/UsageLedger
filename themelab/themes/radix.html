@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Theme — Radix OKLCH | UsageLedger themelab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../shared.css">
+<style>
+/* Radix OKLCH 12-step scales: steps 9-10 are the accessible pair on white, P3-ready. */
+:root{
+  --font-ui:"Inter"; --font-mono:"JetBrains Mono";
+  /* Radix Slate-ish neutrals */
+  --c-abyss:#0C0C0F; --c-deck:#16161A; --c-riser:#1E1E24; --c-rule:#2B2B33;
+  --c-beam:#EDEEF2; --c-haze:#9A9AA3;
+  /* Radix Teal 9/10 for cold, Amber 9/10 for warm, Red 9/10 for hot — perceptual OKLCH */
+  --c-cold:#0D9B8A; --c-cold-lit:#3DD8C3; --c-cold-soft:#0E1E1C; --c-cold-border:#173332;
+  --c-warm:#E6A23C; --c-warm-soft:#241E10;
+  --c-hot:#E5484D; --c-hot-lit:#FF6369; --c-hot-soft:#241010;
+  /* Step markers for demo */
+  --step-9:#0D9B8A; --step-10:#0A7A6E;
+}
+.lab{border-left-color:var(--c-rule);border-right-color:var(--c-rule)}
+.lab-head{background:var(--c-abyss);border-bottom-color:var(--c-rule)}
+.lab-head .mark{background:var(--c-cold);width:3px}
+.bottom-nav{background:var(--c-abyss);border-top-color:var(--c-rule)}
+.bottom-nav .item.on{color:var(--c-cold-lit)}
+.bottom-nav .pill{background:var(--c-cold-soft);border-color:var(--c-cold-border)}
+.hero{border-color:var(--c-rule)}
+.hero::before{background:var(--c-hot)}
+.hero .kicker{color:var(--c-hot-lit)}
+.hero .value{color:var(--c-hot-lit)}
+.scale{display:flex;gap:2px;margin-top:10px}
+.scale i{flex:1;height:8px;border-radius:2px}
+</style>
+</head>
+<body>
+<div class="theme-switcher">
+  <a href="../index.html">Index</a>
+  <a href="../horizon.html">Horizon</a>
+  <a href="linear.html">Linear</a>
+  <a href="geist.html">Geist</a>
+  <a href="apple.html">Apple HIG</a>
+  <a class="on" href="radix.html">Radix</a>
+</div>
+<div class="lab">
+  <div class="lab-head">
+    <div class="mark"></div>
+    <div class="brand">UsageLedger</div>
+    <div class="sync"><span class="dot" style="background:var(--c-cold)"></span>JUST NOW</div>
+    <div class="gear">⚙</div>
+  </div>
+  <div class="page">
+    <div class="eyebrow" style="margin-bottom:14px">Tue 25 Aug · 19:47 — RADIX OKLCH (12-STEP)</div>
+
+    <div class="hero card-rail" style="--hero-rail:var(--c-hot)">
+      <div class="kicker">EMPTY · REFILLS IN</div>
+      <div class="value">28d 2h</div>
+      <div class="detail" style="font-family:var(--font-mono);font-size:11px;color:var(--c-haze)">Samiul Hossain · Pro included</div>
+      <div class="divider"></div>
+      <div class="metric-row">
+        <div class="metric"><div class="label">LEFT</div><div class="val" style="color:var(--c-hot-lit)">$18.35</div></div>
+        <div class="divider-v"></div>
+        <div class="metric"><div class="label">PER DAY</div><div class="val">—</div></div>
+        <div class="divider-v"></div>
+        <div class="metric"><div class="label">RESET</div><div class="val">28d 2h</div></div>
+      </div>
+      <div class="scale" title="Radix Teal steps 1→12"><i style="background:#0E1B19"></i><i style="background:#0E1F1C"></i><i style="background:#0A2A26"></i><i style="background:#0A3A34"></i><i style="background:#074A42"></i><i style="background:#0D5C52"></i><i style="background:#0A7A6E"></i><i style="background:#0D9B8A"></i><i style="background:#3DD8C3"></i><i style="background:#71E8D6"></i><i style="background:#A3F0E6"></i><i style="background:#D0F5F0"></i></div>
+      <div style="font-family:var(--font-mono);font-size:9px;color:var(--c-haze);margin-top:6px">Radix Teal 1→12 · steps 9–10 are the accessible pair on white (P3-ready)</div>
+    </div>
+
+    <div class="section-head" style="margin-top:18px"><span class="title">RUNWAY</span><span class="rule"></span><span class="trailing" style="font-family:var(--font-mono);font-size:10px;color:var(--c-haze)">to each reset</span></div>
+    <div class="card" style="padding:4px 0">
+      <div class="lane"><div class="lane-head"><span class="name">Samiul Hossain · Pro included</span><span class="left">$18.35 left</span></div><div class="track"><div class="fill" style="width:0%;background:var(--c-hot)"></div><div class="hatch" style="left:0;right:0"></div><div class="gate" style="background:var(--c-hot)"></div></div><div class="lane-foot"><span class="verdict" style="color:var(--c-hot-lit)">empty · refills in 28d 2h</span><span class="reset">↻ 28d 2h</span></div></div>
+      <div style="height:1px;background:var(--c-rule)"></div>
+      <div class="lane"><div class="lane-head"><span class="name">SamiulH25 · This month</span><span class="left">$44.23 left</span></div><div class="track"><div class="fill" style="width:58%;background:var(--c-cold)"></div><div class="hatch" style="left:58%;right:4px"></div><div class="meniscus" style="left:58%"></div><div class="gate"></div></div><div class="lane-foot"><span class="verdict" style="color:var(--c-haze)">not enough history to project</span><span class="reset">↻ 20d 22h</span></div></div>
+    </div>
+
+    <div class="section-head" style="margin-top:18px"><span class="title">POOLS</span><span class="rule"></span></div>
+    <div class="card gauge card-rail" style="--card-rail:var(--c-warm);padding:12px"><div class="gauge-head"><span class="pool-name">Pro included</span><span class="left-col"><span class="left-val" style="color:var(--c-warm)">$18.35</span><br><span class="left-tag" style="color:var(--c-warm)">LEFT</span></span></div><div class="meter"><div class="fill" style="width:8%;background:var(--c-warm)"></div></div></div>
+
+    <div style="margin-top:16px;border:1px dashed var(--c-rule);border-radius:8px;padding:12px;display:flex;gap:10px;align-items:center"><span style="width:22px;height:22px;border-radius:6px;background:var(--c-cold-soft);border:1px solid var(--c-cold-border);display:grid;place-items:center;color:var(--c-cold-lit)">＋</span><div><div style="font-size:13px;font-weight:600">Add an account</div><div style="font-size:11px;color:var(--c-haze)">The key stays on this phone</div></div></div>
+  </div>
+  <nav class="bottom-nav">
+    <span class="item on"><span class="pill">◷</span>NOW</span>
+    <span class="item"><span style="font-size:16px">⁂</span>ACCOUNTS</span>
+    <span class="item"><span style="font-size:16px">▤</span>HISTORY</span>
+  </nav>
+</div>
+</body>
+</html>

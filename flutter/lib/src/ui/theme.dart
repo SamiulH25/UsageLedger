@@ -3,46 +3,30 @@ import 'package:flutter/services.dart';
 
 import '../providers/types.dart';
 
-/// Horizon design tokens.
+/// Apple HIG–inspired tokens — semantic elevations, not fixed hex.
 ///
-/// The app answers one question: how long until you hit a wall? So the ground
-/// is a cold, unlit blue-slate and depletion is expressed as *heat* — a full
-/// pool reads glacial, a draining pool warms, an empty one runs hot. Hue is
-/// never decorative: if something is coloured, that colour is its status.
+/// Background → elevated → translucent, adapted for dark comfort per Apple
+/// Human Interface Guidelines Dark Mode. Elevations get lighter; system blue
+/// is the interactive colour; depletion reads as heat on top.
 class AppColors {
-  /// Page ground.
-  static const abyss = Color(0xFF0A0F17);
+  static const abyss = Color(0xFF000000);
+  static const deck = Color(0xFF1C1C1E);
+  static const riser = Color(0xFF2C2C2E);
+  static const rule = Color(0xFF38383A);
+  static const beam = Color(0xFFF5F5F7);
+  static const haze = Color(0xFF98989D);
 
-  /// Card and sheet surface.
-  static const deck = Color(0xFF131B26);
+  static const cold = Color(0xFF0A84FF);
+  static const coldLit = Color(0xFF64AFFF);
+  static const coldSoft = Color(0xFF1A2A3A);
+  static const coldBorder = Color(0xFF2A3F5A);
 
-  /// Inset surface — gauge tracks, fields, chips.
-  static const riser = Color(0xFF1C2735);
+  static const warm = Color(0xFFFF9F0A);
+  static const warmSoft = Color(0xFF2E2410);
 
-  /// Hairlines and dividers.
-  static const rule = Color(0xFF2B3A4C);
-
-  /// Primary text.
-  static const beam = Color(0xFFE6EDF6);
-
-  /// Secondary text and inactive icons.
-  static const haze = Color(0xFF8497AD);
-
-  // Thermal ramp — the only colours that carry meaning.
-  /// Plenty left. Doubles as the interactive colour, since "go" and "healthy"
-  /// are the same idea here.
-  static const cold = Color(0xFF3FC1B8);
-  static const coldLit = Color(0xFF7EE0D8);
-  static const coldSoft = Color(0xFF102A2C);
-
-  /// Getting thin.
-  static const warm = Color(0xFFF0A93B);
-  static const warmSoft = Color(0xFF2C2113);
-
-  /// Empty or over the cap.
-  static const hot = Color(0xFFFF6A5E);
-  static const hotLit = Color(0xFFFF9188);
-  static const hotSoft = Color(0xFF2E1614);
+  static const hot = Color(0xFFFF3B30);
+  static const hotLit = Color(0xFFFF6B62);
+  static const hotSoft = Color(0xFF2E1412);
 }
 
 class AppSpacing {
@@ -53,9 +37,9 @@ class AppSpacing {
 }
 
 class AppRadius {
-  static const card = 6.0;
-  static const control = 5.0;
-  static const track = 2.0;
+  static const card = 12.0;
+  static const control = 8.0;
+  static const track = 4.0;
 }
 
 class AppMotion {
@@ -223,10 +207,11 @@ ThemeData buildTheme() {
     ),
     iconTheme: const IconThemeData(color: AppColors.haze, size: 20),
     navigationBarTheme: NavigationBarThemeData(
-      backgroundColor: AppColors.abyss,
+      backgroundColor: const Color(0xCC1C1C1E),
       indicatorColor: AppColors.coldSoft,
       indicatorShape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(AppRadius.control),
+        side: const BorderSide(color: Color(0x1A0A84FF)),
       ),
       surfaceTintColor: Colors.transparent,
       height: 66,

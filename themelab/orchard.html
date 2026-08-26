@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Orchard — UsageLedger themelab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,800&family=IBM+Plex+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared.css">
+<style>
+:root{
+  --font-ui:"Fraunces"; --font-mono:"IBM Plex Mono";
+  --c-abyss:#F3EFE6; --c-deck:#FFFFFF; --c-riser:#EFECE3; --c-rule:#DDD8CC;
+  --c-beam:#2B2E2A; --c-haze:#8A8E7F;
+  --c-cold:#5A7A62; --c-cold-lit:#3D5A44; --c-cold-soft:#EAF2E6; --c-cold-border:#C9D9C7;
+  --c-warm:#A07A3A; --c-warm-soft:#FFF3D6;
+  --c-hot:#C0392B; --c-hot-lit:#9B2C21; --c-hot-soft:#FBE9E7;
+  --sage:#7BA68A; --bark:#2B2E2A; --persimmon:#E37A2E;
+}
+.hero .value{color:var(--c-hot-lit);letter-spacing:-2px}
+.lab{border-left-color:var(--c-rule);border-right-color:var(--c-rule)}
+.lab-head{background:var(--c-abyss);border-bottom-color:var(--c-rule)}
+.lab-head .mark{background:var(--sage);width:4px;border-radius:2px}
+.bottom-nav{background:var(--c-abyss);border-top-color:var(--c-rule)}
+.bottom-nav .item.on{color:var(--c-cold-lit)}
+.bottom-nav .pill{background:var(--c-cold-soft);border-color:var(--c-cold-border)}
+.card{box-shadow:0 1px 0 var(--c-rule);border-radius:10px}
+.track{border-radius:999px}
+.hero{border-radius:12px}
+</style>
+</head>
+<body>
+<div class="theme-switcher">
+  <a href="horizon.html">Horizon</a>
+  <a href="signal.html">Signal</a>
+  <a href="noir.html">Noir</a>
+  <a class="on" href="orchard.html">Orchard</a>
+  <a href="index.html">Index</a>
+</div>
+
+<div class="lab">
+  <div class="lab-head">
+    <div class="mark"></div>
+    <div class="brand" style="font-family:var(--font-ui);letter-spacing:-.2px">UsageLedger</div>
+    <div class="sync" style="color:var(--c-cold-lit)"><span class="dot" style="background:var(--sage)"></span>JUST NOW</div>
+    <div class="gear">⚙</div>
+  </div>
+
+  <div class="page">
+    <div class="eyebrow" style="margin-bottom:14px">Tue 25 Aug · 19:47</div>
+
+    <div class="hero card-rail" style="--hero-rail:var(--c-hot)">
+      <div class="kicker" style="color:var(--c-hot-lit)">EMPTY · REFILLS IN</div>
+      <div class="value">28d 2h</div>
+      <div class="detail">Samiul Hossain · Pro included</div>
+      <div class="divider"></div>
+      <div class="metric-row">
+        <div class="metric"><div class="label">LEFT</div><div class="val" style="color:var(--c-hot-lit)">$18.35</div></div>
+        <div class="divider-v"></div>
+        <div class="metric"><div class="label">PER DAY</div><div class="val">—</div></div>
+        <div class="divider-v"></div>
+        <div class="metric"><div class="label">RESET</div><div class="val">28d 2h</div></div>
+      </div>
+      <div class="detail" style="margin-top:14px;background:var(--c-riser);border-radius:999px;padding:8px 12px;display:inline-block">Spend under $0.65 a day and this pool lasts to the reset.</div>
+    </div>
+
+    <div style="display:flex;gap:6px;align-items:center;margin:10px 0 2px 0;font-family:var(--font-mono);font-size:11px;color:var(--c-haze)">
+      <span>↗</span><span>Since last sync: $0.02 · 372 tokens</span>
+    </div>
+
+    <div class="section-head"><span class="title" style="color:var(--c-beam)">RUNWAY</span><span class="rule"></span><span class="trailing">to each reset</span></div>
+    <div class="card">
+      <div class="lane">
+        <div class="lane-head"><span class="name">Samiul Hossain · Pro included</span><span class="left">$18.35 left</span></div>
+        <div class="track" style="height:14px">
+          <div class="fill" style="width:0%;background:var(--c-hot)"></div>
+          <div class="hatch" style="left:0;right:0;border-radius:999px"></div>
+          <div class="gate" style="background:var(--c-hot)"></div>
+        </div>
+        <div class="lane-foot"><span class="verdict" style="color:var(--c-hot-lit)">empty · refills in 28d 2h</span><span class="reset">↻ 28d 2h</span></div>
+      </div>
+      <div style="height:1px;background:var(--c-rule)"></div>
+      <div class="lane">
+        <div class="lane-head"><span class="name">SamiulH25 · This month</span><span class="left">$44.23 left</span></div>
+        <div class="track" style="height:14px">
+          <div class="fill" style="width:62%;background:var(--sage)"></div>
+          <div class="hatch" style="left:62%;right:4px"></div>
+          <div class="meniscus" style="left:62%"></div>
+          <div class="gate"></div>
+        </div>
+        <div class="lane-foot"><span class="verdict" style="color:var(--c-haze)">not enough history to project</span><span class="reset">↻ 20d 22h</span></div>
+      </div>
+      <div style="height:1px;background:var(--c-rule)"></div>
+      <div class="lane">
+        <div class="lane-head"><span class="name">SamiulH25 · This week</span><span class="left">$33.92 left</span></div>
+        <div class="track" style="height:14px">
+          <div class="fill" style="width:48%;background:var(--persimmon)"></div>
+          <div class="hatch" style="left:48%;right:4px"></div>
+          <div class="meniscus" style="left:48%"></div>
+          <div class="gate"></div>
+        </div>
+        <div class="lane-foot"><span class="verdict" style="color:var(--c-haze)">not enough history to project</span><span class="reset">↻ 4d 3h</span></div>
+      </div>
+      <div style="height:1px;background:var(--c-rule)"></div>
+      <div class="lane">
+        <div class="lane-head"><span class="name">SamiulH25 · 5-hour burst</span><span class="left">$13.85 left</span></div>
+        <div class="track" style="height:14px">
+          <div class="fill" style="width:82%;background:var(--sage)"></div>
+          <div class="hatch" style="left:82%;right:4px"></div>
+          <div class="meniscus" style="left:82%"></div>
+          <div class="gate"></div>
+        </div>
+        <div class="lane-foot"><span class="verdict" style="color:var(--c-cold-lit)">on track to reach the reset</span><span class="reset">↻ 3h 42m</span></div>
+      </div>
+      <div class="legend"><span class="sw" style="background:var(--sage)"></span><span>will last</span><span class="sw sw-hatch"></span><span>dead time</span><span style="margin-left:auto;display:flex;gap:6px;align-items:center"><span style="width:3px;height:12px;background:var(--c-haze);display:inline-block"></span> refill</span></div>
+    </div>
+
+    <div class="section-head"><span class="title" style="color:var(--c-beam)">POOLS</span><span class="rule"></span><span class="trailing">what is left</span></div>
+    <div class="card gauge card-rail" style="--card-rail:var(--persimmon)">
+      <div class="gauge-head">
+        <span class="pool-name">Pro included</span>
+        <span class="left-col"><span class="left-val" style="color:var(--persimmon)">$18.35</span><br><span class="left-tag" style="color:var(--persimmon)">LEFT</span></span>
+      </div>
+      <div style="font-family:var(--font-mono);font-size:10px;color:var(--c-haze);margin-top:2px">$1.65 of $20.00 used</div>
+      <div class="meter" style="height:10px;border-radius:999px"><div class="fill" style="width:8%;background:var(--persimmon)"></div><div class="caret" style="left:64%;background:var(--sage)"></div></div>
+      <div class="gauge-foot"><span class="heat" style="color:var(--persimmon)">LOW</span><span class="spacer"></span><span class="reset">resets Sep 22</span></div>
+    </div>
+
+    <div class="section-head"><span class="title" style="color:var(--c-beam)">TRACKED SPEND</span><span class="rule"></span></div>
+    <div class="card chart">
+      <div class="chart-head"><span class="lbl">DAILY</span><span class="avg">avg $3.21</span></div>
+      <div class="bars">
+        <div class="bar" style="height:18px;background:var(--c-rule)"></div>
+        <div class="bar" style="height:42px;background:var(--c-rule)"></div>
+        <div class="bar" style="height:28px;background:var(--c-rule)"></div>
+        <div class="bar" style="height:66px;background:var(--c-rule)"></div>
+        <div class="bar" style="height:38px;background:var(--c-rule)"></div>
+        <div class="bar" style="height:74px;background:var(--c-rule)"></div>
+        <div class="bar" style="height:22px;background:var(--c-rule)"></div>
+        <div class="bar" style="height:88px;background:var(--c-beam)"></div>
+        <div class="mean" style="bottom:42px"></div>
+      </div>
+      <div class="chart-foot"><span>08.12</span><span>08.25</span></div>
+    </div>
+
+    <div class="section-head"><span class="title" style="color:var(--c-beam)">TOP MODELS</span><span class="rule"></span><span class="trailing">all accounts</span></div>
+    <div class="card top-models">
+      <div class="model-row"><div class="row"><span class="name">claude-4-sonnet</span><span class="cost">$18.42</span></div><div class="share"><div class="fill" style="width:100%;background:var(--sage)"></div></div></div>
+      <div class="model-row"><div class="row"><span class="name">gpt-4o</span><span class="cost">$9.11</span></div><div class="share"><div class="fill" style="width:49%"></div></div></div>
+      <div class="model-row"><div class="row"><span class="name">gemini-2.0-flash</span><span class="cost">$4.32</span></div><div class="share"><div class="fill" style="width:23%"></div></div></div>
+    </div>
+
+    <div class="section-head"><span class="title" style="color:var(--c-beam)">ACCOUNTS</span><span class="rule"></span><span class="trailing">2 connected</span></div>
+    <div class="card card-rail acct" style="--card-rail:var(--c-hot)">
+      <div class="acct-head">
+        <div class="avatar">◈</div>
+        <div class="meta"><div class="acct-name">Samiul Hossain</div><div class="sub">CURSOR · JUST NOW</div></div>
+        <div class="left-col"><div class="left-val">$18.35</div><div class="left-tag">LEFT</div></div>
+        <span style="color:var(--c-haze)">›</span>
+      </div>
+      <div class="gauge" style="padding:0">
+        <div class="gauge-head"><span class="pool-name" style="font-size:11.5px">Pro included</span><span style="font-family:var(--font-mono);font-size:11.5px;color:var(--c-haze)">$18.35 left</span></div>
+        <div class="meter" style="height:6px"><div class="fill" style="width:8%;background:var(--c-hot)"></div></div>
+        <div class="gauge-foot" style="margin-top:4px"><span class="heat" style="color:var(--c-hot);font-size:9.5px">EMPTY</span><span class="spacer"></span><span class="reset" style="font-size:10.5px">resets Sep 22</span></div>
+      </div>
+    </div>
+
+    <div style="height:12px"></div>
+    <div class="add-card" style="border-color:var(--c-rule)"><span class="plus" style="color:var(--sage)">＋</span><div><div style="font-size:13.5px;font-weight:500">Add an account</div><div style="font-size:11.5px;color:var(--c-haze)">The key stays on this phone</div></div></div>
+  </div>
+
+  <nav class="bottom-nav">
+    <span class="item on"><span class="pill">◷</span>NOW</span>
+    <span class="item"><span style="font-size:16px">⁂</span>ACCOUNTS</span>
+    <span class="item"><span style="font-size:16px">▤</span>HISTORY</span>
+  </nav>
+</div>
+</body>
+</html>

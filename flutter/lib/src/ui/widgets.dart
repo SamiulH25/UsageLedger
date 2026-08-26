@@ -89,16 +89,18 @@ class RunwayLane extends StatelessWidget {
     final String verdict;
     final Color verdictColor;
     if (dry) {
-      verdict = reset == null ? 'empty' : 'empty · back in ${fmtSpan(reset)}';
+      verdict = reset == null
+          ? 'empty — nothing left'
+          : 'empty · refills in ${fmtSpan(reset)}';
       verdictColor = AppColors.hotLit;
     } else if (entry.pending || entry.outlook.daysToEmpty == null) {
-      verdict = 'pace unknown';
+      verdict = 'not enough history to project';
       verdictColor = AppColors.haze;
     } else if (early == null) {
-      verdict = 'lasts to reset';
+      verdict = 'on track to reach the reset';
       verdictColor = AppColors.coldLit;
     } else {
-      verdict = 'dry ${fmtSpan(early)} early';
+      verdict = 'runs dry ${fmtSpan(early)} before refill';
       verdictColor = runwayTextColor(survived);
     }
 
@@ -139,10 +141,17 @@ class RunwayLane extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 7),
-              _RunwayTrack(
-                survived: survived,
-                color: color,
-                unknown: entry.pending || entry.outlook.daysToEmpty == null,
+              Tooltip(
+                message: entry.pending || entry.outlook.daysToEmpty == null
+                    ? 'Collects more snapshots to project pace'
+                    : survived >= 0.999
+                    ? 'This pool should last until it refills'
+                    : 'Hatched gap = time with nothing left',
+                child: _RunwayTrack(
+                  survived: survived,
+                  color: color,
+                  unknown: entry.pending || entry.outlook.daysToEmpty == null,
+                ),
               ),
               const SizedBox(height: 6),
               Row(
@@ -160,9 +169,17 @@ class RunwayLane extends StatelessWidget {
                     ),
                   ),
                   if (reset != null)
-                    Text(
-                      'reset ${fmtSpan(reset)}',
-                      style: AppText.data(size: 10.5, color: AppColors.haze),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: AppColors.riser,
+                        borderRadius: BorderRadius.circular(3),
+                        border: Border.all(color: AppColors.rule),
+                      ),
+                      child: Text(
+                        '↻ ${fmtSpan(reset)}',
+                        style: AppText.data(size: 10, color: AppColors.haze),
+                      ),
                     ),
                 ],
               ),
@@ -354,21 +371,56 @@ class PoolGauge extends StatelessWidget {
               textBaseline: TextBaseline.alphabetic,
               children: [
                 Expanded(
-                  child: Text(
-                    window.label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppText.data(
-                      size: compact ? 11.5 : 12.5,
-                      weight: FontWeight.w700,
-                    ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        window.label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppText.data(
+                          size: compact ? 11.5 : 12.5,
+                          weight: FontWeight.w700,
+                        ),
+                      ),
+                      if (window.cap > 0) ...[
+                        const SizedBox(height: 1),
+                        Text(
+                          '${fmtCost(window.used)} of '
+                          '${fmtCost(window.cap)} used',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppText.data(
+                            size: compact ? 9 : 10,
+                            color: AppColors.haze,
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                 ),
                 const SizedBox(width: 8),
-                Text(
-                  window.cap > 0 ? fmtLeft(window) : fmtCost(window.used),
-                  style: AppText.data(size: 11.5, color: AppColors.haze),
-                ),
+                // Remaining-first: the emphasised reading is what is left.
+                if (window.cap > 0)
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        fmtCost(windowRemaining(window)),
+                        style: AppText.data(
+                          size: compact ? 13 : 15,
+                          weight: FontWeight.w700,
+                          color: textColor,
+                        ),
+                      ),
+                      Text('LEFT', style: AppText.tag(size: 8, color: textColor)),
+                    ],
+                  )
+                else
+                  Text(
+                    fmtCost(window.used),
+                    style: AppText.data(size: 11.5, color: AppColors.haze),
+                  ),
               ],
             ),
             SizedBox(height: compact ? 5 : 7),
@@ -475,15 +527,22 @@ class _MeterPainter extends CustomPainter {
       canvas.restore();
     }
 
-    // Projected level at reset — a notch, not a second bar, so it never
-    // competes with the actual reading.
     final c = caret;
     if (c != null && c > fraction + 0.02) {
       final x = (size.width * c).clamp(0.0, size.width - 1);
-      canvas.drawRect(
-        Rect.fromLTWH(x - 0.75, -2, 1.5, size.height + 4),
-        Paint()..color = AppColors.haze,
+      final caretColor = c >= 1.0
+          ? AppColors.hotLit
+          : c >= 0.9
+          ? AppColors.warm
+          : AppColors.coldLit;
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromLTWH(x - 1.25, -3, 2.5, size.height + 6),
+          const Radius.circular(1),
+        ),
+        Paint()..color = caretColor,
       );
+      canvas.drawCircle(Offset(x, -3), 3, Paint()..color = caretColor);
     }
   }
 
@@ -565,7 +624,10 @@ class ThermalCard extends StatelessWidget {
     this.margin = EdgeInsets.zero,
     this.onTap,
     this.background,
+    this.heroTag,
   });
+
+  final String? heroTag;
 
   static const _railWidth = 3.0;
 
@@ -587,36 +649,39 @@ class ThermalCard extends StatelessWidget {
         ),
       );
     }
-    return Padding(
-      padding: margin,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: background ?? AppColors.deck,
-          borderRadius: BorderRadius.circular(AppRadius.card),
-          border: Border.all(color: AppColors.rule),
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(AppRadius.card - 1),
-          // Stack rather than a stretched Row: the rail must span whatever
-          // height the content ends up at, including inside a scroll view
-          // where the height is unbounded.
-          child: Stack(
-            children: [
-              content,
-              Positioned(
-                left: 0,
-                top: 0,
-                bottom: 0,
-                child: SizedBox(
-                  width: _railWidth,
-                  child: ColoredBox(color: railColor),
-                ),
+    Widget card = DecoratedBox(
+      decoration: BoxDecoration(
+        color: background ?? AppColors.deck,
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        border: Border.all(color: AppColors.rule),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(AppRadius.card - 1),
+        child: Stack(
+          children: [
+            content,
+            Positioned(
+              left: 0,
+              top: 0,
+              bottom: 0,
+              child: SizedBox(
+                width: _railWidth,
+                child: ColoredBox(color: railColor),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
+    if (heroTag != null) {
+      card = Hero(
+        tag: heroTag!,
+        flightShuttleBuilder: (ctx, anim, dir, from, to) =>
+            FadeTransition(opacity: anim, child: to.widget),
+        child: card,
+      );
+    }
+    return Padding(padding: margin, child: card);
   }
 }
 
@@ -667,7 +732,6 @@ class Readout extends StatelessWidget {
   }
 }
 
-/// Label/value pairs separated by hairlines.
 class MetricRow extends StatelessWidget {
   final List<Metric> metrics;
 
@@ -677,7 +741,7 @@ class MetricRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final stack = constraints.maxWidth < 250 && metrics.length > 2;
+        final stack = constraints.maxWidth < 360 && metrics.length > 2;
         if (stack) {
           return Column(
             children: [
@@ -691,12 +755,17 @@ class MetricRow extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(metrics[i].label, style: AppText.tag()),
-                    Text(
-                      metrics[i].value,
-                      style: AppText.data(
-                        size: 14,
-                        weight: FontWeight.w700,
-                        color: metrics[i].color ?? AppColors.beam,
+                    Flexible(
+                      child: Text(
+                        metrics[i].value,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.end,
+                        style: AppText.data(
+                          size: 14,
+                          weight: FontWeight.w700,
+                          color: metrics[i].color ?? AppColors.beam,
+                        ),
                       ),
                     ),
                   ],
@@ -767,6 +836,9 @@ class ProviderAvatar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final asset = providerIconAsset(platform);
+    if (asset != null) {
+      precacheImage(AssetImage(asset), context);
+    }
     return Semantics(
       label: '${providerName(platform)} logo',
       child: DecoratedBox(
@@ -781,56 +853,114 @@ class ProviderAvatar extends StatelessWidget {
             width: size,
             height: size,
             child: asset != null
-                ? Image.asset(asset, fit: BoxFit.cover)
-                : Center(
-                    child: Text(
-                      platform.isNotEmpty ? platform[0].toUpperCase() : '?',
-                      style: AppText.data(
-                        size: size * .38,
-                        weight: FontWeight.w700,
-                        color: AppColors.haze,
-                      ),
-                    ),
-                  ),
+                ? Image.asset(
+                    asset,
+                    fit: BoxFit.cover,
+                    gaplessPlayback: true,
+                    errorBuilder: (_, _, _) => _fallback(),
+                  )
+                : _fallback(),
           ),
         ),
       ),
     );
   }
+
+  Widget _fallback() => Center(
+    child: Text(
+      platform.isNotEmpty ? platform[0].toUpperCase() : '?',
+      style: AppText.data(
+        size: size * .38,
+        weight: FontWeight.w700,
+        color: AppColors.haze,
+      ),
+    ),
+  );
 }
 
 // ---------------------------------------------------------------------------
 // Chrome
 // ---------------------------------------------------------------------------
 
-/// Wordmark plus trailing actions.
 class AppBrandBar extends StatelessWidget {
   final List<Widget>? actions;
+  final bool collapsed;
 
-  const AppBrandBar({super.key, this.actions});
+  const AppBrandBar({super.key, this.actions, this.collapsed = false});
 
   @override
   Widget build(BuildContext context) {
+    final animate = !MediaQuery.disableAnimationsOf(context);
     return Row(
       children: [
-        Container(
+        AnimatedContainer(
+          duration: animate ? AppMotion.quick : Duration.zero,
+          curve: AppMotion.curve,
           width: 3,
-          height: 15,
+          height: collapsed ? 12 : 15,
           margin: const EdgeInsets.only(right: 9),
           color: AppColors.cold,
         ),
-        const Expanded(child: Text('UsageLedger', style: AppText.brand)),
+        Expanded(
+          child: TweenAnimationBuilder<double>(
+            tween: Tween(begin: 1, end: collapsed ? 0 : 1),
+            duration: animate ? const Duration(milliseconds: 220) : Duration.zero,
+            curve: AppMotion.curve,
+            builder: (context, t, _) => Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (t > 0.05)
+                  Opacity(
+                    opacity: t,
+                    child: SizedBox(
+                      height: 9 * t,
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          'USAGE',
+                          style: AppText.tag(
+                            color: AppColors.coldLit,
+                            size: 9,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                Text(
+                  'Ledger',
+                  style: TextStyle(
+                    fontFamily: uiFamily,
+                    fontVariations: [
+                      FontVariation('wght', collapsed ? 700 : 800),
+                      FontVariation('wdth', collapsed ? 108 : 112),
+                    ],
+                    fontWeight: collapsed ? FontWeight.w700 : FontWeight.w800,
+                    fontSize: collapsed ? 15 : 19,
+                    height: 1,
+                    letterSpacing: collapsed ? -0.2 : -0.4,
+                    color: AppColors.beam,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
         if (actions != null) ...actions!,
       ],
     );
   }
 }
 
-/// Wordmark with the live sync status — used on every tab.
 class BrandBarWithSync extends StatelessWidget {
   final VoidCallback? onOpenSettings;
+  final bool collapsed;
 
-  const BrandBarWithSync({super.key, this.onOpenSettings});
+  const BrandBarWithSync({
+    super.key,
+    this.onOpenSettings,
+    this.collapsed = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -838,6 +968,7 @@ class BrandBarWithSync extends StatelessWidget {
     return ListenableBuilder(
       listenable: scope.sync,
       builder: (context, _) => AppBrandBar(
+        collapsed: collapsed,
         actions: [
           SyncChip(
             lastAttemptAt: scope.sync.lastAttemptAt,
@@ -1229,26 +1360,172 @@ class EmptyState extends StatelessWidget {
   }
 }
 
-/// Placeholder bar used while the first load is in flight.
-class SkeletonBar extends StatelessWidget {
+class SkeletonBar extends StatefulWidget {
   final double height;
   final double widthFactor;
 
   const SkeletonBar({super.key, this.height = 12, this.widthFactor = 1});
 
   @override
+  State<SkeletonBar> createState() => _SkeletonBarState();
+}
+
+class _SkeletonBarState extends State<SkeletonBar>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1100),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    if (MediaQuery.disableAnimationsOf(context)) {
+      return Align(
+        alignment: Alignment.centerLeft,
+        child: FractionallySizedBox(
+          widthFactor: widget.widthFactor,
+          child: Container(
+            height: widget.height,
+            decoration: BoxDecoration(
+              color: AppColors.riser,
+              borderRadius: BorderRadius.circular(AppRadius.track),
+            ),
+          ),
+        ),
+      );
+    }
     return Align(
       alignment: Alignment.centerLeft,
       child: FractionallySizedBox(
-        widthFactor: widthFactor,
-        child: Container(
-          height: height,
-          decoration: BoxDecoration(
-            color: AppColors.riser,
-            borderRadius: BorderRadius.circular(AppRadius.track),
+        widthFactor: widget.widthFactor,
+        child: AnimatedBuilder(
+          animation: _ctrl,
+          builder: (context, _) => DecoratedBox(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(AppRadius.track),
+              gradient: LinearGradient(
+                begin: Alignment(-1 + _ctrl.value * 2, 0),
+                end: Alignment(1 + _ctrl.value * 2, 0),
+                colors: const [
+                  AppColors.riser,
+                  Color(0xFF24344A),
+                  AppColors.riser,
+                ],
+                stops: const [0.0, 0.5, 1.0],
+              ),
+            ),
+            child: SizedBox(height: widget.height),
           ),
         ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Collapsible provider section — the Accounts tab groups accounts by provider.
+// The header is remaining-first: it leads with what is left, not what was used.
+// ---------------------------------------------------------------------------
+
+/// A provider's accounts grouped behind one expandable header.
+///
+/// The header shows the provider logo, a remaining-first headline (sum of what
+/// is left across the provider's capped pools), and a status chip. Sections
+/// collapse to keep the list scannable; the provider holding the most urgent
+/// pool starts expanded.
+class ProviderSection extends StatefulWidget {
+  final String platform;
+  final List<AccountUsageCard> accounts;
+  final bool initiallyExpanded;
+
+  const ProviderSection({
+    super.key,
+    required this.platform,
+    required this.accounts,
+    this.initiallyExpanded = false,
+  });
+
+  @override
+  State<ProviderSection> createState() => _ProviderSectionState();
+}
+
+class _ProviderSectionState extends State<ProviderSection> {
+  late bool _expanded;
+
+  @override
+  void initState() {
+    super.initState();
+    _expanded = widget.initiallyExpanded;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.accounts.isEmpty) return const SizedBox.shrink();
+
+    var left = 0.0;
+    var urgent = false;
+    for (final card in widget.accounts) {
+      for (final w in card.windows) {
+        if (w.cap > 0 && w.kind != LimitKind.share && w.kind != LimitKind.extra) {
+          left += windowRemaining(w);
+          if (w.hot) urgent = true;
+        }
+      }
+    }
+
+    final color = urgent ? AppColors.hotLit : AppColors.coldLit;
+
+    return Theme(
+      data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+      child: ExpansionTile(
+        tilePadding: const EdgeInsets.symmetric(horizontal: 4),
+        childrenPadding: const EdgeInsets.fromLTRB(4, 4, 4, 6),
+        initiallyExpanded: _expanded,
+        onExpansionChanged: (v) => setState(() => _expanded = v),
+        leading: ProviderAvatar(platform: widget.platform, size: 34),
+        title: Row(
+          children: [
+            Expanded(
+              child: Text(
+                providerName(widget.platform),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: AppText.cardTitle,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              left > 0 ? '${fmtCost(left)} left' : 'no limits',
+              style: AppText.data(size: 13, weight: FontWeight.w700, color: color),
+            ),
+          ],
+        ),
+        subtitle: Padding(
+          padding: const EdgeInsets.only(top: 3),
+          child: Text(
+            '${widget.accounts.length} account${widget.accounts.length == 1 ? '' : 's'} · '
+            '${urgent ? 'a pool is running low' : 'all pools healthy'}',
+            style: AppText.body(size: 11.5),
+          ),
+        ),
+        children: [
+          for (var i = 0; i < widget.accounts.length; i++) ...[
+            if (i > 0) const Divider(height: 14),
+            widget.accounts[i],
+          ],
+        ],
       ),
     );
   }
@@ -1302,6 +1579,13 @@ class AccountUsageCard extends StatelessWidget {
     final tokenCount = inputTokens + outputTokens;
     final failed = account.syncError.isNotEmpty;
 
+    // What is left across this account's capped pools — the headline number.
+    final leftTotal = [
+      for (final w in windows)
+        if (w.cap > 0 && w.kind != LimitKind.share && w.kind != LimitKind.extra)
+          windowRemaining(w),
+    ].fold(0.0, (a, b) => a + b);
+
     // The rail carries the account's worst pool, so a column of cards reads as
     // a single health scan.
     final hottest = [...budgets, ...bursts].isEmpty
@@ -1354,15 +1638,37 @@ class AccountUsageCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 8),
-              Flexible(
-                child: Text(
+              // Remaining-first: the eye lands on what is left, in the
+              // account's own status colour.
+              if (leftTotal > 0) ...[
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      fmtCost(leftTotal),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppText.readout(
+                        18,
+                        color: failed ? AppColors.hotLit : AppColors.beam,
+                      ),
+                    ),
+                    Text(
+                      'LEFT',
+                      style: AppText.tag(
+                        size: 8,
+                        color: failed ? AppColors.hotLit : AppColors.haze,
+                      ),
+                    ),
+                  ],
+                ),
+              ] else
+                Text(
                   fmtCost(costUsd),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.end,
                   style: AppText.data(size: 16, weight: FontWeight.w700),
                 ),
-              ),
               if (onOpen != null)
                 const Icon(
                   Icons.chevron_right,
@@ -1600,6 +1906,296 @@ class ModelBreakdownPanel extends StatelessWidget {
       ),
     );
   }
+}
+
+class SegmentedControl<T> extends StatelessWidget {
+  final List<(T, String)> options;
+  final T selected;
+  final ValueChanged<T> onSelect;
+
+  const SegmentedControl({
+    super.key,
+    required this.options,
+    required this.selected,
+    required this.onSelect,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: AppColors.riser,
+        borderRadius: BorderRadius.circular(AppRadius.control),
+        border: Border.all(color: AppColors.rule),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(3),
+        child: Row(
+          children: [
+            for (final option in options)
+              Expanded(
+                child: Semantics(
+                  button: true,
+                  selected: selected == option.$1,
+                  child: InkWell(
+                    onTap: () => onSelect(option.$1),
+                    borderRadius: BorderRadius.circular(AppRadius.control - 2),
+                    child: Container(
+                      height: 38,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: selected == option.$1
+                            ? AppColors.coldSoft
+                            : Colors.transparent,
+                        borderRadius: BorderRadius.circular(
+                          AppRadius.control - 2,
+                        ),
+                      ),
+                      child: Text(
+                        option.$2,
+                        style: AppText.tag(
+                          size: 9.5,
+                          color: selected == option.$1
+                              ? AppColors.coldLit
+                              : AppColors.haze,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class FilterPills<T> extends StatelessWidget {
+  final List<T> options;
+  final T selected;
+  final ValueChanged<T> onSelect;
+  final String Function(T) label;
+
+  const FilterPills({
+    super.key,
+    required this.options,
+    required this.selected,
+    required this.onSelect,
+    required this.label,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 34,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: options.length,
+        separatorBuilder: (_, _) => const SizedBox(width: 7),
+        itemBuilder: (context, i) {
+          final option = options[i];
+          final on = option == selected;
+          return Semantics(
+            button: true,
+            selected: on,
+            child: InkWell(
+              onTap: () => onSelect(option),
+              borderRadius: BorderRadius.circular(AppRadius.control),
+              child: Container(
+                alignment: Alignment.center,
+                padding: const EdgeInsets.symmetric(horizontal: 13),
+                decoration: BoxDecoration(
+                  color: on ? AppColors.coldSoft : Colors.transparent,
+                  borderRadius: BorderRadius.circular(AppRadius.control),
+                  border: Border.all(
+                    color: on ? AppColors.cold : AppColors.rule,
+                  ),
+                ),
+                child: Text(
+                  label(option),
+                  style: AppText.tag(
+                    size: 9.5,
+                    color: on ? AppColors.coldLit : AppColors.haze,
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class PillButton extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const PillButton({
+    super.key,
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      selected: selected,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppRadius.control),
+        child: Container(
+          constraints: const BoxConstraints(minWidth: 56, minHeight: 42),
+          alignment: Alignment.center,
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          decoration: BoxDecoration(
+            color: selected ? AppColors.coldSoft : Colors.transparent,
+            borderRadius: BorderRadius.circular(AppRadius.control),
+            border: Border.all(
+              color: selected ? AppColors.cold : AppColors.rule,
+            ),
+          ),
+          child: Text(
+            label,
+            style: AppText.tag(
+              size: 10.5,
+              color: selected ? AppColors.coldLit : AppColors.haze,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class AdaptiveScaffold extends StatelessWidget {
+  final Widget child;
+  final bool wide;
+
+  const AdaptiveScaffold({super.key, required this.child, this.wide = false});
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isWide = wide || constraints.maxWidth >= 720;
+        if (!isWide) return child;
+        return Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 760),
+            child: child,
+          ),
+        );
+      },
+    );
+  }
+}
+
+class StickySectionHeader extends StatelessWidget {
+  final String title;
+  final String? trailing;
+
+  const StickySectionHeader({
+    super.key,
+    required this.title,
+    this.trailing,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: AppColors.abyss,
+      padding: const EdgeInsets.fromLTRB(0, 8, 0, 8),
+      child: Row(
+        children: [
+          Text(
+            title.toUpperCase(),
+            style: AppText.tag(color: AppColors.beam, size: 10.5),
+          ),
+          const SizedBox(width: 12),
+          const Expanded(child: Divider(height: 1)),
+          if (trailing != null) ...[
+            const SizedBox(width: 12),
+            Text(
+              trailing!,
+              style: AppText.data(size: 10, color: AppColors.haze),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class RunwayLegend extends StatelessWidget {
+  const RunwayLegend({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 6, bottom: 2),
+      child: Row(
+        children: [
+          _dot(AppColors.cold),
+          const SizedBox(width: 6),
+          Text('will last', style: AppText.data(size: 9.5, color: AppColors.haze)),
+          const SizedBox(width: 14),
+          _hatchDot(),
+          const SizedBox(width: 6),
+          Text('dead time', style: AppText.data(size: 9.5, color: AppColors.haze)),
+          const Spacer(),
+          Container(width: 3, height: 12, color: AppColors.haze),
+          const SizedBox(width: 6),
+          Text('refill', style: AppText.data(size: 9.5, color: AppColors.haze)),
+        ],
+      ),
+    );
+  }
+
+  Widget _dot(Color c) => Container(
+    width: 10,
+    height: 6,
+    decoration: BoxDecoration(
+      color: c,
+      borderRadius: BorderRadius.circular(2),
+    ),
+  );
+
+  Widget _hatchDot() => SizedBox(
+    width: 10,
+    height: 6,
+    child: CustomPaint(painter: _HatchLegendPainter()),
+  );
+}
+
+class _HatchLegendPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    canvas.clipRRect(
+      RRect.fromRectAndRadius(Offset.zero & size, const Radius.circular(2)),
+    );
+    canvas.drawRect(
+      Offset.zero & size,
+      Paint()..color = AppColors.riser,
+    );
+    final paint = Paint()
+      ..color = AppColors.rule
+      ..strokeWidth = 1;
+    for (var x = -size.height; x < size.width; x += 4) {
+      canvas.drawLine(
+        Offset(x, size.height),
+        Offset(x + size.height, 0),
+        paint,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 class ApiKeyPanel extends StatefulWidget {

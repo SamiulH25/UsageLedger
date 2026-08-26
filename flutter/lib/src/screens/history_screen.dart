@@ -69,16 +69,18 @@ class _HistoryScreenState extends State<HistoryScreen> {
                         'A snapshot is saved every time an account syncs.',
                   ),
                   const SizedBox(height: 20),
-                  _RangeBar(
+                  SegmentedControl<int>(
+                    options: const [(7, '7 DAYS'), (30, '30 DAYS'), (0, 'EVERYTHING')],
                     selected: vm.rangeDays,
                     onSelect: (days) => vm.setRange(days),
                   ),
                   if (present.length > 1) ...[
                     const SizedBox(height: 9),
-                    _ProviderBar(
-                      platforms: present,
+                    FilterPills<String>(
+                      options: present,
                       selected: active,
                       onSelect: (p) => setState(() => _platformFilter = p),
+                      label: (p) => p == 'all' ? 'ALL' : providerName(p).toUpperCase(),
                     ),
                   ],
                   if (vm.error != null) ...[
@@ -115,7 +117,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     )
                   else
                     for (final day in filtered) ...[
-                      SectionHeader(
+                      _HistoryDayHeader(
                         title: _dayLabel(day.day),
                         trailing: fmtCost(
                           day.entries.fold<double>(
@@ -130,7 +132,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                           children: [
                             for (var i = 0; i < day.entries.length; i++) ...[
                               if (i > 0) const Divider(height: 1),
-                              _entryTile(day.entries[i], vm.labels),
+                              _entryTile(context, day.entries[i], vm.labels),
                             ],
                           ],
                         ),
@@ -199,8 +201,46 @@ class _HistoryScreenState extends State<HistoryScreen> {
     ];
     return '${months[day.month - 1]} ${day.day}';
   }
+}
 
-  Widget _entryTile(SnapshotRow entry, Map<String, String> labels) {
+class _HistoryDayHeader extends StatelessWidget {
+  final String title;
+  final String trailing;
+  const _HistoryDayHeader({required this.title, required this.trailing});
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(0, 14, 0, 8),
+      child: Row(
+        children: [
+          Text(
+            title.toUpperCase(),
+            style: AppText.tag(color: AppColors.beam, size: 10.5),
+          ),
+          const SizedBox(width: 12),
+          const Expanded(child: Divider(height: 1)),
+          const SizedBox(width: 12),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+            decoration: BoxDecoration(
+              color: AppColors.riser,
+              borderRadius: BorderRadius.circular(4),
+              border: Border.all(color: AppColors.rule),
+            ),
+            child: Text(
+              trailing,
+              style: AppText.data(size: 10, color: AppColors.haze),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+
+
+Widget _entryTile(BuildContext context, SnapshotRow entry, Map<String, String> labels) {
     final when = DateTime.fromMillisecondsSinceEpoch(
       entry.capturedAt,
     ).toLocal();
@@ -271,120 +311,3 @@ class _HistoryScreenState extends State<HistoryScreen> {
       ),
     );
   }
-}
-
-/// Segmented time range. One control, three mutually exclusive states.
-class _RangeBar extends StatelessWidget {
-  final int selected;
-  final ValueChanged<int> onSelect;
-
-  const _RangeBar({required this.selected, required this.onSelect});
-
-  @override
-  Widget build(BuildContext context) {
-    const options = [(7, '7 DAYS'), (30, '30 DAYS'), (0, 'EVERYTHING')];
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: AppColors.riser,
-        borderRadius: BorderRadius.circular(AppRadius.control),
-        border: Border.all(color: AppColors.rule),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(3),
-        child: Row(
-          children: [
-            for (final option in options)
-              Expanded(
-                child: Semantics(
-                  button: true,
-                  selected: selected == option.$1,
-                  child: InkWell(
-                    onTap: () => onSelect(option.$1),
-                    borderRadius: BorderRadius.circular(AppRadius.control - 2),
-                    child: Container(
-                      height: 38,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: selected == option.$1
-                            ? AppColors.coldSoft
-                            : Colors.transparent,
-                        borderRadius: BorderRadius.circular(
-                          AppRadius.control - 2,
-                        ),
-                      ),
-                      child: Text(
-                        option.$2,
-                        style: AppText.tag(
-                          size: 9.5,
-                          color: selected == option.$1
-                              ? AppColors.coldLit
-                              : AppColors.haze,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// Provider filter, only ever showing providers that appear in the log.
-class _ProviderBar extends StatelessWidget {
-  final List<String> platforms;
-  final String selected;
-  final ValueChanged<String> onSelect;
-
-  const _ProviderBar({
-    required this.platforms,
-    required this.selected,
-    required this.onSelect,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 34,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        itemCount: platforms.length,
-        separatorBuilder: (_, _) => const SizedBox(width: 7),
-        itemBuilder: (context, i) {
-          final platform = platforms[i];
-          final on = platform == selected;
-          return Semantics(
-            button: true,
-            selected: on,
-            child: InkWell(
-              onTap: () => onSelect(platform),
-              borderRadius: BorderRadius.circular(AppRadius.control),
-              child: Container(
-                alignment: Alignment.center,
-                padding: const EdgeInsets.symmetric(horizontal: 13),
-                decoration: BoxDecoration(
-                  color: on ? AppColors.coldSoft : Colors.transparent,
-                  borderRadius: BorderRadius.circular(AppRadius.control),
-                  border: Border.all(
-                    color: on ? AppColors.cold : AppColors.rule,
-                  ),
-                ),
-                child: Text(
-                  platform == 'all'
-                      ? 'ALL'
-                      : providerName(platform).toUpperCase(),
-                  style: AppText.tag(
-                    size: 9.5,
-                    color: on ? AppColors.coldLit : AppColors.haze,
-                  ),
-                ),
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
-}

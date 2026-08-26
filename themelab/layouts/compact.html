@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Layout — Compact | UsageLedger themelab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../shared.css">
+<style>
+:root{
+  --font-ui:"Archivo"; --font-mono:"JetBrains Mono";
+  --c-abyss:#0A0F17; --c-deck:#131B26; --c-riser:#1C2735; --c-rule:#2B3A4C;
+  --c-beam:#E6EDF6; --c-haze:#8497AD;
+  --c-cold:#3FC1B8; --c-cold-lit:#7EE0D8; --c-cold-soft:#102A2C; --c-cold-border:#173332;
+  --c-warm:#F0A93B; --c-warm-soft:#2C2113;
+  --c-hot:#FF6A5E; --c-hot-lit:#FF9188; --c-hot-soft:#2E1614;
+}
+.hero .value{color:var(--c-hot-lit)}
+.mini-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.mini{border:1px solid var(--c-rule);border-radius:6px;background:var(--c-deck);padding:10px;position:relative;overflow:hidden}
+.mini::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--mini-rail, var(--c-rule))}
+.mini .lbl{font-family:var(--font-mono);font-size:10px;letter-spacing:1px;color:var(--c-haze);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mini .left{font-family:var(--font-mono);font-size:12px;font-weight:700;margin:4px 0 6px 0}
+.mini .track{height:8px}
+.mini .verdict{font-family:var(--font-mono);font-size:9px;color:var(--c-haze);margin-top:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+</style>
+</head>
+<body>
+<div class="theme-switcher" style="gap:4px">
+  <a href="../index.html">Index</a>
+  <span style="font-family:var(--font-mono);font-size:9px;color:var(--c-haze);align-self:center">LAYOUTS</span>
+  <a class="on" href="compact.html">Compact</a>
+  <a href="timeline.html">Timeline</a>
+  <a href="focus.html">Focus</a>
+</div>
+<div class="lab">
+  <div class="lab-head"><div class="mark"></div><div class="brand">UsageLedger</div><div class="sync"><span class="dot"></span>JUST NOW</div><div class="gear">⚙</div></div>
+  <div class="page">
+    <div class="eyebrow" style="margin-bottom:14px">Tue 25 Aug · 19:47 — COMPACT LAYOUT</div>
+
+    <!-- condensed hero: 3 metrics inline, smaller value -->
+    <div class="hero card-rail" style="--hero-rail:var(--c-hot);padding:14px">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px">
+        <div class="kicker" style="color:var(--c-hot-lit)">EMPTY · REFILLS IN</div>
+        <div class="detail">Samiul Hossain · Pro included</div>
+      </div>
+      <div class="value" style="font-size:36px;margin:8px 0 6px 0">28d 2h</div>
+      <div class="metric-row" style="border-top:1px solid var(--c-rule);padding-top:10px;margin-top:10px">
+        <div class="metric"><div class="label" style="font-size:9px">LEFT</div><div class="val" style="color:var(--c-hot-lit);font-size:13px">$18.35</div></div>
+        <div class="divider-v"></div>
+        <div class="metric"><div class="label" style="font-size:9px">PER DAY</div><div class="val" style="font-size:12px">—</div></div>
+        <div class="divider-v"></div>
+        <div class="metric"><div class="label" style="font-size:9px">RESET</div><div class="val" style="font-size:12px">28d 2h</div></div>
+      </div>
+      <div class="detail" style="margin-top:10px;font-size:11px">Spend under $0.65/day and this pool lasts to the reset.</div>
+    </div>
+
+    <div style="display:flex;gap:6px;align-items:center;margin:10px 0 2px 0;font-family:var(--font-mono);font-size:11px;color:var(--c-haze)"><span>↗</span><span>Since last sync: $0.02 · 372 tokens</span></div>
+
+    <div class="section-head" style="padding:18px 0 10px 0"><span class="title">RUNWAY</span><span class="rule"></span><span class="trailing">4 pools · to each reset</span></div>
+    <div class="mini-grid">
+      <div class="mini" style="--mini-rail:var(--c-hot)">
+        <div class="lbl">Samiul Hossain · Pro included</div>
+        <div class="left" style="color:var(--c-beam)">$18.35 left</div>
+        <div class="track"><div class="fill" style="width:0%;background:var(--c-hot)"></div><div class="hatch" style="left:0;right:0"></div><div class="gate" style="background:var(--c-hot)"></div></div>
+        <div class="verdict" style="color:var(--c-hot-lit)">empty · refills in 28d 2h</div>
+      </div>
+      <div class="mini" style="--mini-rail:var(--c-cold)">
+        <div class="lbl">SamiulH25 · This month</div>
+        <div class="left">$44.23 left</div>
+        <div class="track"><div class="fill" style="width:62%;background:var(--c-cold)"></div><div class="hatch" style="left:62%;right:0"></div><div class="meniscus" style="left:62%"></div><div class="gate"></div></div>
+        <div class="verdict">not enough history to project</div>
+      </div>
+      <div class="mini" style="--mini-rail:var(--c-warm)">
+        <div class="lbl">SamiulH25 · This week</div>
+        <div class="left">$33.92 left</div>
+        <div class="track"><div class="fill" style="width:48%;background:var(--c-warm)"></div><div class="hatch" style="left:48%;right:0"></div><div class="meniscus" style="left:48%"></div><div class="gate"></div></div>
+        <div class="verdict">not enough history to project</div>
+      </div>
+      <div class="mini" style="--mini-rail:var(--c-cold)">
+        <div class="lbl">SamiulH25 · 5-hour burst</div>
+        <div class="left">$13.85 left</div>
+        <div class="track"><div class="fill" style="width:82%;background:var(--c-cold)"></div><div class="hatch" style="left:82%;right:0"></div><div class="meniscus" style="left:82%"></div><div class="gate"></div></div>
+        <div class="verdict" style="color:var(--c-cold-lit)">on track to reach the reset</div>
+      </div>
+    </div>
+    <div class="legend" style="padding:6px 0 0 0"><span class="sw" style="background:var(--c-cold)"></span><span>will last</span><span class="sw sw-hatch"></span><span>dead time</span><span style="margin-left:auto;display:flex;gap:6px;align-items:center"><span style="width:3px;height:10px;background:var(--c-haze);display:inline-block"></span> refill</span></div>
+
+    <div class="section-head"><span class="title">POOLS — SPARK</span><span class="rule"></span><span class="trailing">4</span></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <div class="mini" style="--mini-rail:var(--c-hot)"><div class="lbl">Pro included</div><div class="left" style="font-size:11px">$18.35 LEFT</div><div class="meter" style="height:6px;margin:6px 0 0 0"><div class="fill" style="width:8%;background:var(--c-hot)"></div></div></div>
+      <div class="mini" style="--mini-rail:var(--c-cold)"><div class="lbl">This month</div><div class="left" style="font-size:11px">$44.23 LEFT</div><div class="meter" style="height:6px;margin:6px 0 0 0"><div class="fill" style="width:38%;background:var(--c-cold)"></div></div></div>
+      <div class="mini" style="--mini-rail:var(--c-warm)"><div class="lbl">This week</div><div class="left" style="font-size:11px">$33.92 LEFT</div><div class="meter" style="height:6px;margin:6px 0 0 0"><div class="fill" style="width:52%;background:var(--c-warm)"></div></div></div>
+      <div class="mini" style="--mini-rail:var(--c-cold)"><div class="lbl">5h burst</div><div class="left" style="font-size:11px">$13.85 LEFT</div><div class="meter" style="height:6px;margin:6px 0 0 0"><div class="fill" style="width:18%;background:var(--c-cold)"></div></div></div>
+    </div>
+
+    <div class="section-head"><span class="title">TOP MODELS</span><span class="rule"></span></div>
+    <div class="card top-models" style="padding:10px 12px">
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <span style="font-family:var(--font-mono);font-size:11px;background:var(--c-riser);border:1px solid var(--c-rule);border-radius:999px;padding:4px 8px">claude-4-sonnet $18.42</span>
+        <span style="font-family:var(--font-mono);font-size:11px;background:var(--c-riser);border:1px solid var(--c-rule);border-radius:999px;padding:4px 8px">gpt-4o $9.11</span>
+        <span style="font-family:var(--font-mono);font-size:11px;background:var(--c-riser);border:1px solid var(--c-rule);border-radius:999px;padding:4px 8px">gemini-2.0 $4.32</span>
+      </div>
+    </div>
+
+    <div style="height:12px"></div>
+    <div class="add-card" style="padding:12px"><span class="plus" style="color:var(--c-cold-lit)">＋</span><div><div style="font-size:13px;font-weight:500">Add an account</div><div style="font-size:11px;color:var(--c-haze)">The key stays on this phone</div></div></div>
+  </div>
+  <nav class="bottom-nav">
+    <span class="item on"><span class="pill">◷</span>NOW</span>
+    <span class="item"><span style="font-size:16px">⁂</span>ACCOUNTS</span>
+    <span class="item"><span style="font-size:16px">▤</span>HISTORY</span>
+  </nav>
+</div>
+</body>
+</html>

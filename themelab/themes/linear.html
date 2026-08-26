@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Theme — Linear (LCH) | UsageLedger themelab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../shared.css">
+<style>
+/* Linear-inspired: LCH-generated, 3-variable system. Inter + Inter Display for headings.
+   Inverted-L chrome, reduced visual noise, tight vertical alignment. */
+:root{
+  --font-ui:"Inter"; --font-display:"Inter Tight"; --font-mono:"JetBrains Mono";
+  /* base: neutral slate, accent: linear violet-blue, contrast: mid */
+  --c-abyss:#0E0E11; --c-deck:#161619; --c-riser:#1E1E21; --c-rule:#2A2A2E;
+  --c-beam:#F2F2F3; --c-haze:#8B8B8F;
+  --c-cold:#7C6CF6; --c-cold-lit:#A99CFF; --c-cold-soft:#1E1B2E; --c-cold-border:#2E2950;
+  --c-warm:#F5A623; --c-warm-soft:#2A2110;
+  --c-hot:#FF4D4D; --c-hot-lit:#FF8A8A; --c-hot-soft:#2E1818;
+}
+.lab{border-left-color:var(--c-rule);border-right-color:var(--c-rule)}
+.lab-head{background:var(--c-abyss);border-bottom-color:var(--c-rule);gap:12px}
+.lab-head .mark{background:var(--c-cold);width:2px;height:16px;border-radius:1px}
+.lab-head .brand{font-family:var(--font-display);font-size:15px;font-weight:700;letter-spacing:-.2px}
+.lab-head .sync{font-family:var(--font-mono);font-size:10px;letter-spacing:.8px;text-transform:uppercase;color:var(--c-haze)}
+.lab-head .sync .dot{background:var(--c-cold)}
+.bottom-nav{background:var(--c-abyss);border-top-color:var(--c-rule)}
+.bottom-nav .item.on{color:var(--c-cold-lit)}
+.bottom-nav .pill{background:var(--c-cold-soft);border-color:var(--c-cold-border)}
+.hero{border-color:var(--c-rule);background:var(--c-deck)}
+.hero::before{background:var(--c-hot)}
+.hero .kicker{color:var(--c-hot-lit);font-family:var(--font-mono);font-size:9px;letter-spacing:1.2px}
+.hero .value{color:var(--c-hot-lit);font-family:var(--font-display);font-size:40px;letter-spacing:-1px}
+.card{border-color:var(--c-rule);background:var(--c-deck)}
+.card-rail::before{background:var(--card-rail, var(--c-rule))}
+.section-head .title{font-family:var(--font-mono);font-size:10px;letter-spacing:1.2px;color:var(--c-haze)}
+</style>
+</head>
+<body>
+<div class="theme-switcher">
+  <a href="../index.html">Index</a>
+  <a href="../horizon.html">Horizon</a>
+  <a class="on" href="linear.html">Linear</a>
+  <a href="geist.html">Geist</a>
+  <a href="apple.html">Apple HIG</a>
+  <a href="radix.html">Radix</a>
+</div>
+<div class="lab">
+  <div class="lab-head">
+    <div class="mark"></div>
+    <div class="brand">UsageLedger</div>
+    <div class="sync"><span class="dot"></span>Live</div>
+    <div class="gear">⚙</div>
+  </div>
+  <div class="page">
+    <div class="eyebrow" style="margin-bottom:14px">Tue 25 Aug · 19:47 — LINEAR (LCH · 3 vars)</div>
+
+    <div class="hero card-rail" style="--hero-rail:var(--c-hot)">
+      <div class="kicker">EMPTY · REFILLS IN</div>
+      <div class="value">28d 2h</div>
+      <div class="detail" style="font-family:var(--font-mono);font-size:11px;color:var(--c-haze)">Samiul Hossain · Pro included</div>
+      <div class="divider"></div>
+      <div class="metric-row">
+        <div class="metric"><div class="label">LEFT</div><div class="val" style="color:var(--c-hot-lit)">$18.35</div></div>
+        <div class="divider-v"></div>
+        <div class="metric"><div class="label">PER DAY</div><div class="val">—</div></div>
+        <div class="divider-v"></div>
+        <div class="metric"><div class="label">RESET</div><div class="val">28d 2h</div></div>
+      </div>
+      <div class="detail" style="margin-top:12px;background:var(--c-riser);border:1px solid var(--c-rule);border-radius:8px;padding:8px 10px">Spend under $0.65 a day and this pool lasts to the reset.</div>
+    </div>
+
+    <div class="section-head" style="margin-top:18px"><span class="title">RUNWAY</span><span class="rule"></span><span class="trailing" style="font-family:var(--font-mono);font-size:10px;color:var(--c-haze)">to each reset</span></div>
+    <div class="card" style="padding:4px 0">
+      <div class="lane"><div class="lane-head"><span class="name">Samiul Hossain · Pro included</span><span class="left">$18.35 left</span></div><div class="track" style="background:var(--c-riser)"><div class="fill" style="width:0%;background:var(--c-hot)"></div><div class="hatch" style="left:0;right:0"></div><div class="gate" style="background:var(--c-hot)"></div></div><div class="lane-foot"><span class="verdict" style="color:var(--c-hot-lit)">empty · refills in 28d 2h</span><span class="reset">↻ 28d 2h</span></div></div>
+      <div style="height:1px;background:var(--c-rule)"></div>
+      <div class="lane"><div class="lane-head"><span class="name">SamiulH25 · This month</span><span class="left">$44.23 left</span></div><div class="track" style="background:var(--c-riser)"><div class="fill" style="width:58%;background:var(--c-cold)"></div><div class="hatch" style="left:58%;right:4px"></div><div class="meniscus" style="left:58%"></div><div class="gate"></div></div><div class="lane-foot"><span class="verdict" style="color:var(--c-haze)">not enough history to project</span><span class="reset">↻ 20d 22h</span></div></div>
+    </div>
+    <div class="section-head" style="margin-top:18px"><span class="title">POOLS</span><span class="rule"></span></div>
+    <div class="card gauge card-rail" style="--card-rail:var(--c-warm);padding:12px"><div class="gauge-head"><span class="pool-name">Pro included</span><span class="left-col"><span class="left-val" style="color:var(--c-warm)">$18.35</span><br><span class="left-tag" style="color:var(--c-warm)">LEFT</span></span></div><div class="meter"><div class="fill" style="width:8%;background:var(--c-warm)"></div></div></div>
+
+    <div style="margin-top:16px;border:1px dashed var(--c-rule);border-radius:8px;padding:12px;display:flex;gap:10px;align-items:center"><span style="width:22px;height:22px;border-radius:6px;background:var(--c-cold-soft);border:1px solid var(--c-cold-border);display:grid;place-items:center;color:var(--c-cold-lit);font-size:12px">＋</span><div><div style="font-size:13px;font-weight:600">Add an account</div><div style="font-size:11px;color:var(--c-haze)">The key stays on this phone</div></div></div>
+  </div>
+  <nav class="bottom-nav">
+    <span class="item on"><span class="pill">◷</span>NOW</span>
+    <span class="item"><span style="font-size:16px">⁂</span>ACCOUNTS</span>
+    <span class="item"><span style="font-size:16px">▤</span>HISTORY</span>
+  </nav>
+</div>
+</body>
+</html>

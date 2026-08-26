@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Brand — UsageLedger themelab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&family=Fraunces:opsz,wght@9..144,600;9..144,700;9..144,800;9..144,900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fragment+Mono&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--c-abyss:#0A0F17;--c-deck:#131B26;--c-riser:#1C2735;--c-rule:#2B3A4C;--c-beam:#E6EDF6;--c-haze:#8497AD;--c-cold:#3FC1B8;--c-cold-lit:#7EE0D8;--c-hot:#FF6A5E;--c-hot-lit:#FF9188;--c-warm:#F0A93B}
+body{background:#0B0D10;color:var(--c-beam);font-family:"Archivo",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:inherit}
+.wrap{max-width:980px;margin:32px auto;padding:0 20px}
+h1{font-size:22px;letter-spacing:-.4px}
+.sub{color:var(--c-haze);font-size:13px;margin:6px 0 20px 0;line-height:1.5}
+.switcher{position:fixed;top:10px;right:10px;background:#131B26;border:1px solid #2B3A4C;border-radius:999px;padding:4px;display:flex;gap:4px;z-index:10}
+.switcher a{font-family:"JetBrains Mono",monospace;font-size:10px;letter-spacing:1px;text-decoration:none;color:#8497AD;padding:6px 10px;border-radius:999px;border:1px solid transparent}
+.switcher a.on{background:var(--c-cold);color:#0A0F17;border-color:var(--c-cold)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:16px}
+.card{border:1px solid var(--c-rule);border-radius:10px;background:var(--c-deck);overflow:hidden}
+.card .head{padding:14px 14px 0 14px;display:flex;justify-content:space-between;align-items:center}
+.card .head h3{font-size:13px;letter-spacing:.2px}
+.card .head .tag{font-family:"JetBrains Mono",monospace;font-size:9px;letter-spacing:1.5px;color:var(--c-haze);background:var(--c-riser);border:1px solid var(--c-rule);border-radius:999px;padding:2px 7px}
+
+.launcher{height:170px;display:grid;place-items:center;background:radial-gradient(520px 220px at 50% 0%, rgba(63,193,184,.14), transparent 60%), var(--c-abyss);border-bottom:1px solid var(--c-rule);position:relative}
+.launcher .icon{width:96px;height:96px;border-radius:22px;display:grid;place-items:center;box-shadow:0 10px 30px rgba(0,0,0,.45), 0 1px 0 rgba(255,255,255,.06) inset}
+.in-context{padding:14px;background:var(--c-abyss);border-top:1px solid var(--c-rule)}
+.in-context .bar{display:flex;align-items:center;gap:9px;padding:10px 12px;background:var(--c-abyss);border-bottom:1px solid var(--c-rule);border-radius:8px 8px 0 0}
+.in-context .bar .mark{width:3px;height:15px;border-radius:1px;background:var(--c-cold);flex-shrink:0}
+.in-context .bar .brand{flex:1;font-size:15px;font-weight:700;letter-spacing:.2px}
+.body{padding:12px}
+.body p{font-size:11px;color:var(--c-haze);line-height:1.5;margin-top:8px}
+.swatch{height:10px;border-radius:999px;display:flex;overflow:hidden;margin-top:10px}
+.swatch i{flex:1}
+
+/* wordmark variants */
+.wm{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.wm b{font-weight:800;letter-spacing:-.6px}
+.wm i{font-style:normal;font-weight:400;opacity:.92}
+.small{font-family:"JetBrains Mono",monospace;font-size:10px;letter-spacing:1.5px;color:var(--c-haze)}
+</style>
+</head>
+<body>
+<div class="switcher">
+  <a href="../index.html">Index</a>
+  <a href="../horizon.html">Horizon</a>
+  <a href="../layouts/providers.html">Providers</a>
+  <a href="wordmark.html">Wordmark</a>
+  <a href="collapse-demo.html">Collapse</a>
+  <a class="on" href="index.html">Brand</a>
+</div>
+
+<div class="wrap">
+  <h1>Brand lab — UsageLedger</h1>
+  <p class="sub">Same ledger book icon you shipped, re-cut for a sharper wordmark + better glyph. Each card shows the launcher tile at 96×96 plus the bar in-context. Current title is <code style="color:var(--c-cold-lit)">UsageLedger · 15px Archivo w700/wdth112</code> with a 3px <code>cold</code> rule. Pick by feel — nothing here touches the app yet.</p>
+
+  <div class="grid">
+
+    <!-- A: current baseline -->
+    <div class="card">
+      <div class="head"><h3>A · Current</h3><span class="tag">baseline</span></div>
+      <div class="launcher" style="--c-abyss:#0A0F17">
+        <div class="icon" style="background:#FFF8E7;border:1px solid #E6DCC0">
+          <!-- simplified ledger glyph: book spine + bar chart -->
+          <svg width="62" height="62" viewBox="0 0 62 62" fill="none" aria-hidden="true">
+            <rect x="10" y="10" width="42" height="38" rx="7" fill="#2E4058"/>
+            <path d="M14 12 Q10 12 10 18 L10 50 Q10 56 16 56 L52 56 Q52 46 46 46 L16 46 Q12 46 12 42 Z" fill="#2E4058" stroke="#FFF8E7" stroke-width="1.2"/>
+            <rect x="22" y="26" width="6" height="14" rx="1.2" fill="#FFF8E7" opacity=".96"/>
+            <rect x="31" y="20" width="6" height="20" rx="1.2" fill="#FFF8E7" opacity=".96"/>
+            <rect x="40" y="15" width="6" height="25" rx="1.2" fill="#FFF8E7"/>
+            <circle cx="28" cy="48" r="2.8" fill="#D8C08A"/><circle cx="37" cy="48" r="2.8" fill="#D8C08A"/><circle cx="46" cy="48" r="2.8" fill="#D8C08A"/><path d="M28 48 H46" stroke="#D8C08A" stroke-width="1.2" stroke-linecap="round"/>
+          </svg>
+        </div>
+      </div>
+      <div class="in-context" style="background:#0A0F17;border-color:#2B3A4C">
+        <div class="bar" style="background:#0A0F17;border-color:#2B3A4C"><div class="mark"></div><div class="brand">UsageLedger</div><div style="font-family:'JetBrains Mono',monospace;font-size:9.5px;letter-spacing:1.5px;color:#8497AD">JUST NOW</div></div>
+      </div>
+      <div class="body">
+        <div class="wm"><b style="font-size:18px">UsageLedger</b><span class="small">15 · 700 · wdth 112</span></div>
+        <p>What you ship today. Cream squircle + blue ledger — warm but it fights the night UI.</p>
+        <div class="swatch"><i style="background:#0A0F17"></i><i style="background:#2E4058"></i><i style="background:#FFF8E7"></i><i style="background:#D8C08A"></i></div>
+      </div>
+    </div>
+
+    <!-- B: Night ledger — stays in-world -->
+    <div class="card" style="border-color:#2B3A4C;outline:2px solid rgba(63,193,184,.22)">
+      <div class="head"><h3>B · Night ledger</h3><span class="tag" style="background:#102A2C;color:#7EE0D8;border-color:#173332">recommended</span></div>
+      <div class="launcher" style="--c-abyss:#0A0F17">
+        <div class="icon" style="background:#0E1716;border:1px solid #1A2A28">
+          <!-- thermal tick: ledger pages become runway bars -->
+          <svg width="66" height="66" viewBox="0 0 66 66" fill="none" aria-hidden="true">
+            <rect x="10" y="10" width="46" height="42" rx="8" fill="#0E2321" stroke="#1E3A37" stroke-width="1.1"/>
+            <!-- spine -->
+            <path d="M18 12 V52" stroke="#3FC1B8" stroke-width="1.6" stroke-linecap="round" opacity=".9"/>
+            <!-- runway bars: solid then hatched dead zone concept -->
+            <rect x="24" y="30" width="18" height="6" rx="2" fill="#3FC1B8"/>
+            <rect x="42" y="30" width="10" height="6" rx="2" fill="none" stroke="#2B3A4C" stroke-dasharray="2 2" />
+            <rect x="24" y="39" width="26" height="5" rx="2" fill="#3FC1B8" opacity=".9"/>
+            <rect x="50" y="39" width="2" height="5" rx="1" fill="#8497AD"/>
+            <!-- refill gate -->
+            <rect x="56" y="29" width="2.2" height="16" rx="1" fill="#8497AD"/>
+            <!-- corner pages micro -->
+            <path d="M12 50 Q12 56 18 56 L54 56 L54 50 Z" fill="#131B26" stroke="#2B3A4C" stroke-width="1"/>
+          </svg>
+        </div>
+      </div>
+      <div class="in-context" style="background:#0A0F17;border-color:#2B3A4C">
+        <div class="bar" style="background:#0A0F17;border-color:#2B3A4C"><div class="mark" style="background:#3FC1B8;width:3px"></div><div class="brand" style="letter-spacing:.1px">Usage<span style="font-weight:400;opacity:.9">Ledger</span></div><div style="font-family:'JetBrains Mono',monospace;font-size:9.5px;letter-spacing:1.5px;color:#8497AD">JUST NOW</div></div>
+      </div>
+      <div class="body">
+        <div class="wm"><b style="font-size:17px;letter-spacing:-.4px">Usage<span style="font-weight:500;opacity:.9">Ledger</span></b><span class="small">16 · 780/wdth118 · tighter</span></div>
+        <p>Same Horizon world — spine + runway. Launcher stays cold/abyss so it sits naturally on the home screen dark grid.</p>
+        <div class="swatch"><i style="background:#0A0F17"></i><i style="background:#131B26"></i><i style="background:#3FC1B8"></i><i style="background:#2B3A4C"></i></div>
+      </div>
+    </div>
+
+    <!-- C: Ink mark — tighter, editorial -->
+    <div class="card">
+      <div class="head"><h3>C · Ink mark</h3><span class="tag">editorial</span></div>
+      <div class="launcher" style="--c-abyss:#0B0D10">
+        <div class="icon" style="background:#FFFFFF;border:1px solid #E7E0D6">
+          <svg width="64" height="64" viewBox="0 0 64 64" fill="none" aria-hidden="true">
+            <rect x="12" y="12" width="40" height="40" rx="9" fill="#0F1B2D"/>
+            <path d="M18 16 V48" stroke="#EAB308" stroke-width="2" stroke-linecap="round"/>
+            <rect x="23" y="31" width="6" height="10" rx="2" fill="white" opacity=".95"/>
+            <rect x="32" y="26" width="6" height="15" rx="2" fill="white" opacity=".95"/>
+            <rect x="41" y="20" width="6" height="21" rx="2" fill="white"/>
+            <circle cx="28" cy="49" r="2.2" fill="#EAB308"/><circle cx="38" cy="49" r="2.2" fill="#EAB308"/><circle cx="48" cy="49" r="2.2" fill="#EAB308"/>
+          </svg>
+        </div>
+      </div>
+      <div class="in-context" style="background:#F8F6F1;border-color:#E7E0D6">
+        <div class="bar" style="background:#F8F6F1;border-color:#E7E0D6"><div class="mark" style="background:#EAB308;width:4px"></div><div class="brand" style="color:#0F1B2D;letter-spacing:.2px">UsageLedger</div><div style="font-family:'Fragment Mono',monospace;font-size:9.5px;letter-spacing:1.5px;color:#8A95A5">JUST NOW</div></div>
+      </div>
+      <div class="body">
+        <div class="wm" style="color:#E6EDF6"><b style="font-family:'Space Grotesk',sans-serif;font-size:17px;letter-spacing:-.2px">USAGE<span style="font-weight:500;opacity:.9">LEDGER</span></b><span class="small">caps · Space Grotesk</span></div>
+        <p>Tighter lockup for Signal/Noir light modes — ink block icon, amber rule. Reads as a console, not a finance app.</p>
+        <div class="swatch"><i style="background:#F8F6F1"></i><i style="background:#0F1B2D"></i><i style="background:#EAB308"></i><i style="background:#DC2626"></i></div>
+      </div>
+    </div>
+
+    <!-- D: Glyph-first — icon does the talking -->
+    <div class="card">
+      <div class="head"><h3>D · Glyph lockup</h3><span class="tag">icon-forward</span></div>
+      <div class="launcher" style="--c-abyss:#0A0F17">
+        <div class="icon" style="background:#131B26;border:1px solid #2B3A4C">
+          <svg width="64" height="64" viewBox="0 0 64 64" fill="none" aria-hidden="true">
+            <!-- ledger + runway hybrid: bars inside an open book -->
+            <path d="M14 18 C14 14 18 12 22 12 L30 12 L30 52 L22 52 C18 52 14 50 14 46 Z" fill="#1C2735" stroke="#2B3A4C" stroke-width="1"/>
+            <path d="M34 12 L42 12 C46 12 50 14 50 18 L50 46 C50 50 46 52 42 52 L34 52 Z" fill="#1C2735" stroke="#2B3A4C" stroke-width="1"/>
+            <rect x="18" y="28" width="9" height="10" rx="2" fill="#3FC1B8"/>
+            <rect x="30" y="22" width="9" height="16" rx="2" fill="#3FC1B8" opacity=".95"/>
+            <rect x="42" y="18" width="6" height="20" rx="2" fill="#7EE0D8"/>
+            <path d="M18 46 H46" stroke="#2B3A4C" stroke-width="1" stroke-dasharray="3 3"/>
+          </svg>
+        </div>
+      </div>
+      <div class="in-context" style="background:#0A0F17;border-color:#2B3A4C">
+        <div class="bar" style="background:#0A0F17;border-color:#2B3A4C"><div class="mark" style="background:#3FC1B8;width:10px;height:10px;border-radius:3px"></div><div class="brand" style="font-size:14px">UsageLedger</div><div style="font-family:'JetBrains Mono',monospace;font-size:9.5px;letter-spacing:1.5px;color:#8497AD">JUST NOW</div></div>
+      </div>
+      <div class="body">
+        <div class="wm"><span style="width:10px;height:10px;border-radius:3px;background:#3FC1B8;display:inline-block;vertical-align:middle"></span> <b style="font-size:15px;letter-spacing:.1px">UsageLedger</b> <span class="small">icon mark + 14px bar</span></div>
+        <p>Glyph in the bar, not a rule. Best if we want the icon to read at 16px — doubly useful in widget + notification.</p>
+        <div class="swatch"><i style="background:#0A0F17"></i><i style="background:#1C2735"></i><i style="background:#3FC1B8"></i><i style="background:#7EE0D8"></i></div>
+      </div>
+    </div>
+
+  </div>
+
+  <div style="max-width:980px;margin:18px auto 40px auto;padding:0 20px">
+    <div style="border:1px solid #2B3A4C;border-radius:10px;background:#131B26;padding:14px;display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+      <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#8497AD">Open your current icon at full size:</span>
+      <a href="../../flutter/assets/usageledger-app-icon.png" target="_blank" style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#7EE0D8">flutter/assets/usageledger-app-icon.png</a>
+      <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#8497AD">· v2 at repo root</span>
+      <a href="../../usageledger-app-icon-v2.png" target="_blank" style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#7EE0D8">usageledger-app-icon-v2.png</a>
+    </div>
+  </div>
+</body>
+</html>

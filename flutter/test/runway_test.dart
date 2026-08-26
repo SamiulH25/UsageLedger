@@ -125,7 +125,7 @@ void main() {
         ),
       );
 
-      expect(find.text('lasts to reset'), findsOneWidget);
+      expect(find.text('on track to reach the reset'), findsOneWidget);
     });
 
     testWidgets('names how early a pool runs dry', (tester) async {
@@ -139,7 +139,7 @@ void main() {
         ),
       );
 
-      expect(find.text('dry 5d early'), findsOneWidget);
+      expect(find.text('runs dry 5d before refill'), findsOneWidget);
     });
 
     testWidgets('an empty pool reports when it comes back', (tester) async {
@@ -167,7 +167,7 @@ void main() {
         ),
       );
 
-      expect(find.text('pace unknown'), findsOneWidget);
+      expect(find.text('not enough history to project'), findsOneWidget);
     });
   });
 }

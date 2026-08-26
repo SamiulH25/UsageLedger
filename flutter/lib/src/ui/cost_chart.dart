@@ -93,9 +93,8 @@ class _ColumnsPainter extends CustomPainter {
     final slot = size.width / values.length;
     final barW = math.min(slot - 4, 22.0).clamp(2.0, 22.0);
 
-    // Baseline.
     canvas.drawRect(
-      Rect.fromLTWH(0, size.height - 1, size.width, 1),
+      Rect.fromLTWH(0, size.height - 1, size.width, 1.5),
       Paint()..color = AppColors.rule,
     );
 
@@ -112,15 +111,14 @@ class _ColumnsPainter extends CustomPainter {
           topLeft: const Radius.circular(1),
           topRight: const Radius.circular(1),
         ),
-        Paint()..color = latest ? AppColors.beam : AppColors.rule,
+        Paint()..color = latest ? AppColors.coldLit : AppColors.haze,
       );
     }
 
-    // Mean line — dashed so it never reads as another column.
     if (mean > 0 && maxV > 0) {
       final y = size.height - 1 - (mean / denom) * (size.height - 6);
       final paint = Paint()
-        ..color = AppColors.haze.withValues(alpha: .55)
+        ..color = AppColors.haze.withValues(alpha: .75)
         ..strokeWidth = 1;
       for (var x = 0.0; x < size.width; x += 6) {
         canvas.drawLine(Offset(x, y), Offset(x + 3, y), paint);

@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Layout — Timeline | UsageLedger themelab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../shared.css">
+<style>
+:root{
+  --font-ui:"Archivo"; --font-mono:"JetBrains Mono";
+  --c-abyss:#0A0F17; --c-deck:#131B26; --c-riser:#1C2735; --c-rule:#2B3A4C;
+  --c-beam:#E6EDF6; --c-haze:#8497AD;
+  --c-cold:#3FC1B8; --c-cold-lit:#7EE0D8; --c-cold-soft:#102A2C; --c-cold-border:#173332;
+  --c-warm:#F0A93B; --c-warm-soft:#2C2113;
+  --c-hot:#FF6A5E; --c-hot-lit:#FF9188; --c-hot-soft:#2E1614;
+}
+.hero .value{color:var(--c-hot-lit)}
+.gantt{padding:12px 15px}
+.gantt .scale{display:flex;justify-content:space-between;font-family:var(--font-mono);font-size:9px;color:var(--c-haze);border-bottom:1px solid var(--c-rule);padding-bottom:6px;margin-bottom:10px}
+.row{display:flex;align-items:center;gap:10px;padding:8px 0}
+.row .label{width:110px;flex-shrink:0;font-family:var(--font-mono);font-size:11px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row .barwrap{flex:1;height:18px;position:relative;background:var(--c-riser);border-radius:3px;overflow:hidden}
+.row .bar{position:absolute;top:0;bottom:0;border-radius:3px}
+.row .bar.live{background:var(--bar-col)}
+.row .bar.dead{right:0;background:repeating-linear-gradient(135deg, transparent 0 3px, var(--c-rule) 3px 4px)}
+.row .gate{position:absolute;top:-2px;bottom:-2px;width:2px;background:var(--c-haze);border-radius:1px}
+.row .now{position:absolute;top:-4px;bottom:-4px;width:1px;background:var(--c-beam);opacity:.7}
+.row .now::after{content:"NOW";position:absolute;top:-12px;left:50%;transform:translateX(-50%);font-family:var(--font-mono);font-size:7px;letter-spacing:1px;color:var(--c-beam)}
+.row .meta{width:80px;flex-shrink:0;text-align:right;font-family:var(--font-mono);font-size:10px;color:var(--c-haze)}
+</style>
+</head>
+<body>
+<div class="theme-switcher" style="gap:4px">
+  <a href="../index.html">Index</a>
+  <span style="font-family:var(--font-mono);font-size:9px;color:var(--c-haze);align-self:center">LAYOUTS</span>
+  <a href="compact.html">Compact</a>
+  <a class="on" href="timeline.html">Timeline</a>
+  <a href="focus.html">Focus</a>
+</div>
+<div class="lab">
+  <div class="lab-head"><div class="mark"></div><div class="brand">UsageLedger</div><div class="sync"><span class="dot"></span>JUST NOW</div><div class="gear">⚙</div></div>
+  <div class="page">
+    <div class="eyebrow" style="margin-bottom:14px">Tue 25 Aug · 19:47 — TIMELINE LAYOUT</div>
+
+    <div class="hero card-rail" style="--hero-rail:var(--c-hot)">
+      <div class="kicker" style="color:var(--c-hot-lit)">EMPTY · REFILLS IN</div>
+      <div class="value">28d 2h</div>
+      <div class="detail">Samiul Hossain · Pro included</div>
+      <div class="divider"></div>
+      <div class="metric-row">
+        <div class="metric"><div class="label">LEFT</div><div class="val" style="color:var(--c-hot-lit)">$18.35</div></div>
+        <div class="divider-v"></div>
+        <div class="metric"><div class="label">PER DAY</div><div class="val">—</div></div>
+        <div class="divider-v"></div>
+        <div class="metric"><div class="label">RESET</div><div class="val">28d 2h</div></div>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:6px;align-items:center;margin:10px 0 2px 0;font-family:var(--font-mono);font-size:11px;color:var(--c-haze)"><span>↗</span><span>Since last sync: $0.02 · 372 tokens</span></div>
+
+    <div class="section-head"><span class="title">RUNWAY — TIMELINE</span><span class="rule"></span><span class="trailing">next 30 days</span></div>
+    <div class="card gantt">
+      <div class="scale"><span>Today</span><span>Sep 1</span><span>Sep 15</span><span>Sep 25</span></div>
+
+      <div class="row">
+        <span class="label">Pro included</span>
+        <span class="barwrap">
+          <span class="bar live" style="--bar-col:var(--c-hot);left:0;width:0%"></span>
+          <span class="bar dead" style="left:0;right:0"></span>
+          <span class="gate" style="right:6%"></span>
+          <span class="now" style="left:0"></span>
+        </span>
+        <span class="meta" style="color:var(--c-hot-lit)">empty</span>
+      </div>
+      <div style="height:1px;background:var(--c-rule)"></div>
+      <div class="row">
+        <span class="label">This month</span>
+        <span class="barwrap">
+          <span class="bar live" style="--bar-col:var(--c-cold);left:0;width:58%"></span>
+          <span class="bar dead" style="left:58%;right:6%"></span>
+          <span class="gate" style="right:6%"></span>
+          <span class="now" style="left:0"></span>
+        </span>
+        <span class="meta">$44.23</span>
+      </div>
+      <div style="height:1px;background:var(--c-rule)"></div>
+      <div class="row">
+        <span class="label">This week</span>
+        <span class="barwrap">
+          <span class="bar live" style="--bar-col:var(--c-warm);left:0;width:38%"></span>
+          <span class="bar dead" style="left:38%;right:78%"></span>
+          <span class="gate" style="right:78%"></span>
+          <span class="now" style="left:0"></span>
+        </span>
+        <span class="meta">$33.92</span>
+      </div>
+      <div style="height:1px;background:var(--c-rule)"></div>
+      <div class="row">
+        <span class="label">5-hour burst</span>
+        <span class="barwrap">
+          <span class="bar live" style="--bar-col:var(--c-cold);left:0;width:72%"></span>
+          <span class="bar dead" style="left:72%;right:94%"></span>
+          <span class="gate" style="right:94%"></span>
+          <span class="now" style="left:0"></span>
+        </span>
+        <span class="meta" style="color:var(--c-cold-lit)">on track</span>
+      </div>
+
+      <div class="legend" style="padding:10px 0 0 0"><span class="sw" style="background:var(--c-cold)"></span><span>will last</span><span class="sw sw-hatch"></span><span>dead time</span><span style="margin-left:auto;display:flex;gap:6px;align-items:center"><span style="width:3px;height:10px;background:var(--c-haze);display:inline-block"></span> refill</span></div>
+    </div>
+
+    <div class="section-head"><span class="title">DEAD ZONES</span><span class="rule"></span><span class="trailing">overlap</span></div>
+    <div class="card" style="padding:10px 14px;display:flex;gap:8px;flex-wrap:wrap">
+      <span style="font-family:var(--font-mono);font-size:10px;background:var(--c-hot-soft);color:var(--c-hot-lit);border:1px solid var(--c-hot);border-radius:999px;padding:4px 8px">Pro included: 28d dead</span>
+      <span style="font-family:var(--font-mono);font-size:10px;background:var(--c-riser);color:var(--c-haze);border:1px solid var(--c-rule);border-radius:999px;padding:4px 8px">This week: 2.6d dead · Sep 22</span>
+    </div>
+
+    <div class="section-head"><span class="title">POOLS</span><span class="rule"></span></div>
+    <div class="card gantt" style="padding:10px 15px;display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <div style="border:1px solid var(--c-rule);border-radius:6px;padding:10px"><div style="font-family:var(--font-mono);font-size:10px;color:var(--c-haze)">Pro included</div><div style="font-family:var(--font-mono);font-size:13px;font-weight:700;margin:4px 0">$18.35 LEFT</div><div class="meter" style="height:6px"><div class="fill" style="width:8%;background:var(--c-hot)"></div></div></div>
+      <div style="border:1px solid var(--c-rule);border-radius:6px;padding:10px"><div style="font-family:var(--font-mono);font-size:10px;color:var(--c-haze)">This month</div><div style="font-family:var(--font-mono);font-size:13px;font-weight:700;margin:4px 0">$44.23 LEFT</div><div class="meter" style="height:6px"><div class="fill" style="width:38%;background:var(--c-cold)"></div></div></div>
+    </div>
+
+    <div style="height:12px"></div>
+    <div class="add-card"><span class="plus" style="color:var(--c-cold-lit)">＋</span><div><div style="font-size:13.5px;font-weight:500">Add an account</div><div style="font-size:11.5px;color:var(--c-haze)">The key stays on this phone</div></div></div>
+  </div>
+  <nav class="bottom-nav">
+    <span class="item on"><span class="pill">◷</span>NOW</span>
+    <span class="item"><span style="font-size:16px">⁂</span>ACCOUNTS</span>
+    <span class="item"><span style="font-size:16px">▤</span>HISTORY</span>
+  </nav>
+</div>
+</body>
+</html>

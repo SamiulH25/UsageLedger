@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Dashboard — Burn + Left | UsageLedger themelab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&family=Fraunces:opsz,wght@9..144,800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--c-abyss:#0A0F17;--c-deck:#131B26;--c-riser:#1C2735;--c-rule:#2B3A4C;--c-beam:#E6EDF6;--c-haze:#8497AD;--c-cold:#3FC1B8;--c-cold-lit:#7EE0D8;--c-cold-soft:#102A2C;--c-warm:#F0A93B;--c-warm-soft:#2C2113;--c-hot:#FF6A5E;--c-hot-lit:#FF9188;--c-hot-soft:#2E1614}
+body{background:#06080C;color:var(--c-beam);font-family:"Archivo",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:inherit;text-decoration:none}
+.switcher{position:fixed;top:10px;right:10px;background:#131B26;border:1px solid #2B3A4C;border-radius:999px;padding:4px;display:flex;gap:4px;z-index:20}
+.switcher a{font-family:"JetBrains Mono",monospace;font-size:10px;letter-spacing:1px;color:#8497AD;padding:6px 10px;border-radius:999px;border:1px solid transparent}
+.switcher a.on{background:var(--c-cold);color:#0A0F17;border-color:var(--c-cold)}
+.shell{max-width:420px;margin:0 auto;min-height:100dvh;background:var(--c-abyss);border-left:1px solid var(--c-rule);border-right:1px solid var(--c-rule);display:flex;flex-direction:column}
+.head{position:sticky;top:0;z-index:10;background:rgba(10,15,23,.92);backdrop-filter:blur(8px);border-bottom:1px solid var(--c-rule);display:flex;align-items:center;gap:10px;padding:10px 16px;height:48px}
+.wm{flex:1;display:flex;flex-direction:column;gap:1px}
+.wm .top{font-family:"JetBrains Mono",monospace;font-size:7px;letter-spacing:2px;color:var(--c-cold-lit);line-height:1;opacity:0;height:0;overflow:hidden}
+.wm .main{font-family:"Fraunces",serif;font-size:17px;font-weight:800;letter-spacing:-.4px;line-height:1}
+.sync{font-family:"JetBrains Mono",monospace;font-size:9.5px;letter-spacing:1.5px;color:var(--c-haze);display:flex;align-items:center;gap:7px}
+.sync .dot{width:6px;height:6px;border-radius:50%;background:var(--c-cold)}
+.gear{width:28px;height:28px;border:1px solid var(--c-rule);border-radius:5px;background:var(--c-riser);color:var(--c-haze);display:grid;place-items:center;font-size:13px}
+.page{padding:16px 14px 90px 14px;display:flex;flex-direction:column;gap:14px}
+.kpi-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.kpi{border:1px solid var(--c-rule);border-radius:10px;background:var(--c-deck);padding:12px 12px;position:relative;overflow:hidden}
+.kpi::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--k-rail,var(--c-rule))}
+.kpi .label{font-family:"JetBrains Mono",monospace;font-size:9px;letter-spacing:1.5px;color:var(--c-haze)}
+.kpi .value{font-family:"Archivo",sans-serif;font-size:22px;font-weight:800;font-variation-settings:"wdth" 118,"wght" 780;letter-spacing:-.6px;margin:6px 0 4px 0;line-height:1}
+.kpi .meta{font-family:"JetBrains Mono",monospace;font-size:10px;color:var(--c-haze);display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.kpi .tag{display:inline-flex;align-items:center;gap:6px;font-family:"JetBrains Mono",monospace;font-size:9px;letter-spacing:.8px;font-weight:500;line-height:1;padding:3px 8px;border-radius:6px;border:1px solid transparent}
+.kpi .tag.ok{color:#7EE0D8;background:#102A2C;border-color:#173332}
+.kpi .tag.ok .dot{width:6px;height:6px;border-radius:50%;background:#3FC1B8;flex-shrink:0}
+.kpi .tag.muted{color:var(--c-haze);background:transparent;border-color:var(--c-rule);font-size:9.5px;padding:2px 7px;border-radius:999px}
+.kpi .trend{display:inline-flex;align-items:center;gap:4px;font-family:"JetBrains Mono",monospace;font-size:10px;font-weight:600;letter-spacing:.2px}
+.kpi .trend.up{color:var(--c-warm)}
+.kpi .trend.down{color:var(--c-cold-lit)}
+.kpi .trend svg{width:10px;height:10px;flex-shrink:0}
+.kpi.hot .value{color:var(--c-hot-lit)}
+.kpi.warn .value{color:var(--c-warm)}
+.kpi.cold .value{color:var(--c-cold-lit)}
+.kpi .rail{height:4px;background:var(--c-riser);border-radius:999px;position:relative;overflow:hidden;margin-top:8px;border:1px solid var(--c-rule)}
+.kpi .rail .fill{position:absolute;left:0;top:0;bottom:0;border-radius:999px}
+.kpi .rail .knob{position:absolute;top:50%;width:6px;height:6px;border-radius:50%;transform:translate(-50%,-50%);border:1px solid var(--c-abyss);box-shadow:0 1px 4px rgba(0,0,0,.35)}
+.hero{border:1px solid var(--c-rule);border-radius:10px;background:var(--c-deck);position:relative;overflow:hidden;padding:14px}
+.hero::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--c-hot)}
+.hero .kicker{font-family:"JetBrains Mono",monospace;font-size:9px;letter-spacing:1.5px;color:var(--c-hot-lit)}
+.hero .value{font-family:"Archivo",sans-serif;font-size:36px;font-weight:800;font-variation-settings:"wdth" 118,"wght" 780;letter-spacing:-1px;margin:8px 0 6px 0;color:var(--c-hot-lit)}
+.hero .detail{font-family:"JetBrains Mono",monospace;font-size:11px;color:var(--c-haze)}
+.divider{height:1px;background:var(--c-rule);margin:12px 0}
+.metric-row{display:flex;gap:12px}
+.metric{flex:1}
+.metric .lbl{font-family:"JetBrains Mono",monospace;font-size:9px;letter-spacing:1.5px;color:var(--c-haze)}
+.metric .val{font-family:"JetBrains Mono",monospace;font-size:12px;font-weight:700;margin-top:4px}
+.metric.hot .val{color:var(--c-hot-lit)}
+.section-head{display:flex;align-items:center;gap:12px}
+.section-head .title{font-family:"JetBrains Mono",monospace;font-size:10px;letter-spacing:1.5px;color:var(--c-beam)}
+.section-head .rule{flex:1;height:1px;background:var(--c-rule)}
+.prov{border:1px solid var(--c-rule);border-radius:8px;background:var(--c-deck);overflow:hidden}
+.prov summary{list-style:none;display:flex;align-items:center;gap:10px;padding:10px 12px;cursor:pointer}
+.prov summary::-webkit-details-marker{display:none}
+.prov .chev{font-size:10px;color:var(--c-haze)}
+.prov[open] .chev{transform:rotate(90deg)}
+.prov .icon{width:22px;height:22px;border-radius:5px;background:var(--c-riser);border:1px solid var(--c-rule);display:grid;place-items:center;font-size:10px;color:var(--c-haze)}
+.prov .name{flex:1;font-size:12px;font-weight:600}
+.prov .right{text-align:right}
+.prov .right .left{font-family:"JetBrains Mono",monospace;font-size:12px;font-weight:700}
+.prov .right .sub{font-family:"JetBrains Mono",monospace;font-size:9px;color:var(--c-haze)}
+.prov .body{border-top:1px solid var(--c-rule);padding:8px 12px}
+.lane{display:flex;flex-direction:column;gap:6px;padding:8px 0}
+.lane:first-child{padding-top:2px}
+.lane+.lane{border-top:1px solid var(--c-rule)}
+.lane-head{display:flex;justify-content:space-between;align-items:center}
+.lane-head .pool{font-family:"JetBrains Mono",monospace;font-size:11px;font-weight:700}
+.lane-head .left{font-family:"JetBrains Mono",monospace;font-size:11px;color:var(--c-haze)}
+.track{height:8px;background:var(--c-riser);border-radius:999px;position:relative;overflow:hidden}
+.track .fill{position:absolute;left:0;top:0;bottom:0;border-radius:999px}
+.track .hatch{position:absolute;top:0;bottom:0;right:0;background:repeating-linear-gradient(135deg, transparent 0 3px, var(--c-rule) 3px 4px)}
+.track .gate{position:absolute;right:0;top:0;bottom:0;width:2px;background:var(--c-haze)}
+.lane-foot{display:flex;justify-content:space-between;font-family:"JetBrains Mono",monospace;font-size:10px;color:var(--c-haze)}
+</style>
+</head>
+<body>
+<div class="switcher">
+  <a href="../index.html">Index</a>
+  <a href="../horizon.html">Horizon</a>
+  <a href="../layouts/providers.html">Providers</a>
+  <a href="../brand/collapse-demo.html">Collapse</a>
+  <a class="on" href="burn-left.html">Burn+Left</a>
+</div>
+
+<div class="shell">
+  <div class="head">
+    <div class="wm"><div class="top">USAGE</div><div class="main">Ledger</div></div>
+    <div class="sync"><span class="dot"></span>JUST NOW</div>
+    <div class="gear">⚙</div>
+  </div>
+
+  <div class="page">
+
+    <!-- KPI dashboard: Amount left + Burn rate side-by-side -->
+    <div class="kpi-grid">
+      <div class="kpi cold" style="--k-rail:var(--c-cold)">
+        <div class="label">AMOUNT LEFT</div>
+        <div class="value">$76.63</div>
+        <div class="meta"><span class="tag ok"><span class="dot"></span>4 pools healthy</span> <span style="color:var(--c-haze)">· 2 providers</span></div>
+        <div class="rail"><div class="fill" style="width:68%;background:var(--c-cold)"></div><div class="knob" style="left:68%;background:var(--c-cold-lit)"></div></div>
+        <div style="display:flex;justify-content:space-between;margin-top:6px;font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--c-haze)"><span>$24 left of $100 cap</span><span>68%</span></div>
+      </div>
+      <div class="kpi warn" style="--k-rail:var(--c-warm)">
+        <div class="label">BURN RATE</div>
+        <div class="value">$2.14<span style="font-size:11px;font-weight:500;color:var(--c-haze)">/day</span></div>
+        <div class="meta"><span class="trend up"><svg viewBox="0 0 10 10" fill="none" aria-hidden="true"><path d="M1 7 L5 3 L7 5 L9 1" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg> +12%</span><span>vs 7d avg</span> <span class="tag muted">7d</span></div>
+        <div class="rail"><div class="fill" style="width:74%;background:var(--c-warm)"></div><div class="knob" style="left:74%;background:var(--c-warm)"></div></div>
+        <div style="display:flex;justify-content:space-between;margin-top:6px;font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--c-haze)"><span>pace climbing</span><span style="color:var(--c-warm)">↗ faster</span></div>
+      </div>
+    </div>
+
+    <!-- Secondary KPIs -->
+    <div class="kpi-grid" style="grid-template-columns:1fr 1fr 1fr">
+      <div class="kpi hot" style="--k-rail:var(--c-hot);padding:10px">
+        <div class="label">HOTTEST POOL</div>
+        <div class="value" style="font-size:16px">Pro inc. · $18.35</div>
+        <div class="meta"><span class="tag" style="background:var(--c-hot-soft);color:var(--c-hot-lit);border-color:#4a1c19">● empty</span><span style="color:var(--c-haze)">· 28d</span></div>
+      </div>
+      <div class="kpi" style="--k-rail:var(--c-cold);padding:10px">
+        <div class="label">RUNWAY</div>
+        <div class="value" style="font-size:16px">28d 2h</div>
+        <div class="meta"><span class="tag ok" style="font-size:9px;padding:2px 6px"><span class="dot"></span>to refill</span><span style="color:var(--c-haze)">Sep 22</span></div>
+      </div>
+      <div class="kpi" style="--k-rail:var(--c-rule);padding:10px">
+        <div class="label">THIS WEEK</div>
+        <div class="value" style="font-size:16px">$3.92<span style="font-size:10px;color:var(--c-haze)">/d</span></div>
+        <div class="meta"><span class="trend down"><svg viewBox="0 0 10 10" fill="none" aria-hidden="true"><path d="M1 3 L5 7 L7 5 L9 9" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg> -8% vs last wk</span></div>
+      </div>
+    </div>
+
+    <div class="hero">
+      <div class="kicker">EMPTY · REFILLS IN</div>
+      <div class="value">28d 2h</div>
+      <div class="detail">Samiul Hossain · Pro included</div>
+      <div class="divider"></div>
+      <div class="metric-row">
+        <div class="metric hot"><div class="lbl">LEFT</div><div class="val">$18.35</div></div>
+        <div class="metric"><div class="lbl">PER DAY</div><div class="val">—</div></div>
+        <div class="metric"><div class="lbl">RESET</div><div class="val">28d 2h</div></div>
+      </div>
+    </div>
+
+    <div class="section-head"><span class="title">PROVIDERS</span><span class="rule"></span><span style="font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--c-haze)">burn · left</span></div>
+
+    <details class="prov" open>
+      <summary><span class="chev">›</span><span class="icon">⬢</span><span class="name">Cursor</span><span class="right"><span class="left">$18.35</span><div class="sub">↗ $0.42/d · 1 empty</div></span></summary>
+      <div class="body">
+        <div class="lane">
+          <div class="lane-head"><span class="pool">Pro included</span><span class="left">$18.35 left</span></div>
+          <div class="track"><div class="fill" style="width:0%;background:var(--c-hot)"></div><div class="hatch" style="left:0;right:0"></div><div class="gate" style="background:var(--c-hot)"></div></div>
+          <div class="lane-foot"><span style="color:var(--c-hot-lit)">empty · refills in 28d 2h</span><span>↻ 28d 2h</span> <span style="color:var(--c-warm)">$0.31/d</span></div>
+        </div>
+        <div class="lane">
+          <div class="lane-head"><span class="pool">Auto models · 9%</span><span class="left" style="color:var(--c-haze)">$2.74</span></div>
+          <div class="track" style="height:6px"><div class="fill" style="width:9%;background:var(--c-cold)"></div><div class="gate"></div></div>
+          <div class="lane-foot"><span>$2.74 of $30 · 0.12/d</span></div>
+        </div>
+      </div>
+    </details>
+
+    <details class="prov">
+      <summary><span class="chev">›</span><span class="icon">◎</span><span class="name">OpenAI</span><span class="right"><span class="left">$44.23</span><div class="sub">↗ $1.72/d · healthy</div></span></summary>
+      <div class="body">
+        <div class="lane">
+          <div class="lane-head"><span class="pool">This month</span><span class="left">$44.23 left</span></div>
+          <div class="track"><div class="fill" style="width:44%;background:var(--c-cold)"></div><div class="hatch" style="left:44%;right:4px"></div><div class="gate"></div></div>
+          <div class="lane-foot"><span style="color:var(--c-cold-lit)">on track · 20d 22h to refill</span><span style="color:var(--c-cold-lit)">$1.10/d</span></div>
+        </div>
+        <div class="lane">
+          <div class="lane-head"><span class="pool">This week</span><span class="left">$33.92 left</span></div>
+          <div class="track"><div class="fill" style="width:34%;background:var(--c-cold)"></div><div class="hatch" style="left:34%;right:4px"></div><div class="gate"></div></div>
+          <div class="lane-foot"><span style="color:var(--c-cold-lit)">on track</span><span>$0.62/d</span></div>
+        </div>
+      </div>
+    </details>
+
+    <details class="prov">
+      <summary><span class="chev">›</span><span class="icon">⬡</span><span class="name">DeepSeek</span><span class="right"><span class="left" style="color:var(--c-warm)">$6.20</span><div class="sub" style="color:var(--c-warm)">↗ $0.84/d · low</div></span></summary>
+      <div class="body">
+        <div class="lane">
+          <div class="lane-head"><span class="pool">Credits</span><span class="left">$6.20 left</span></div>
+          <div class="track"><div class="fill" style="width:62%;background:var(--c-warm)"></div><div class="gate"></div></div>
+          <div class="lane-foot"><span style="color:var(--c-warm)">runs dry 2.1d early</span><span style="color:var(--c-warm)">$0.84/d</span></div>
+        </div>
+      </div>
+    </details>
+
+  </div>
+</div>
+</body>
+</html>

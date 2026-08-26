@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Signal — UsageLedger themelab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fragment+Mono&family=Instrument+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared.css">
+<style>
+:root{
+  --font-ui:"Instrument Sans"; --font-mono:"Fragment Mono";
+  --c-abyss:#F8F6F1; --c-deck:#FFFFFF; --c-riser:#F1EFE9; --c-rule:#E7E0D6;
+  --c-beam:#0F1B2D; --c-haze:#8A95A5;
+  --c-cold:#0F766E; --c-cold-lit:#0F766E; --c-cold-soft:#E6F2F0; --c-cold-border:#C9E3DF;
+  --c-warm:#A16207; --c-warm-soft:#FFF6DE;
+  --c-hot:#DC2626; --c-hot-lit:#DC2626; --c-hot-soft:#FEECEC;
+  --amber:#EAB308;
+}
+body{color:var(--c-beam)}
+.lab{border-left-color:var(--c-rule);border-right-color:var(--c-rule)}
+.lab-head{background:var(--c-abyss);border-bottom-color:var(--c-rule)}
+.lab-head .mark{background:var(--c-cold);width:4px;border-radius:2px}
+.bottom-nav{background:var(--c-abyss);border-top-color:var(--c-rule)}
+.bottom-nav .item.on{color:var(--c-cold)}
+.bottom-nav .pill{background:var(--c-cold-soft);border-color:var(--c-cold-border)}
+.hero .value{color:var(--c-hot)}
+.card{box-shadow:0 1px 2px rgba(16,24,40,.06)}
+</style>
+</head>
+<body>
+<div class="theme-switcher">
+  <a href="horizon.html">Horizon</a>
+  <a class="on" href="signal.html">Signal</a>
+  <a href="noir.html">Noir</a>
+  <a href="orchard.html">Orchard</a>
+  <a href="index.html">Index</a>
+</div>
+
+<div class="lab">
+  <div class="lab-head">
+    <div class="mark"></div>
+    <div class="brand">UsageLedger</div>
+    <div class="sync" style="color:var(--c-cold)"><span class="dot" style="background:var(--c-cold)"></span>JUST NOW</div>
+    <div class="gear">⚙</div>
+  </div>
+
+  <div class="page">
+    <div class="eyebrow" style="margin-bottom:14px">Tue 25 Aug · 19:47</div>
+
+    <div class="hero card-rail" style="--hero-rail:var(--c-hot)">
+      <div class="kicker" style="color:var(--c-hot)">EMPTY · REFILLS IN</div>
+      <div class="value">28d 2h</div>
+      <div class="detail">Samiul Hossain · Pro included</div>
+      <div class="divider"></div>
+      <div class="metric-row">
+        <div class="metric"><div class="label">LEFT</div><div class="val" style="color:var(--c-hot)">$18.35</div></div>
+        <div class="divider-v" style="background:var(--c-rule)"></div>
+        <div class="metric"><div class="label">PER DAY</div><div class="val">—</div></div>
+        <div class="divider-v" style="background:var(--c-rule)"></div>
+        <div class="metric"><div class="label">RESET</div><div class="val">28d 2h</div></div>
+      </div>
+      <div class="detail" style="margin-top:14px;background:var(--c-riser);border-radius:6px;padding:8px 10px;border:1px solid var(--c-rule)">Spend under $0.65 a day and this pool lasts to the reset.</div>
+    </div>
+
+    <div style="display:flex;gap:6px;align-items:center;margin:10px 0 2px 0;font-family:var(--font-mono);font-size:11px;color:var(--c-haze)">
+      <span>↗</span><span>Since last sync: $0.02 · 372 tokens</span>
+    </div>
+
+    <div class="section-head"><span class="title" style="color:var(--c-beam)">RUNWAY</span><span class="rule"></span><span class="trailing">to each reset</span></div>
+    <div class="card">
+      <div class="lane">
+        <div class="lane-head"><span class="name">Samiul Hossain · Pro included</span><span class="left">$18.35 left</span></div>
+        <div class="track" style="background:var(--c-riser);border:1px solid var(--c-rule);height:14px;border-radius:4px">
+          <div class="fill" style="width:0%;background:var(--c-hot)"></div>
+          <div class="hatch" style="left:0;right:0;border-radius:4px"></div>
+          <div class="gate" style="background:var(--c-hot);width:4px"></div>
+        </div>
+        <div class="lane-foot"><span class="verdict" style="color:var(--c-hot)">empty · refills in 28d 2h</span><span class="reset">↻ 28d 2h</span></div>
+      </div>
+      <div style="height:1px;background:var(--c-rule)"></div>
+      <div class="lane">
+        <div class="lane-head"><span class="name">SamiulH25 · This month</span><span class="left">$44.23 left</span></div>
+        <div class="track" style="background:var(--c-riser);border:1px solid var(--c-rule);height:14px;border-radius:4px">
+          <div class="fill" style="width:62%;background:var(--c-cold)"></div>
+          <div class="hatch" style="left:62%;right:4px"></div>
+          <div class="meniscus" style="left:62%"></div>
+          <div class="gate"></div>
+        </div>
+        <div class="lane-foot"><span class="verdict" style="color:var(--c-haze)">not enough history to project</span><span class="reset">↻ 20d 22h</span></div>
+      </div>
+      <div style="height:1px;background:var(--c-rule)"></div>
+      <div class="lane">
+        <div class="lane-head"><span class="name">SamiulH25 · This week</span><span class="left">$33.92 left</span></div>
+        <div class="track" style="background:var(--c-riser);border:1px solid var(--c-rule);height:14px;border-radius:4px">
+          <div class="fill" style="width:48%;background:var(--amber)"></div>
+          <div class="hatch" style="left:48%;right:4px"></div>
+          <div class="meniscus" style="left:48%"></div>
+          <div class="gate"></div>
+        </div>
+        <div class="lane-foot"><span class="verdict" style="color:var(--c-haze)">not enough history to project</span><span class="reset">↻ 4d 3h</span></div>
+      </div>
+      <div style="height:1px;background:var(--c-rule)"></div>
+      <div class="lane">
+        <div class="lane-head"><span class="name">SamiulH25 · 5-hour burst</span><span class="left">$13.85 left</span></div>
+        <div class="track" style="background:var(--c-riser);border:1px solid var(--c-rule);height:14px;border-radius:4px">
+          <div class="fill" style="width:82%;background:var(--c-cold)"></div>
+          <div class="hatch" style="left:82%;right:4px"></div>
+          <div class="meniscus" style="left:82%"></div>
+          <div class="gate"></div>
+        </div>
+        <div class="lane-foot"><span class="verdict" style="color:var(--c-cold)">on track to reach the reset</span><span class="reset">↻ 3h 42m</span></div>
+      </div>
+      <div class="legend"><span class="sw" style="background:var(--c-cold)"></span><span>will last</span><span class="sw sw-hatch"></span><span>dead time</span><span style="margin-left:auto;display:flex;gap:6px;align-items:center"><span style="width:3px;height:12px;background:var(--c-haze);display:inline-block"></span> refill</span></div>
+    </div>
+
+    <div class="section-head"><span class="title" style="color:var(--c-beam)">POOLS</span><span class="rule"></span><span class="trailing">what is left</span></div>
+    <div class="card gauge card-rail" style="--card-rail:var(--amber)">
+      <div class="gauge-head">
+        <span class="pool-name">Pro included</span>
+        <span class="left-col"><span class="left-val" style="color:var(--amber)">$18.35</span><br><span class="left-tag" style="color:var(--amber)">LEFT</span></span>
+      </div>
+      <div style="font-family:var(--font-mono);font-size:10px;color:var(--c-haze);margin-top:2px">$1.65 of $20.00 used</div>
+      <div class="meter" style="background:var(--c-riser);border:1px solid var(--c-rule);height:10px;border-radius:4px"><div class="fill" style="width:8%;background:var(--amber)"></div><div class="caret" style="left:64%;background:var(--c-cold)"></div></div>
+      <div class="gauge-foot"><span class="heat" style="color:var(--amber)">LOW</span><span class="spacer"></span><span class="reset">resets Sep 22</span></div>
+    </div>
+
+    <div class="section-head"><span class="title" style="color:var(--c-beam)">TRACKED SPEND</span><span class="rule"></span></div>
+    <div class="card chart">
+      <div class="chart-head"><span class="lbl">DAILY</span><span class="avg">avg $3.21</span></div>
+      <div class="bars">
+        <div class="bar" style="height:18px;background:var(--c-rule)"></div>
+        <div class="bar" style="height:42px;background:var(--c-rule)"></div>
+        <div class="bar" style="height:28px;background:var(--c-rule)"></div>
+        <div class="bar" style="height:66px;background:var(--c-rule)"></div>
+        <div class="bar" style="height:38px;background:var(--c-rule)"></div>
+        <div class="bar" style="height:74px;background:var(--c-rule)"></div>
+        <div class="bar" style="height:22px;background:var(--c-rule)"></div>
+        <div class="bar" style="height:88px;background:var(--c-beam)"></div>
+        <div class="mean" style="bottom:42px"></div>
+      </div>
+      <div class="chart-foot"><span>08.12</span><span>08.25</span></div>
+    </div>
+
+    <div class="section-head"><span class="title" style="color:var(--c-beam)">TOP MODELS</span><span class="rule"></span><span class="trailing">all accounts</span></div>
+    <div class="card top-models">
+      <div class="model-row"><div class="row"><span class="name">claude-4-sonnet</span><span class="cost">$18.42</span></div><div class="share"><div class="fill" style="width:100%;background:var(--c-cold)"></div></div></div>
+      <div class="model-row"><div class="row"><span class="name">gpt-4o</span><span class="cost">$9.11</span></div><div class="share"><div class="fill" style="width:49%;background:var(--c-rule)"></div></div></div>
+      <div class="model-row"><div class="row"><span class="name">gemini-2.0-flash</span><span class="cost">$4.32</span></div><div class="share"><div class="fill" style="width:23%;background:var(--c-rule)"></div></div></div>
+    </div>
+
+    <div class="section-head"><span class="title" style="color:var(--c-beam)">ACCOUNTS</span><span class="rule"></span><span class="trailing">2 connected</span></div>
+    <div class="card card-rail acct" style="--card-rail:var(--c-hot)">
+      <div class="acct-head">
+        <div class="avatar">◈</div>
+        <div class="meta"><div class="acct-name">Samiul Hossain</div><div class="sub">CURSOR · JUST NOW</div></div>
+        <div class="left-col"><div class="left-val" style="color:var(--c-beam)">$18.35</div><div class="left-tag">LEFT</div></div>
+        <span style="color:var(--c-haze)">›</span>
+      </div>
+      <div class="gauge" style="padding:0">
+        <div class="gauge-head"><span class="pool-name" style="font-size:11.5px">Pro included</span><span style="font-family:var(--font-mono);font-size:11.5px;color:var(--c-haze)">$18.35 left</span></div>
+        <div class="meter" style="height:6px"><div class="fill" style="width:8%;background:var(--c-hot)"></div></div>
+        <div class="gauge-foot" style="margin-top:4px"><span class="heat" style="color:var(--c-hot);font-size:9.5px">EMPTY</span><span class="spacer"></span><span class="reset" style="font-size:10.5px">resets Sep 22</span></div>
+      </div>
+    </div>
+
+    <div style="height:12px"></div>
+    <div class="add-card" style="border-color:var(--c-rule);background:var(--c-deck)"><span class="plus" style="color:var(--c-cold)">＋</span><div><div style="font-size:13.5px;font-weight:500">Add an account</div><div style="font-size:11.5px;color:var(--c-haze)">The key stays on this phone</div></div></div>
+  </div>
+
+  <nav class="bottom-nav">
+    <span class="item on"><span class="pill">◷</span>NOW</span>
+    <span class="item"><span style="font-size:16px">⁂</span>ACCOUNTS</span>
+    <span class="item"><span style="font-size:16px">▤</span>HISTORY</span>
+  </nav>
+</div>
+</body>
+</html>

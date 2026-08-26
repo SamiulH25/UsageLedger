@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../providers/registry.dart';
+import '../providers/types.dart';
 import '../state/app_scope.dart';
 import '../state/view_models.dart';
 import '../ui/theme.dart';
@@ -93,32 +94,42 @@ class AccountsScreen extends StatelessWidget {
                         label: const Text('ADD AN ACCOUNT'),
                       ),
                     )
-                  else
-                    for (final row in rows)
-                      AccountUsageCard(
-                        key: ValueKey(row.data.account.key),
-                        account: row.data.account,
-                        costUsd: row.data.latest?.costUsd ?? 0,
-                        requests: row.data.latest?.requests ?? 0,
-                        inputTokens: row.data.latest?.inputTokens ?? 0,
-                        outputTokens: row.data.latest?.outputTokens ?? 0,
-                        windows: row.data.windows,
-                        models: row.data.latest?.models ?? const [],
-                        lastRefreshAt: row.data.account.lastRefreshAt,
-                        onOpen: () =>
-                            _openDetail(context, row.data.account.key),
-                        footer: _footer(context, scope, row),
-                        banner: row.data.account.syncError.isEmpty
-                            ? null
-                            : InlineMessage.error(
-                                row.data.account.syncError,
-                                action: TextButton(
-                                  onPressed: () =>
-                                      _updateKey(context, scope, row),
-                                  child: const Text('UPDATE KEY'),
-                                ),
-                              ),
+                  else ...[
+                    for (final section in _sections(rows))
+                      ProviderSection(
+                        key: ValueKey(section.$1),
+                        platform: section.$1,
+                        accounts: [
+                          for (final row in section.$2)
+                            AccountUsageCard(
+                              key: ValueKey(row.data.account.key),
+                              account: row.data.account,
+                              costUsd: row.data.latest?.costUsd ?? 0,
+                              requests: row.data.latest?.requests ?? 0,
+                              inputTokens: row.data.latest?.inputTokens ?? 0,
+                              outputTokens: row.data.latest?.outputTokens ?? 0,
+                              windows: row.data.windows,
+                              models: row.data.latest?.models ?? const [],
+                              lastRefreshAt: row.data.account.lastRefreshAt,
+                              onOpen: () =>
+                                  _openDetail(context, row.data.account.key),
+                              footer: _footer(context, scope, row),
+                              banner: row.data.account.syncError.isEmpty
+                                  ? null
+                                  : InlineMessage.error(
+                                      row.data.account.syncError,
+                                      action: TextButton(
+                                        onPressed: () =>
+                                            _updateKey(context, scope, row),
+                                        child: const Text('UPDATE KEY'),
+                                      ),
+                                    ),
+                            ),
+                        ],
+                        initiallyExpanded: section.$1 == _defaultOpen(rows),
                       ),
+                    const SizedBox(height: 4),
+                  ],
                   if (rows.isNotEmpty) const SizedBox(height: 2),
                   AddAccountCard(onPressed: onOpenAdd),
                 ],
@@ -128,6 +139,56 @@ class AccountsScreen extends StatelessWidget {
         );
       },
     );
+  }
+
+  /// Accounts grouped by provider, ordered by how urgent the provider's worst
+  /// pool is (most consumed first), then by provider name.
+  List<(String, List<AccountRowView>)> _sections(List<AccountRowView> rows) {
+    final byPlatform = <String, List<AccountRowView>>{};
+    for (final row in rows) {
+      byPlatform.putIfAbsent(row.data.account.platform, () => []).add(row);
+    }
+    final platforms = byPlatform.keys.toList()
+      ..sort((a, b) {
+        double worst(List<AccountRowView> list) {
+          var w = 0.0;
+          for (final r in list) {
+            for (final window in r.data.windows) {
+              if (window.kind == LimitKind.share ||
+                  window.kind == LimitKind.extra) {
+                continue;
+              }
+              if (window.fraction > w) w = window.fraction;
+            }
+          }
+          return w;
+        }
+
+        final c = worst(byPlatform[b]!).compareTo(worst(byPlatform[a]!));
+        return c != 0 ? c : a.compareTo(b);
+      });
+    return [
+      for (final platform in platforms)
+        (platform, byPlatform[platform]!),
+    ];
+  }
+
+  /// The provider with the most consumed pool opens expanded.
+  String? _defaultOpen(List<AccountRowView> rows) {
+    String? best;
+    var bestFraction = 0.0;
+    for (final row in rows) {
+      for (final window in row.data.windows) {
+        if (window.kind == LimitKind.share ||
+            window.kind == LimitKind.extra ||
+            window.fraction <= bestFraction) {
+          continue;
+        }
+        bestFraction = window.fraction;
+        best = row.data.account.platform;
+      }
+    }
+    return best;
   }
 
   void _openSettings(BuildContext context) {
