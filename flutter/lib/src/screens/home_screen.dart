@@ -674,7 +674,7 @@ class _KpiStrip extends StatelessWidget {
                 label: 'THIS WEEK',
                 compact: true,
                 rail: AppColors.rule,
-                value: fmtCost(state.spend7 > 0 ? state.spend7 / 7 : 0) + '/d',
+                value: '${fmtCost(state.spend7 > 0 ? state.spend7 / 7 : 0)}/d',
                 valueColor: AppColors.beam,
                 valueSize: 13,
                 foot: Row(
