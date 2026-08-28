@@ -250,6 +250,7 @@ class CursorProvider implements AiProvider {
         .contains('usage limit');
     final windows = <LimitWindow>[];
 
+    final totalRequests = _num(agg['totalRequests']).toInt();
     if (includedDollars > 0) {
       windows.add(
         LimitWindow(
@@ -260,6 +261,9 @@ class CursorProvider implements AiProvider {
           resetAt: cycleEnd,
           exceeded: totalPct >= 1.0 || hitLimit,
           kind: LimitKind.budget,
+          inputTokens: inputTokens,
+          outputTokens: outputTokens,
+          requests: totalRequests,
         ),
       );
       windows.add(

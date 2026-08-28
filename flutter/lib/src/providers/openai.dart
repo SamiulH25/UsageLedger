@@ -199,13 +199,16 @@ class OpenAiProvider implements AiProvider {
     models.sort((a, b) => b.costUsd.compareTo(a.costUsd));
 
     final windows = <LimitWindow>[
-      if (monthCost > 0)
+      if (monthCost > 0 || inputTokens > 0 || outputTokens > 0)
         LimitWindow(
           id: 'openai:month',
           label: 'This month',
           used: monthCost,
           cap: 0,
           kind: LimitKind.extra,
+          inputTokens: inputTokens,
+          outputTokens: outputTokens,
+          requests: requests,
         ),
     ];
 

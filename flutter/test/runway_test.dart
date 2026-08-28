@@ -18,9 +18,7 @@ RunwayEntry _entry({
     label: 'Monthly pool',
     used: used,
     cap: cap,
-    resetAt: resetIn == null
-        ? 0
-        : _now.add(resetIn).millisecondsSinceEpoch,
+    resetAt: resetIn == null ? 0 : _now.add(resetIn).millisecondsSinceEpoch,
     exceeded: exceeded,
   );
   return RunwayEntry(

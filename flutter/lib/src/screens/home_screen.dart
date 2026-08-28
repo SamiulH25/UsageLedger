@@ -280,8 +280,7 @@ class _HomeScreenState extends State<HomeScreen> {
     for (final account in state.accounts) {
       for (final window in account.windows) {
         if (window.cap <= 0 || window.idle) continue;
-        if (window.kind == LimitKind.share ||
-            window.kind == LimitKind.extra) {
+        if (window.kind == LimitKind.share || window.kind == LimitKind.extra) {
           continue;
         }
         entries.add(
@@ -344,13 +343,13 @@ class _HomeScreenState extends State<HomeScreen> {
       out.add((entry.key, entry.value, lanes));
     }
     out.sort((a, b) {
-      double worst(List<RunwayEntry> lanes) =>
-          lanes.isEmpty ? 0 : lanes.map((e) => e.window.fraction).reduce((x, y) => x > y ? x : y);
+      double worst(List<RunwayEntry> lanes) => lanes.isEmpty
+          ? 0
+          : lanes.map((e) => e.window.fraction).reduce((x, y) => x > y ? x : y);
       return worst(b.$3).compareTo(worst(a.$3));
     });
     return out;
   }
-
 }
 
 String _todayLabel() {
@@ -505,7 +504,11 @@ class _DeltaStrip extends StatelessWidget {
     ];
     return Row(
       children: [
-        const Icon(Icons.arrow_outward_rounded, size: 14, color: AppColors.haze),
+        const Icon(
+          Icons.arrow_outward_rounded,
+          size: 14,
+          color: AppColors.haze,
+        ),
         const SizedBox(width: 8),
         Expanded(
           child: Text(
@@ -528,11 +531,21 @@ class _KpiStrip extends StatelessWidget {
   Widget build(BuildContext context) {
     final leftTotal = state.accounts
         .expand((a) => a.windows)
-        .where((w) => w.cap > 0 && w.kind != LimitKind.share && w.kind != LimitKind.extra)
+        .where(
+          (w) =>
+              w.cap > 0 &&
+              w.kind != LimitKind.share &&
+              w.kind != LimitKind.extra,
+        )
         .fold(0.0, (s, w) => s + windowRemaining(w));
     final pools = state.accounts
         .expand((a) => a.windows)
-        .where((w) => w.cap > 0 && w.kind != LimitKind.share && w.kind != LimitKind.extra)
+        .where(
+          (w) =>
+              w.cap > 0 &&
+              w.kind != LimitKind.share &&
+              w.kind != LimitKind.extra,
+        )
         .length;
     final hottest = runway.isEmpty ? null : runway.first;
     final burnt = state.spend7 > 0 ? state.spend7 / 7 : state.perDay;
@@ -577,11 +590,18 @@ class _KpiStrip extends StatelessWidget {
                     const SizedBox(width: 4),
                     Text(
                       '+12% vs 7d',
-                      style: AppText.data(size: 10, weight: FontWeight.w600, color: AppColors.warm),
+                      style: AppText.data(
+                        size: 10,
+                        weight: FontWeight.w600,
+                        color: AppColors.warm,
+                      ),
                     ),
                     const Spacer(),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
                       decoration: BoxDecoration(
                         border: Border.all(color: AppColors.rule),
                         borderRadius: BorderRadius.circular(999),
@@ -602,12 +622,31 @@ class _KpiStrip extends StatelessWidget {
               child: _KpiCard(
                 label: 'HOTTEST POOL',
                 compact: true,
-                rail: hottest == null ? AppColors.rule : limitColor(hottest.window.fraction, exceeded: hottest.window.exceeded),
-                value: hottest == null ? '—' : '${hottest.accountLabel.split(' ').first} · ${fmtCost(windowRemaining(hottest.window))}',
-                valueColor: hottest == null ? AppColors.haze : limitTextColor(hottest.window.fraction, exceeded: hottest.window.exceeded),
+                rail: hottest == null
+                    ? AppColors.rule
+                    : limitColor(
+                        hottest.window.fraction,
+                        exceeded: hottest.window.exceeded,
+                      ),
+                value: hottest == null
+                    ? '—'
+                    : '${hottest.accountLabel.split(' ').first} · ${fmtCost(windowRemaining(hottest.window))}',
+                valueColor: hottest == null
+                    ? AppColors.haze
+                    : limitTextColor(
+                        hottest.window.fraction,
+                        exceeded: hottest.window.exceeded,
+                      ),
                 valueSize: 13,
                 foot: Text(
-                  hottest == null ? '—' : (hottest.window.exceeded ? 'empty · refills soon' : heatLabel(hottest.window.fraction, exceeded: hottest.window.exceeded)),
+                  hottest == null
+                      ? '—'
+                      : (hottest.window.exceeded
+                            ? 'empty · refills soon'
+                            : heatLabel(
+                                hottest.window.fraction,
+                                exceeded: hottest.window.exceeded,
+                              )),
                   style: AppText.data(size: 10, color: AppColors.haze),
                 ),
               ),
@@ -618,10 +657,15 @@ class _KpiStrip extends StatelessWidget {
                 label: 'RUNWAY',
                 compact: true,
                 rail: AppColors.cold,
-                value: hottest?.timeToWall == null ? (hottest == null ? '—' : 'on track') : fmtSpan(hottest!.timeToWall!),
+                value: hottest?.timeToWall == null
+                    ? (hottest == null ? '—' : 'on track')
+                    : fmtSpan(hottest!.timeToWall!),
                 valueColor: AppColors.coldLit,
                 valueSize: 13,
-                foot: Text('to refill', style: AppText.data(size: 10, color: AppColors.haze)),
+                foot: Text(
+                  'to refill',
+                  style: AppText.data(size: 10, color: AppColors.haze),
+                ),
               ),
             ),
             const SizedBox(width: 10),
@@ -635,9 +679,20 @@ class _KpiStrip extends StatelessWidget {
                 valueSize: 13,
                 foot: Row(
                   children: [
-                    const Icon(Icons.trending_down, size: 10, color: AppColors.coldLit),
+                    const Icon(
+                      Icons.trending_down,
+                      size: 10,
+                      color: AppColors.coldLit,
+                    ),
                     const SizedBox(width: 3),
-                    Flexible(child: Text('-8% vs last wk', maxLines: 1, overflow: TextOverflow.ellipsis, style: AppText.data(size: 10, color: AppColors.coldLit))),
+                    Flexible(
+                      child: Text(
+                        '-8% vs last wk',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppText.data(size: 10, color: AppColors.coldLit),
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -674,7 +729,12 @@ class _KpiCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return ThermalCard(
       rail: rail,
-      padding: EdgeInsets.fromLTRB(12, compact ? 10 : 12, 12, compact ? 10 : 12),
+      padding: EdgeInsets.fromLTRB(
+        12,
+        compact ? 10 : 12,
+        12,
+        compact ? 10 : 12,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -685,7 +745,11 @@ class _KpiCard extends StatelessWidget {
             alignment: Alignment.centerLeft,
             child: Text(
               value,
-              style: AppText.data(size: valueSize, weight: FontWeight.w800, color: valueColor),
+              style: AppText.data(
+                size: valueSize,
+                weight: FontWeight.w800,
+                color: valueColor,
+              ),
             ),
           ),
           SizedBox(height: compact ? 6 : 8),
@@ -709,12 +773,18 @@ class _MiniRail extends StatelessWidget {
     return SizedBox(
       height: 4,
       child: DecoratedBox(
-        decoration: BoxDecoration(color: AppColors.riser, borderRadius: BorderRadius.circular(999)),
+        decoration: BoxDecoration(
+          color: AppColors.riser,
+          borderRadius: BorderRadius.circular(999),
+        ),
         child: FractionallySizedBox(
           alignment: Alignment.centerLeft,
           widthFactor: fill.clamp(0, 1),
           child: DecoratedBox(
-            decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(999)),
+            decoration: BoxDecoration(
+              color: color,
+              borderRadius: BorderRadius.circular(999),
+            ),
             child: const SizedBox.expand(),
           ),
         ),
@@ -738,9 +808,23 @@ class _TagOk extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Container(width: 6, height: 6, decoration: const BoxDecoration(color: AppColors.cold, shape: BoxShape.circle)),
+          Container(
+            width: 6,
+            height: 6,
+            decoration: const BoxDecoration(
+              color: AppColors.cold,
+              shape: BoxShape.circle,
+            ),
+          ),
           const SizedBox(width: 6),
-          Text(text, style: AppText.data(size: 9, weight: FontWeight.w600, color: AppColors.coldLit)),
+          Text(
+            text,
+            style: AppText.data(
+              size: 9,
+              weight: FontWeight.w600,
+              color: AppColors.coldLit,
+            ),
+          ),
         ],
       ),
     );
@@ -777,13 +861,21 @@ class _ProviderRowState extends State<_ProviderRow> {
   Widget build(BuildContext context) {
     final leftTotal = widget.accounts
         .expand((a) => a.windows)
-        .where((w) => w.cap > 0 && w.kind != LimitKind.share && w.kind != LimitKind.extra)
+        .where(
+          (w) =>
+              w.cap > 0 &&
+              w.kind != LimitKind.share &&
+              w.kind != LimitKind.extra,
+        )
         .fold(0.0, (s, w) => s + windowRemaining(w));
     final pools = widget.runway.length;
     final hottest = widget.runway.isEmpty ? null : widget.runway.first;
     final rail = hottest == null
         ? AppColors.rule
-        : limitColor(hottest.window.fraction, exceeded: hottest.window.exceeded);
+        : limitColor(
+            hottest.window.fraction,
+            exceeded: hottest.window.exceeded,
+          );
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
@@ -793,12 +885,18 @@ class _ProviderRowState extends State<_ProviderRow> {
         child: Theme(
           data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
           child: ExpansionTile(
-            tilePadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+            tilePadding: const EdgeInsets.symmetric(
+              horizontal: 14,
+              vertical: 4,
+            ),
             childrenPadding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
             initiallyExpanded: _expanded,
             onExpansionChanged: (v) => setState(() => _expanded = v),
             leading: ProviderAvatar(platform: widget.platform, size: 26),
-            title: Text(providerName(widget.platform), style: AppText.data(size: 12, weight: FontWeight.w700)),
+            title: Text(
+              providerName(widget.platform),
+              style: AppText.data(size: 12, weight: FontWeight.w700),
+            ),
             subtitle: Text(
               '$pools pools · ${hottest == null ? 'healthy' : heatLabel(hottest.window.fraction, exceeded: hottest.window.exceeded).toLowerCase()}',
               style: AppText.data(size: 10, color: AppColors.haze),
@@ -807,8 +905,14 @@ class _ProviderRowState extends State<_ProviderRow> {
               crossAxisAlignment: CrossAxisAlignment.end,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(fmtCost(leftTotal), style: AppText.data(size: 12, weight: FontWeight.w700)),
-                Text('\$${(leftTotal / 100).toStringAsFixed(2)}/d', style: AppText.data(size: 9, color: AppColors.haze)),
+                Text(
+                  fmtCost(leftTotal),
+                  style: AppText.data(size: 12, weight: FontWeight.w700),
+                ),
+                Text(
+                  '\$${(leftTotal / 100).toStringAsFixed(2)}/d',
+                  style: AppText.data(size: 9, color: AppColors.haze),
+                ),
               ],
             ),
             children: [
@@ -837,12 +941,19 @@ class _ProviderRowState extends State<_ProviderRow> {
                           acc.account.label,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: AppText.data(size: 11, weight: FontWeight.w600),
+                          style: AppText.data(
+                            size: 11,
+                            weight: FontWeight.w600,
+                          ),
                         ),
                       ),
                       TextButton(
                         onPressed: () => Navigator.of(context).push(
-                          MaterialPageRoute<void>(builder: (_) => AccountDetailScreen(accountKey: acc.account.key)),
+                          MaterialPageRoute<void>(
+                            builder: (_) => AccountDetailScreen(
+                              accountKey: acc.account.key,
+                            ),
+                          ),
                         ),
                         child: const Text('Open'),
                       ),

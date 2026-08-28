@@ -41,6 +41,9 @@ class LimitWindow {
   final int resetAt; // ms epoch, 0 = none
   final bool exceeded;
   final LimitKind kind;
+  final int inputTokens;
+  final int outputTokens;
+  final int requests;
   const LimitWindow({
     required this.id,
     required this.label,
@@ -49,7 +52,12 @@ class LimitWindow {
     this.resetAt = 0,
     this.exceeded = false,
     this.kind = LimitKind.budget,
+    this.inputTokens = 0,
+    this.outputTokens = 0,
+    this.requests = 0,
   });
+
+  int get totalTokens => inputTokens + outputTokens;
 
   double get fraction => cap > 0 ? (used / cap).clamp(0.0, 1.0) : 0.0;
 
@@ -65,6 +73,9 @@ class LimitWindow {
     'resetAt': resetAt,
     'exceeded': exceeded,
     'kind': kind.name,
+    'inputTokens': inputTokens,
+    'outputTokens': outputTokens,
+    'requests': requests,
   };
 
   factory LimitWindow.fromJson(Map<String, dynamic> j) => LimitWindow(
@@ -75,6 +86,9 @@ class LimitWindow {
     resetAt: (j['resetAt'] as num?)?.toInt() ?? 0,
     exceeded: j['exceeded'] as bool? ?? false,
     kind: _kindFrom(j),
+    inputTokens: (j['inputTokens'] as num?)?.toInt() ?? 0,
+    outputTokens: (j['outputTokens'] as num?)?.toInt() ?? 0,
+    requests: (j['requests'] as num?)?.toInt() ?? 0,
   );
 
   static LimitKind _kindFrom(Map<String, dynamic> j) {

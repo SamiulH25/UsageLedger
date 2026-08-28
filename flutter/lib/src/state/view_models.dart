@@ -350,6 +350,10 @@ class AccountDetailState {
   final List<SnapshotRow> history;
   final List<({String day, double costUsd})> series;
   final double perDay;
+  final List<({String day, int inputTokens, int outputTokens, int requests})>
+  tokenSeries;
+  final double tokensPerDay;
+  final List<({String day, double costPer1k})> costPer1k;
   final String? token;
   final String? error;
 
@@ -360,6 +364,9 @@ class AccountDetailState {
     this.history = const [],
     this.series = const [],
     this.perDay = 0,
+    this.tokenSeries = const [],
+    this.tokensPerDay = 0,
+    this.costPer1k = const [],
     this.token,
     this.error,
   });
@@ -371,6 +378,10 @@ class AccountDetailState {
     List<SnapshotRow>? history,
     List<({String day, double costUsd})>? series,
     double? perDay,
+    List<({String day, int inputTokens, int outputTokens, int requests})>?
+    tokenSeries,
+    double? tokensPerDay,
+    List<({String day, double costPer1k})>? costPer1k,
     String? token,
     String? error,
     bool clearError = false,
@@ -381,6 +392,9 @@ class AccountDetailState {
     history: history ?? this.history,
     series: series ?? this.series,
     perDay: perDay ?? this.perDay,
+    tokenSeries: tokenSeries ?? this.tokenSeries,
+    tokensPerDay: tokensPerDay ?? this.tokensPerDay,
+    costPer1k: costPer1k ?? this.costPer1k,
     token: token ?? this.token,
     error: clearError ? null : error ?? this.error,
   );
@@ -407,6 +421,33 @@ class AccountDetailViewModel extends ChangeNotifier {
       final history = await _repo.historyFor(key, limit: 30);
       final series = await _repo.dailySpendFor(key);
       final pace = dailyPace(series);
+      final tokenSeries = await _repo.dailyTokensFor(key);
+      final tokenPace = dailyTokenPace(
+        tokenSeries
+            .map(
+              (e) => (
+                day: e.day,
+                inputTokens: e.inputTokens,
+                outputTokens: e.outputTokens,
+              ),
+            )
+            .toList(),
+      );
+      final costPer1k = costPer1kSeries([
+        for (final d in series)
+          (
+            day: d.day,
+            costUsd: d.costUsd,
+            inputTokens: tokenSeries
+                .where((t) => t.day == d.day)
+                .map((t) => t.inputTokens)
+                .fold<int>(0, (a, b) => a + b),
+            outputTokens: tokenSeries
+                .where((t) => t.day == d.day)
+                .map((t) => t.outputTokens)
+                .fold<int>(0, (a, b) => a + b),
+          ),
+      ]);
       final token = await _repo.tokenFor(key);
       _state = AccountDetailState(
         loading: false,
@@ -415,6 +456,9 @@ class AccountDetailViewModel extends ChangeNotifier {
         history: history,
         series: series,
         perDay: pace.perDay,
+        tokenSeries: tokenSeries,
+        tokensPerDay: tokenPace.tokensPerDay,
+        costPer1k: costPer1k,
         token: token,
       );
     } catch (e) {

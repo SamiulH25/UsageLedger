@@ -257,7 +257,9 @@ ThemeData buildTheme() {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppRadius.control),
         ),
-        textStyle: AppText.tag(size: 11.5).copyWith(fontWeight: FontWeight.w700),
+        textStyle: AppText.tag(
+          size: 11.5,
+        ).copyWith(fontWeight: FontWeight.w700),
       ),
     ),
     outlinedButtonTheme: OutlinedButtonThemeData(
@@ -329,9 +331,8 @@ ThemeData buildTheme() {
     ),
     switchTheme: SwitchThemeData(
       thumbColor: WidgetStateProperty.resolveWith(
-        (s) => s.contains(WidgetState.selected)
-            ? AppColors.abyss
-            : AppColors.haze,
+        (s) =>
+            s.contains(WidgetState.selected) ? AppColors.abyss : AppColors.haze,
       ),
       trackColor: WidgetStateProperty.resolveWith(
         (s) =>

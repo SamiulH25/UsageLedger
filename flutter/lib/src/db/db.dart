@@ -381,6 +381,89 @@ Future<List<({String day, double costUsd})>> dailySpend({
   return out;
 }
 
+/// Per-day tokens/requests: same dedup + delta shape as dailySpend.
+Future<List<({String day, int inputTokens, int outputTokens, int requests})>>
+dailyTokens({String? accountKey}) async {
+  final db = await getDb();
+  final rows = await db.rawQuery('''
+    SELECT s.account_key AS account_key, m.day AS day,
+           s.input_tokens AS input_tokens, s.output_tokens AS output_tokens,
+           s.requests AS requests
+    FROM usage_snapshot s
+    JOIN (
+      SELECT account_key,
+             strftime('%Y-%m-%d', captured_at / 1000, 'unixepoch', 'localtime') AS day,
+             MAX(id) AS id
+      FROM usage_snapshot
+      ${accountKey == null ? '' : 'WHERE account_key = ?'}
+      GROUP BY account_key, day
+    ) m ON m.id = s.id
+    ORDER BY s.account_key, m.day
+    ''', accountKey == null ? const [] : [accountKey]);
+
+  final byDay = <String, ({int inputTokens, int outputTokens, int requests})>{};
+  String? firstDay;
+  String? account;
+  String? prevDay;
+  var prevIn = 0, prevOut = 0, prevReq = 0;
+  for (final r in rows) {
+    final a = r['account_key'] as String;
+    final day = r['day'] as String;
+    final curIn = (r['input_tokens'] as num?)?.toInt() ?? 0;
+    final curOut = (r['output_tokens'] as num?)?.toInt() ?? 0;
+    final curReq = (r['requests'] as num?)?.toInt() ?? 0;
+    if (a != account) {
+      account = a;
+      prevDay = null;
+      prevIn = 0;
+      prevOut = 0;
+      prevReq = 0;
+    }
+    if (prevDay != null) {
+      final dIn = curIn >= prevIn ? curIn - prevIn : curIn;
+      final dOut = curOut >= prevOut ? curOut - prevOut : curOut;
+      final dReq = curReq >= prevReq ? curReq - prevReq : curReq;
+      if (dIn > 0 || dOut > 0 || dReq > 0) {
+        final prev = byDay[day];
+        byDay[day] = (
+          inputTokens: (prev?.inputTokens ?? 0) + dIn,
+          outputTokens: (prev?.outputTokens ?? 0) + dOut,
+          requests: (prev?.requests ?? 0) + dReq,
+        );
+      }
+    }
+    prevIn = curIn;
+    prevOut = curOut;
+    prevReq = curReq;
+    prevDay = day;
+    firstDay ??= day;
+    if (!byDay.containsKey(day)) {
+      byDay[day] = (inputTokens: 0, outputTokens: 0, requests: 0);
+    }
+  }
+  if (byDay.isEmpty) return const [];
+  final lastDay = prevDay!;
+  final out =
+      <({String day, int inputTokens, int outputTokens, int requests})>[];
+  var cursor = DateTime.parse(firstDay!);
+  final end = DateTime.parse(lastDay);
+  while (!cursor.isAfter(end)) {
+    final key =
+        '${cursor.year.toString().padLeft(4, '0')}-'
+        '${cursor.month.toString().padLeft(2, '0')}-'
+        '${cursor.day.toString().padLeft(2, '0')}';
+    final v = byDay[key];
+    out.add((
+      day: key,
+      inputTokens: v?.inputTokens ?? 0,
+      outputTokens: v?.outputTokens ?? 0,
+      requests: v?.requests ?? 0,
+    ));
+    cursor = cursor.add(const Duration(days: 1));
+  }
+  return out;
+}
+
 /// Full snapshot history for one account, newest first.
 Future<List<SnapshotRow>> snapshotHistory(
   String accountKey, {

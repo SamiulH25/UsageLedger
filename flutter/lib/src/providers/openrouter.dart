@@ -141,18 +141,7 @@ class OpenRouterProvider implements AiProvider {
       );
     }
     final credits = totalCredits;
-    if (credits != null && credits > 0) {
-      windows.add(
-        LimitWindow(
-          id: 'openrouter:credits',
-          label: 'Credits',
-          used: totalUsage,
-          cap: credits,
-          kind: LimitKind.budget,
-        ),
-      );
-    }
-
+    final creditsPending = credits != null && credits > 0;
     // Per-model history: last 30 UTC days, one row per (date, model, endpoint).
     // Management keys only — regular keys get 403 and keep key-quota-only
     // data; the API exposes no token history to them.
@@ -188,6 +177,21 @@ class OpenRouterProvider implements AiProvider {
     models
       ..addAll(byModel.values)
       ..sort((a, b) => b.costUsd.compareTo(a.costUsd));
+
+    if (creditsPending) {
+      windows.add(
+        LimitWindow(
+          id: 'openrouter:credits',
+          label: 'Credits',
+          used: totalUsage,
+          cap: totalCredits!,
+          kind: LimitKind.budget,
+          inputTokens: inputTokens,
+          outputTokens: outputTokens,
+          requests: requests,
+        ),
+      );
+    }
 
     return ProviderUsage(
       totals: UsageTotals(

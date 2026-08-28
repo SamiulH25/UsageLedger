@@ -168,8 +168,7 @@ class AccountsScreen extends StatelessWidget {
         return c != 0 ? c : a.compareTo(b);
       });
     return [
-      for (final platform in platforms)
-        (platform, byPlatform[platform]!),
+      for (final platform in platforms) (platform, byPlatform[platform]!),
     ];
   }
 
@@ -282,7 +281,9 @@ class AccountsScreen extends StatelessWidget {
             obscureText: true,
             decoration: InputDecoration(
               labelText: 'New API key',
-              helperText: providerById(row.data.account.platform)?.howToGetToken,
+              helperText: providerById(
+                row.data.account.platform,
+              )?.howToGetToken,
             ),
             onSubmitted: (value) => Navigator.pop(dialogContext, value),
           ),

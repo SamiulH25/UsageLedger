@@ -167,13 +167,16 @@ class AnthropicProvider implements AiProvider {
           ..sort((a, b) => b.totalTokens.compareTo(a.totalTokens));
 
     final windows = <LimitWindow>[
-      if (monthCost > 0)
+      if (monthCost > 0 || inputTokens > 0 || outputTokens > 0)
         LimitWindow(
           id: 'anthropic:month',
           label: 'This month',
           used: monthCost,
           cap: 0,
           kind: LimitKind.extra,
+          inputTokens: inputTokens,
+          outputTokens: outputTokens,
+          requests: requests,
         ),
     ];
 

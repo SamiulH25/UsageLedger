@@ -131,6 +131,9 @@ class CommandCodeProvider implements AiProvider {
           resetAt: periodEnd,
           exceeded: remaining <= 0 && usedThisPeriod > 0,
           kind: LimitKind.budget,
+          inputTokens: (summary['totalTokensIn'] as num?)?.toInt() ?? 0,
+          outputTokens: (summary['totalTokensOut'] as num?)?.toInt() ?? 0,
+          requests: (summary['totalCount'] as num?)?.toInt() ?? 0,
         ),
       );
     }

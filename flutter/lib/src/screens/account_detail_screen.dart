@@ -107,9 +107,8 @@ class _AccountDetailScreenState extends State<AccountDetailScreen> {
             outlook: PoolOutlook.forWindow(window, state.perDay),
           ),
     ];
-    final budgets =
-        windows.where((w) => w.kind == LimitKind.budget).toList()
-          ..sort((a, b) => b.fraction.compareTo(a.fraction));
+    final budgets = windows.where((w) => w.kind == LimitKind.budget).toList()
+      ..sort((a, b) => b.fraction.compareTo(a.fraction));
     final shares = windows.where((w) => w.kind == LimitKind.share).toList();
     final bursts =
         windows.where((w) => w.kind == LimitKind.burst && !w.idle).toList()
@@ -183,7 +182,9 @@ class _AccountDetailScreenState extends State<AccountDetailScreen> {
               // status colour, with spend pushed into the context line.
               Readout(
                 eyebrow: 'LEFT ACROSS POOLS',
-                value: leftTotal > 0 ? fmtCost(leftTotal) : fmtCost(latest?.costUsd ?? 0),
+                value: leftTotal > 0
+                    ? fmtCost(leftTotal)
+                    : fmtCost(latest?.costUsd ?? 0),
                 detail: [
                   if (latest != null && latest.costUsd > 0)
                     '${fmtCost(latest.costUsd)} tracked spend',
@@ -277,7 +278,9 @@ class _AccountDetailScreenState extends State<AccountDetailScreen> {
             padding: const EdgeInsets.only(top: 12),
             child: Row(
               children: [
-                Expanded(child: Text('EXTRA USAGE', style: AppText.tag(size: 9.5))),
+                Expanded(
+                  child: Text('EXTRA USAGE', style: AppText.tag(size: 9.5)),
+                ),
                 Text(
                   fmtCost(extra.used),
                   style: AppText.data(
@@ -321,11 +324,35 @@ class _AccountDetailScreenState extends State<AccountDetailScreen> {
             ),
           ),
         ],
+        if (state.tokenSeries.any(
+          (p) => p.inputTokens + p.outputTokens > 0,
+        )) ...[
+          const SectionHeader(title: 'Token ledger', trailing: 'daily in/out'),
+          ThermalCard(child: TokenChart(series: state.tokenSeries)),
+        ],
+        if (state.costPer1k.any((p) => p.costPer1k > 0)) ...[
+          const SectionHeader(title: 'Cost per 1k', trailing: 'efficiency'),
+          ThermalCard(child: CostPer1kSparkline(series: state.costPer1k)),
+        ],
+        if (state.tokensPerDay > 0) ...[
+          Padding(
+            padding: const EdgeInsets.only(top: 12),
+            child: Text(
+              '${fmtTokens(state.tokensPerDay.round())} tok/day · ${_avgCostPer1kLabel(state.costPer1k)}',
+              style: AppText.data(size: 11, color: AppColors.haze),
+            ),
+          ),
+        ],
         if (latest != null &&
             (latest.inputTokens > 0 ||
                 latest.outputTokens > 0 ||
                 latest.requests > 0)) ...[
-          const SectionHeader(title: 'Traffic', trailing: 'latest snapshot'),
+          SectionHeader(
+            title: 'Traffic',
+            trailing: _monthlyWindow(latest.windows) != null
+                ? 'this month'
+                : 'latest snapshot',
+          ),
           ThermalCard(
             child: MetricRow(
               metrics: [
@@ -363,7 +390,9 @@ class _AccountDetailScreenState extends State<AccountDetailScreen> {
 
   Widget _missingState(BuildContext context, String? error) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.pageHorizontal),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.pageHorizontal,
+      ),
       child: EmptyState(
         icon: error == null
             ? Icons.link_off_rounded
@@ -404,11 +433,26 @@ class _AccountDetailScreenState extends State<AccountDetailScreen> {
       LimitKind.share => 2,
       LimitKind.extra => 3,
     };
-    return windows.where((window) => !window.idle).toList()
-      ..sort((a, b) {
-        final c = rank(a.kind).compareTo(rank(b.kind));
-        return c != 0 ? c : b.fraction.compareTo(a.fraction);
-      });
+    return windows.where((window) => !window.idle).toList()..sort((a, b) {
+      final c = rank(a.kind).compareTo(rank(b.kind));
+      return c != 0 ? c : b.fraction.compareTo(a.fraction);
+    });
+  }
+
+  LimitWindow? _monthlyWindow(List<LimitWindow> windows) {
+    for (final w in windows) {
+      if (w.id.endsWith(':monthly') || w.label == 'This month') return w;
+    }
+    return null;
+  }
+
+  String _avgCostPer1kLabel(List<({String day, double costPer1k})> series) {
+    final vals = [
+      for (final p in series) p.costPer1k,
+    ].where((v) => v > 0).toList();
+    if (vals.isEmpty) return 'no cost/1k yet';
+    final avg = vals.reduce((a, b) => a + b) / vals.length;
+    return '${fmtCost(avg)}/1k avg';
   }
 
   double? _caret(LimitWindow window, double perDay) {

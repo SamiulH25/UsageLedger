@@ -70,7 +70,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   ),
                   const SizedBox(height: 20),
                   SegmentedControl<int>(
-                    options: const [(7, '7 DAYS'), (30, '30 DAYS'), (0, 'EVERYTHING')],
+                    options: const [
+                      (7, '7 DAYS'),
+                      (30, '30 DAYS'),
+                      (0, 'EVERYTHING'),
+                    ],
                     selected: vm.rangeDays,
                     onSelect: (days) => vm.setRange(days),
                   ),
@@ -80,7 +84,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
                       options: present,
                       selected: active,
                       onSelect: (p) => setState(() => _platformFilter = p),
-                      label: (p) => p == 'all' ? 'ALL' : providerName(p).toUpperCase(),
+                      label: (p) =>
+                          p == 'all' ? 'ALL' : providerName(p).toUpperCase(),
                     ),
                   ],
                   if (vm.error != null) ...[
@@ -172,9 +177,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
         if (day.entries.any((e) => e.platform == platform))
           HistoryDay(
             day: day.day,
-            entries: day.entries
-                .where((e) => e.platform == platform)
-                .toList(),
+            entries: day.entries.where((e) => e.platform == platform).toList(),
           ),
     ];
   }
@@ -238,76 +241,76 @@ class _HistoryDayHeader extends StatelessWidget {
   }
 }
 
+Widget _entryTile(
+  BuildContext context,
+  SnapshotRow entry,
+  Map<String, String> labels,
+) {
+  final when = DateTime.fromMillisecondsSinceEpoch(entry.capturedAt).toLocal();
+  final stamp =
+      '${when.hour.toString().padLeft(2, '0')}:'
+      '${when.minute.toString().padLeft(2, '0')}';
+  final pools = entry.windows.where((w) => w.cap > 0).toList();
 
-
-Widget _entryTile(BuildContext context, SnapshotRow entry, Map<String, String> labels) {
-    final when = DateTime.fromMillisecondsSinceEpoch(
-      entry.capturedAt,
-    ).toLocal();
-    final stamp =
-        '${when.hour.toString().padLeft(2, '0')}:'
-        '${when.minute.toString().padLeft(2, '0')}';
-    final pools = entry.windows.where((w) => w.cap > 0).toList();
-
-    return Theme(
-      data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-      child: ExpansionTile(
-        tilePadding: const EdgeInsets.fromLTRB(14, 2, 10, 2),
-        childrenPadding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
-        showTrailingIcon: pools.isNotEmpty || entry.models.isNotEmpty,
-        leading: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              stamp,
-              style: AppText.data(
-                size: 11.5,
-                weight: FontWeight.w700,
-                color: AppColors.haze,
-              ),
-            ),
-          ],
-        ),
-        title: Text(
-          labels[entry.accountKey] ?? entry.accountKey,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: AppText.body(
-            size: 13,
-            color: AppColors.beam,
-            weight: FontWeight.w500,
-          ),
-        ),
-        subtitle: Text(
-          '${fmtTokens(entry.inputTokens + entry.outputTokens)} tok · '
-          '${entry.requests} req',
-          style: AppText.data(size: 10.5, color: AppColors.haze),
-        ),
-        trailing: Text(
-          fmtCost(entry.costUsd),
-          style: AppText.data(size: 13, weight: FontWeight.w700),
-        ),
+  return Theme(
+    data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+    child: ExpansionTile(
+      tilePadding: const EdgeInsets.fromLTRB(14, 2, 10, 2),
+      childrenPadding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
+      showTrailingIcon: pools.isNotEmpty || entry.models.isNotEmpty,
+      leading: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          for (final window in pools)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: PoolGauge(window: window, compact: true),
+          Text(
+            stamp,
+            style: AppText.data(
+              size: 11.5,
+              weight: FontWeight.w700,
+              color: AppColors.haze,
             ),
-          if (entry.models.isNotEmpty)
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                entry.models
-                    .map((m) => '${m.model} ${fmtCost(m.costUsd)}')
-                    .join('   ·   '),
-                style: AppText.data(
-                  size: 10.5,
-                  color: AppColors.haze,
-                  height: 1.7,
-                ),
-              ),
-            ),
+          ),
         ],
       ),
-    );
-  }
+      title: Text(
+        labels[entry.accountKey] ?? entry.accountKey,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: AppText.body(
+          size: 13,
+          color: AppColors.beam,
+          weight: FontWeight.w500,
+        ),
+      ),
+      subtitle: Text(
+        '${fmtTokens(entry.inputTokens + entry.outputTokens)} tok · '
+        '${entry.requests} req',
+        style: AppText.data(size: 10.5, color: AppColors.haze),
+      ),
+      trailing: Text(
+        fmtCost(entry.costUsd),
+        style: AppText.data(size: 13, weight: FontWeight.w700),
+      ),
+      children: [
+        for (final window in pools)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: PoolGauge(window: window, compact: true),
+          ),
+        if (entry.models.isNotEmpty)
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              entry.models
+                  .map((m) => '${m.model} ${fmtCost(m.costUsd)}')
+                  .join('   ·   '),
+              style: AppText.data(
+                size: 10.5,
+                color: AppColors.haze,
+                height: 1.7,
+              ),
+            ),
+          ),
+      ],
+    ),
+  );
+}

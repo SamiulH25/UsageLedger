@@ -170,7 +170,10 @@ class RunwayLane extends StatelessWidget {
                   ),
                   if (reset != null)
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
                       decoration: BoxDecoration(
                         color: AppColors.riser,
                         borderRadius: BorderRadius.circular(3),
@@ -250,10 +253,7 @@ class _RunwayPainter extends CustomPainter {
 
     // Bed.
     canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        Rect.fromLTWH(0, 0, laneW, size.height),
-        radius,
-      ),
+      RRect.fromRectAndRadius(Rect.fromLTWH(0, 0, laneW, size.height), radius),
       Paint()..color = AppColors.riser,
     );
 
@@ -354,14 +354,16 @@ class PoolGauge extends StatelessWidget {
     final textColor = limitTextColor(f, exceeded: window.exceeded);
     final reset = fmtResetAt(window.resetAt);
 
+    final tokenLine = _tokenLine(window);
     final semanticStatus = window.cap > 0
         ? '${fmtPct(f)} used, ${fmtLeft(window)}'
         : '${fmtCost(window.used)} spent, uncapped';
+    final tokenSemantic = tokenLine == null ? '' : ', $tokenLine';
 
     return Semantics(
       container: true,
       label:
-          '${window.label}: $semanticStatus${reset.isEmpty ? '' : ', $reset'}.',
+          '${window.label}: $semanticStatus$tokenSemantic${reset.isEmpty ? '' : ', $reset'}.',
       child: ExcludeSemantics(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -396,6 +398,18 @@ class PoolGauge extends StatelessWidget {
                           ),
                         ),
                       ],
+                      if (tokenLine != null) ...[
+                        const SizedBox(height: 3),
+                        Text(
+                          tokenLine,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppText.data(
+                            size: compact ? 9 : 10,
+                            color: AppColors.haze,
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -413,7 +427,10 @@ class PoolGauge extends StatelessWidget {
                           color: textColor,
                         ),
                       ),
-                      Text('LEFT', style: AppText.tag(size: 8, color: textColor)),
+                      Text(
+                        'LEFT',
+                        style: AppText.tag(size: 8, color: textColor),
+                      ),
                     ],
                   )
                 else
@@ -457,6 +474,22 @@ class PoolGauge extends StatelessWidget {
       ),
     );
   }
+}
+
+String? _tokenLine(LimitWindow window) {
+  final total = window.totalTokens;
+  final req = window.requests;
+  if (total <= 0 && req <= 0) return null;
+  if (window.id.endsWith(':monthly') || window.label == 'This month') {
+    if (total <= 0 && req > 0) return '$req req this month';
+    if (req > 0) return '${fmtTokens(total)} tok · $req req this month';
+    return '${fmtTokens(total)} tok this month';
+  }
+  if (window.id == 'openrouter:credits' || window.id == 'cursor:included') {
+    if (req > 0) return '${fmtTokens(total)} tok · $req req';
+    return '${fmtTokens(total)} tok';
+  }
+  return null;
 }
 
 /// A single filled track. Animates to its value and honours reduced motion.
@@ -904,7 +937,9 @@ class AppBrandBar extends StatelessWidget {
         Expanded(
           child: TweenAnimationBuilder<double>(
             tween: Tween(begin: 1, end: collapsed ? 0 : 1),
-            duration: animate ? const Duration(milliseconds: 220) : Duration.zero,
+            duration: animate
+                ? const Duration(milliseconds: 220)
+                : Duration.zero,
             curve: AppMotion.curve,
             builder: (context, t, _) => Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -919,10 +954,7 @@ class AppBrandBar extends StatelessWidget {
                         alignment: Alignment.centerLeft,
                         child: Text(
                           'USAGE',
-                          style: AppText.tag(
-                            color: AppColors.coldLit,
-                            size: 9,
-                          ),
+                          style: AppText.tag(color: AppColors.coldLit, size: 9),
                         ),
                       ),
                     ),
@@ -1151,23 +1183,21 @@ class InlineMessage extends StatelessWidget {
         action: action,
       );
 
-  factory InlineMessage.info(String message, {Widget? action}) =>
-      InlineMessage(
-        message: message,
-        icon: Icons.info_outline_rounded,
-        tone: AppColors.coldLit,
-        background: AppColors.coldSoft,
-        action: action,
-      );
+  factory InlineMessage.info(String message, {Widget? action}) => InlineMessage(
+    message: message,
+    icon: Icons.info_outline_rounded,
+    tone: AppColors.coldLit,
+    background: AppColors.coldSoft,
+    action: action,
+  );
 
-  factory InlineMessage.warn(String message, {Widget? action}) =>
-      InlineMessage(
-        message: message,
-        icon: Icons.warning_amber_rounded,
-        tone: AppColors.warm,
-        background: AppColors.warmSoft,
-        action: action,
-      );
+  factory InlineMessage.warn(String message, {Widget? action}) => InlineMessage(
+    message: message,
+    icon: Icons.warning_amber_rounded,
+    tone: AppColors.warm,
+    background: AppColors.warmSoft,
+    action: action,
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -1227,7 +1257,10 @@ class SectionHeader extends StatelessWidget {
           const Expanded(child: Divider(height: 1)),
           if (trailing != null) ...[
             const SizedBox(width: 12),
-            Text(trailing!, style: AppText.data(size: 10, color: AppColors.haze)),
+            Text(
+              trailing!,
+              style: AppText.data(size: 10, color: AppColors.haze),
+            ),
           ],
         ],
       ),
@@ -1295,10 +1328,8 @@ class DottedEdge extends StatelessWidget {
   const DottedEdge({super.key, required this.child});
 
   @override
-  Widget build(BuildContext context) => CustomPaint(
-    painter: _DashedBorderPainter(),
-    child: child,
-  );
+  Widget build(BuildContext context) =>
+      CustomPaint(painter: _DashedBorderPainter(), child: child);
 }
 
 class _DashedBorderPainter extends CustomPainter {
@@ -1478,7 +1509,9 @@ class _ProviderSectionState extends State<ProviderSection> {
     var urgent = false;
     for (final card in widget.accounts) {
       for (final w in card.windows) {
-        if (w.cap > 0 && w.kind != LimitKind.share && w.kind != LimitKind.extra) {
+        if (w.cap > 0 &&
+            w.kind != LimitKind.share &&
+            w.kind != LimitKind.extra) {
           left += windowRemaining(w);
           if (w.hot) urgent = true;
         }
@@ -1508,7 +1541,11 @@ class _ProviderSectionState extends State<ProviderSection> {
             const SizedBox(width: 8),
             Text(
               left > 0 ? '${fmtCost(left)} left' : 'no limits',
-              style: AppText.data(size: 13, weight: FontWeight.w700, color: color),
+              style: AppText.data(
+                size: 13,
+                weight: FontWeight.w700,
+                color: color,
+              ),
             ),
           ],
         ),
@@ -1590,9 +1627,10 @@ class AccountUsageCard extends StatelessWidget {
     // a single health scan.
     final hottest = [...budgets, ...bursts].isEmpty
         ? null
-        : [...budgets, ...bursts].reduce(
-            (a, b) => a.fraction >= b.fraction ? a : b,
-          );
+        : [
+            ...budgets,
+            ...bursts,
+          ].reduce((a, b) => a.fraction >= b.fraction ? a : b);
     final rail = failed
         ? AppColors.hot
         : hottest == null
@@ -1822,7 +1860,10 @@ class ModelBreakdownPanel extends StatelessWidget {
         children: [
           Row(
             children: [
-              Text(title, style: AppText.tag(color: AppColors.coldLit, size: 9.5)),
+              Text(
+                title,
+                style: AppText.tag(color: AppColors.coldLit, size: 9.5),
+              ),
               const SizedBox(width: 10),
               const Expanded(child: Divider(height: 1)),
               const SizedBox(width: 10),
@@ -2099,11 +2140,7 @@ class StickySectionHeader extends StatelessWidget {
   final String title;
   final String? trailing;
 
-  const StickySectionHeader({
-    super.key,
-    required this.title,
-    this.trailing,
-  });
+  const StickySectionHeader({super.key, required this.title, this.trailing});
 
   @override
   Widget build(BuildContext context) {
@@ -2142,11 +2179,17 @@ class RunwayLegend extends StatelessWidget {
         children: [
           _dot(AppColors.cold),
           const SizedBox(width: 6),
-          Text('will last', style: AppText.data(size: 9.5, color: AppColors.haze)),
+          Text(
+            'will last',
+            style: AppText.data(size: 9.5, color: AppColors.haze),
+          ),
           const SizedBox(width: 14),
           _hatchDot(),
           const SizedBox(width: 6),
-          Text('dead time', style: AppText.data(size: 9.5, color: AppColors.haze)),
+          Text(
+            'dead time',
+            style: AppText.data(size: 9.5, color: AppColors.haze),
+          ),
           const Spacer(),
           Container(width: 3, height: 12, color: AppColors.haze),
           const SizedBox(width: 6),
@@ -2159,10 +2202,7 @@ class RunwayLegend extends StatelessWidget {
   Widget _dot(Color c) => Container(
     width: 10,
     height: 6,
-    decoration: BoxDecoration(
-      color: c,
-      borderRadius: BorderRadius.circular(2),
-    ),
+    decoration: BoxDecoration(color: c, borderRadius: BorderRadius.circular(2)),
   );
 
   Widget _hatchDot() => SizedBox(
@@ -2178,10 +2218,7 @@ class _HatchLegendPainter extends CustomPainter {
     canvas.clipRRect(
       RRect.fromRectAndRadius(Offset.zero & size, const Radius.circular(2)),
     );
-    canvas.drawRect(
-      Offset.zero & size,
-      Paint()..color = AppColors.riser,
-    );
+    canvas.drawRect(Offset.zero & size, Paint()..color = AppColors.riser);
     final paint = Paint()
       ..color = AppColors.rule
       ..strokeWidth = 1;

@@ -41,6 +41,58 @@ import '../providers/types.dart';
   return (perDay: perDay, windowDays: windowDays);
 }
 
+({double tokensPerDay, int windowDays}) dailyTokenPace(
+  List<({String day, int inputTokens, int outputTokens})> series, {
+  int windowDays = 3,
+  DateTime? now,
+}) {
+  now ??= DateTime.now();
+  final today = DateTime(now.year, now.month, now.day);
+  final points =
+      series
+          .map(
+            (e) => (
+              day: DateTime.parse(e.day),
+              cost: (e.inputTokens + e.outputTokens).toDouble(),
+            ),
+          )
+          .toList()
+        ..sort((a, b) => a.day.compareTo(b.day));
+  final past = points
+      .where((p) => p.day.isBefore(today))
+      .map((p) => p.cost)
+      .toList();
+  if (past.isEmpty) return (tokensPerDay: 0, windowDays: windowDays);
+  final recent = past.length > windowDays
+      ? past.sublist(past.length - windowDays)
+      : past;
+  var perDay = recent.fold<double>(0, (s, c) => s + c) / recent.length;
+  final last = points.last;
+  if (last.day == today) {
+    final fractionOfDay = (now.hour * 60 + now.minute) / 1440.0;
+    if (fractionOfDay > 0.25 && fractionOfDay < 1) {
+      final capped = (last.cost / fractionOfDay).clamp(0.0, perDay * 3);
+      perDay = (perDay * recent.length + capped) / (recent.length + 1);
+    }
+  }
+  return (tokensPerDay: perDay, windowDays: windowDays);
+}
+
+List<({String day, double costPer1k})> costPer1kSeries(
+  List<({String day, double costUsd, int inputTokens, int outputTokens})>
+  joined,
+) {
+  return [
+    for (final p in joined)
+      (
+        day: p.day,
+        costPer1k: (p.inputTokens + p.outputTokens) > 0
+            ? p.costUsd / ((p.inputTokens + p.outputTokens) / 1000)
+            : 0.0,
+      ),
+  ];
+}
+
 /// Verdict for one budget pool at the current burn rate.
 class PoolOutlook {
   final double used;

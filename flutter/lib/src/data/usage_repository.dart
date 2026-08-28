@@ -88,6 +88,12 @@ class UsageRepository {
     String accountKey,
   ) => db.dailySpend(accountKey: accountKey);
 
+  Future<List<({String day, int inputTokens, int outputTokens, int requests})>>
+  dailyTokens() => db.dailyTokens();
+
+  Future<List<({String day, int inputTokens, int outputTokens, int requests})>>
+  dailyTokensFor(String accountKey) => db.dailyTokens(accountKey: accountKey);
+
   Future<({double costUsd, int requests, int inputTokens, int outputTokens})>
   totals() => db.aggregated();
 
